@@ -1,0 +1,10 @@
+[package]
+name = "minicbor-schema"
+version = "0.0.0"
+edition = "2024"
+
+[workspace]
+members = ["minicbor-schema-derive"]
+
+[dependencies]
+minicbor-schema-derive = {path = "minicbor-schema-derive"}
