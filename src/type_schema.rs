@@ -1,63 +1,60 @@
-mod r#enum;
-mod r#struct;
-use super::Schema;
-pub use self::{r#enum::*, r#struct::*};
+mod flavor;
+mod primitive_impls;
+
+pub use flavor::*;
 
 #[derive(Debug)]
-pub enum TypeSchema {
+pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Bool,
+    Str,
+    Char,
+
     U8,
     U16,
     U32,
+    U64,
+    I8,
+    I16,
     I32,
     I64,
+    F32,
+    F64,
 
     Array {
-        element: &'static TypeSchema,
+        element: F::Ptr<TypeSchema<'s, F>>,
         len: usize,
     },
 
     Slice {
-        element: &'static TypeSchema,
+        element: F::Ptr<TypeSchema<'s, F>>,
     },
 
-    MapStruct(&'static MapStructSchema),
-    ArrayStruct(&'static ArrayStructSchema),
-
-    MapEnum(&'static MapEnumSchema),
-    ArrayEnum(&'static ArrayEnumSchema),
+    Struct(F::Ptr<StructSchema<'s, F>>),
+    Enum(F::Ptr<EnumSchema<'s, F>>),
 }
 
-macro_rules! primitive_schema {
-    ($ty:ty, $variant:ident) => {
-        impl Schema for $ty {
-            const SCHEMA: &'static TypeSchema = &TypeSchema::$variant;
-        }
-    };
+#[derive(Debug)]
+pub struct StructSchema<'s, F: flavor::SchemaFlavor<'s>> {
+    pub name: F::Str,
+    pub fields: F::List<FieldSchema<'s, F>>,
 }
 
-primitive_schema!(bool, Bool);
-primitive_schema!(u8, U8);
-primitive_schema!(u16, U16);
-primitive_schema!(u32, U32);
-primitive_schema!(i32, I32);
-primitive_schema!(i64, I64);
-
-impl<T: Schema, const N: usize> Schema for [T; N] {
-    const SCHEMA: &'static TypeSchema = &TypeSchema::Array {
-        element: T::SCHEMA,
-        len: N,
-    };
+#[derive(Debug)]
+pub struct FieldSchema<'s, F: flavor::SchemaFlavor<'s>> {
+    pub name: F::Str,
+    pub key: u32,
+    pub ty: F::Ptr<TypeSchema<'s, F>>,
 }
 
-impl<T: Schema> Schema for [T] {
-    const SCHEMA: &'static TypeSchema = &TypeSchema::Slice { element: T::SCHEMA };
+#[derive(Debug)]
+pub struct EnumSchema<'s, F: flavor::SchemaFlavor<'s>> {
+    pub name: F::Str,
+    pub variants: F::List<VariantSchema<'s, F>>,
 }
 
-impl<T: Schema> Schema for &T {
-    const SCHEMA: &'static TypeSchema = T::SCHEMA;
-}
-
-impl<T: Schema> Schema for &mut T {
-    const SCHEMA: &'static TypeSchema = T::SCHEMA;
+#[derive(Debug)]
+pub struct VariantSchema<'s, F: flavor::SchemaFlavor<'s>> {
+    pub name: F::Str,
+    pub key: u32,
+    pub payload: Option<F::Ptr<TypeSchema<'s, F>>>,
 }
