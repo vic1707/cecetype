@@ -8,6 +8,7 @@ macro_rules! primitive_schema {
     };
 }
 
+primitive_schema!((), Unit);
 primitive_schema!(bool, Bool);
 primitive_schema!(u8, U8);
 primitive_schema!(u16, U16);

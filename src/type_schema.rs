@@ -5,7 +5,10 @@ pub use flavor::*;
 
 #[derive(Debug)]
 pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
+    Unit,
+
     Bool,
+
     Str,
     Char,
 
@@ -29,7 +32,12 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
         element: F::Ptr<TypeSchema<'s, F>>,
     },
 
+    Tuple {
+        elements: F::List<TypeSchema<'s, F>>,
+    },
+
     Struct(F::Ptr<StructSchema<'s, F>>),
+
     Enum(F::Ptr<EnumSchema<'s, F>>),
 }
 
@@ -67,6 +75,7 @@ where
         use core::ops::Deref as _;
 
         match self {
+            TypeSchema::Unit => write!(f, "()"),
             TypeSchema::Bool => write!(f, "bool"),
             TypeSchema::Str => write!(f, "str"),
             TypeSchema::Char => write!(f, "char"),
@@ -90,6 +99,19 @@ where
 
             TypeSchema::Slice { element } => {
                 write!(f, "[{}]", element.deref())
+            }
+
+            TypeSchema::Tuple { elements } => {
+                write!(f, "(")?;
+
+                for (i, elem) in elements.deref().iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", elem)?;
+                }
+
+                write!(f, ")")
             }
 
             TypeSchema::Struct(s) => write!(f, "{}", s.deref()),
