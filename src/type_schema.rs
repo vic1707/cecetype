@@ -55,7 +55,7 @@ pub struct EnumSchema<'s, F: flavor::SchemaFlavor<'s>> {
 #[derive(Debug)]
 pub struct VariantSchema<'s, F: flavor::SchemaFlavor<'s>> {
     pub name: F::Str,
-    pub key: u32,
+    pub key: i32,
     pub payload: Option<F::Ptr<TypeSchema<'s, F>>>,
 }
 
