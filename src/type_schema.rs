@@ -183,13 +183,16 @@ where
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use core::ops::Deref as _;
 
-        writeln!(f, "struct {} {{", &*self.name)?;
+        write!(f, "{} {{ ", &*self.name)?;
 
-        for field in self.fields.deref() {
-            writeln!(f, "  {}: {},", &*field.name, field.ty.deref())?;
+        for (idx, field) in self.fields.deref().iter().enumerate() {
+            if idx != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}: {}", &*field.name, field.ty.deref())?;
         }
 
-        write!(f, "}}")
+        write!(f, " }}")
     }
 }
 
@@ -200,26 +203,29 @@ where
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use core::ops::Deref as _;
 
-        writeln!(f, "enum {} {{", &*self.name)?;
+        write!(f, "{} {{ ", &*self.name)?;
 
-        for variant in self.variants.deref() {
+        for (idx, variant) in self.variants.deref().iter().enumerate() {
+            if idx != 0 {
+                write!(f, " | ")?;
+            }
             match &**variant {
                 VariantSchema::Unit { name, discriminant } => {
-                    writeln!(f, "{} = {}", &**name, discriminant)?
+                    write!(f, "{} = {}", &**name, discriminant)?
                 }
                 VariantSchema::Struct {
                     name,
                     discriminant,
                     fields,
                 } => {
-                    write!(f, "{} = {}( {{ ", &**name, discriminant)?;
+                    write!(f, "{} = {}({{ ", &**name, discriminant)?;
                     for (idx, field) in fields.deref().iter().enumerate() {
                         if idx != 0 {
                             write!(f, ", ")?;
                         }
                         write!(f, "{}: {}", &*field.name, field.ty.deref())?;
                     }
-                    writeln!(f, " }}")?;
+                    write!(f, " }})")?;
                 }
                 VariantSchema::Tuple {
                     name,
@@ -233,11 +239,11 @@ where
                         }
                         write!(f, "{}", field.deref())?;
                     }
-                    writeln!(f, ")")?;
+                    write!(f, ")")?;
                 }
             }
         }
 
-        write!(f, "}}")
+        write!(f, " }}")
     }
 }

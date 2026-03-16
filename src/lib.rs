@@ -7,7 +7,7 @@ mod flavors;
 mod type_schema;
 mod value;
 
-use self::{flavors::*, type_schema::*, value::*};
+pub use self::{flavors::*, type_schema::*, value::*};
 
 pub trait Schema {
     const SCHEMA: &'static StaticSchema;

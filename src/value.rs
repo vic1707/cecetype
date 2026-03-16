@@ -135,16 +135,16 @@ where
         use core::ops::Deref as _;
 
         match self {
-            VariantValue::Unit { name } => writeln!(f, "{}", &**name),
+            VariantValue::Unit { name } => write!(f, "{}", &**name),
             VariantValue::Struct { name, fields } => {
-                write!(f, "{}( {{ ", &**name)?;
+                write!(f, "{}({{ ", &**name)?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
                     }
                     write!(f, "{}: {}", &*field.0, field.1)?;
                 }
-                writeln!(f, " }}")
+                write!(f, " }})")
             }
             VariantValue::Tuple { name, fields } => {
                 write!(f, "{}(", &**name)?;
@@ -154,7 +154,7 @@ where
                     }
                     write!(f, "{}", field.deref())?;
                 }
-                writeln!(f, ")")
+                write!(f, ")")
             }
         }
     }
