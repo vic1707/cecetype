@@ -22,15 +22,27 @@ mod tests {
     use super::*;
     use ::serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-    const _: fn() = || {
-        fn assert_impl<T: Serialize>() {}
-        assert_impl::<StaticSchema>();
-        assert_impl::<BorrowedSchema>();
-    };
+    macro_rules! implements {
+        ( $( 
+            $(#[$meta:meta])*
+            $ty:ty : ($($bounds:tt)+) ;
+        )+ ) => {
+            $(
+                $(#[$meta])*
+                const _: fn() = || {
+                    fn assert_impl<T: $($bounds)+>() {}
+                    assert_impl::<$ty>();
+                };
+            )+
+        };
+    }
 
-    #[cfg(feature = "std")]
-    const _: fn() = || {
-        fn assert_impl<T: for <'de> Deserialize<'de> + DeserializeOwned + Serialize>() {}
-        assert_impl::<OwnedSchema>();
-    };
+    implements! {
+        StaticSchema: (Serialize);
+
+        BorrowedSchema: (Serialize);
+
+        #[cfg(feature = "std")]
+        OwnedSchema: (Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
+    }
 }
