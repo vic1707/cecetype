@@ -61,10 +61,21 @@ pub struct EnumSchema<'s, F: flavor::SchemaFlavor<'s>> {
 }
 
 #[derive(Debug)]
-pub struct VariantSchema<'s, F: flavor::SchemaFlavor<'s>> {
-    pub name: F::Str,
-    pub key: i32,
-    pub payload: Option<F::Ptr<TypeSchema<'s, F>>>,
+pub enum VariantSchema<'s, F: flavor::SchemaFlavor<'s>> {
+    Unit {
+        name: F::Str,
+        discriminant: i32,
+    },
+    Tuple {
+        name: F::Str,
+        discriminant: i32,
+        fields: F::List<TypeSchema<'s, F>>,
+    },
+    Struct {
+        name: F::Str,
+        discriminant: i32,
+        fields: F::List<FieldSchema<'s, F>>,
+    },
 }
 
 impl<'s, F> core::fmt::Display for TypeSchema<'s, F>
@@ -108,7 +119,7 @@ where
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", elem)?;
+                    write!(f, "{}", elem.deref())?;
                 }
 
                 write!(f, ")")
@@ -148,18 +159,37 @@ where
         writeln!(f, "enum {} {{", &*self.name)?;
 
         for variant in self.variants.deref() {
-            match &variant.payload {
-                Some(payload) => {
-                    writeln!(
-                        f,
-                        "  {}: {}({}),",
-                        variant.key,
-                        &*variant.name,
-                        payload.deref()
-                    )?;
+            match &**variant {
+                VariantSchema::Unit { name, discriminant } => {
+                    writeln!(f, "{} = {}", &**name, discriminant)?
                 }
-                None => {
-                    writeln!(f, "  {}: {},", variant.key, &*variant.name,)?;
+                VariantSchema::Struct {
+                    name,
+                    discriminant,
+                    fields,
+                } => {
+                    write!(f, "{} = {}( {{ ", &**name, discriminant)?;
+                    for (idx, field) in fields.deref().iter().enumerate() {
+                        if idx != 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}: {}", &*field.name, field.ty.deref())?;
+                    }
+                    writeln!(f, " }}")?;
+                }
+                VariantSchema::Tuple {
+                    name,
+                    discriminant,
+                    fields,
+                } => {
+                    write!(f, "{} = {}(", &**name, discriminant)?;
+                    for (idx, field) in fields.deref().iter().enumerate() {
+                        if idx != 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", field.deref())?;
+                    }
+                    writeln!(f, ")")?;
                 }
             }
         }

@@ -30,9 +30,7 @@ impl<T: Schema, const N: usize> Schema for [T; N] {
 }
 
 impl<T: Schema> Schema for [T] {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Slice {
-        element: T::SCHEMA,
-    };
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Slice { element: T::SCHEMA };
 }
 
 impl<T: Schema> Schema for &T {
@@ -47,17 +45,17 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Enum(&EnumSchema {
         name: "Result",
         variants: &[
-            VariantSchema {
+            &VariantSchema::Tuple {
                 name: "Ok",
-                key: 0, // TODO: generate
-                payload: Some(T::SCHEMA),
+                discriminant: 0, // TODO: generate
+                fields: &[T::SCHEMA] as &[&TypeSchema<_>],
             },
-            VariantSchema {
+            &VariantSchema::Tuple {
                 name: "Err",
-                key: 1, // TODO: generate
-                payload: Some(E::SCHEMA),
+                discriminant: 1, // TODO: generate
+                fields: &[E::SCHEMA] as &[&TypeSchema<_>],
             },
-        ] as &[VariantSchema<_>],
+        ] as &[&VariantSchema<_>],
     });
 }
 
@@ -65,16 +63,15 @@ impl<T: Schema> Schema for Option<T> {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Enum(&EnumSchema {
         name: "Option",
         variants: &[
-            VariantSchema {
+            &VariantSchema::Tuple {
                 name: "Some",
-                key: 0, // TODO: generate
-                payload: Some(T::SCHEMA),
+                discriminant: 0, // TODO: generate
+                fields: &[T::SCHEMA] as &[&TypeSchema<_>],
             },
-            VariantSchema {
+            &VariantSchema::Unit {
                 name: "None",
-                key: 1, // TODO: generate
-                payload: None,
+                discriminant: 1, // TODO: generate
             },
-        ] as &[VariantSchema<_>],
+        ] as &[&VariantSchema<_>],
     });
 }
