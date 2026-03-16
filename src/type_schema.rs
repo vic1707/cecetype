@@ -1,6 +1,6 @@
 mod primitive_impls;
 
-use crate::{OwnedSchemaFlavor, SchemaFlavor};
+use crate::{OwnedSchemaFlavor, SchemaFlavor, flavors::ser};
 use ::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,32 +28,32 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     F64,
 
     Array {
-        #[serde(serialize_with = "F::serialize_ptr")]
+        #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         element: F::Ptr<TypeSchema<'s, F>>,
         len: usize,
     },
 
     Slice {
-        #[serde(serialize_with = "F::serialize_ptr")]
+        #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         element: F::Ptr<TypeSchema<'s, F>>,
     },
 
     Tuple {
-        #[serde(serialize_with = "F::serialize_list")]
+        #[serde(serialize_with = "ser::serialize_list")]
         #[serde(deserialize_with = "F::deserialize_list")]
         elements: F::List<TypeSchema<'s, F>>,
     },
 
     Struct(
-        #[serde(serialize_with = "F::serialize_ptr")]
+        #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         F::Ptr<StructSchema<'s, F>>,
     ),
 
     Enum(
-        #[serde(serialize_with = "F::serialize_ptr")]
+        #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         F::Ptr<EnumSchema<'s, F>>,
     ),
@@ -66,7 +66,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
 ))]
 pub struct StructSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
-    #[serde(serialize_with = "F::serialize_list")]
+    #[serde(serialize_with = "ser::serialize_list")]
     #[serde(deserialize_with = "F::deserialize_list")]
     pub fields: F::List<FieldSchema<'s, F>>,
 }
@@ -79,7 +79,7 @@ pub struct StructSchema<'s, F: SchemaFlavor<'s>> {
 pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
     pub key: u32,
-    #[serde(serialize_with = "F::serialize_ptr")]
+    #[serde(serialize_with = "ser::serialize_ptr")]
     #[serde(deserialize_with = "F::deserialize_ptr")]
     pub ty: F::Ptr<TypeSchema<'s, F>>,
 }
@@ -91,7 +91,7 @@ pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
 ))]
 pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
-    #[serde(serialize_with = "F::serialize_list")]
+    #[serde(serialize_with = "ser::serialize_list")]
     #[serde(deserialize_with = "F::deserialize_list")]
     pub variants: F::List<VariantSchema<'s, F>>,
 }
@@ -109,14 +109,14 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Tuple {
         name: F::Str,
         discriminant: i32,
-        #[serde(serialize_with = "F::serialize_list")]
+        #[serde(serialize_with = "ser::serialize_list")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<TypeSchema<'s, F>>,
     },
     Struct {
         name: F::Str,
         discriminant: i32,
-        #[serde(serialize_with = "F::serialize_list")]
+        #[serde(serialize_with = "ser::serialize_list")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<FieldSchema<'s, F>>,
     },

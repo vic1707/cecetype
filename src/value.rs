@@ -1,6 +1,8 @@
-use crate::flavors::ValueFlavor;
+use crate::flavors::{ValueFlavor, ser};
+use ::serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(bound(serialize = "F::Str: Serialize"))]
 pub enum Value<'v, F: ValueFlavor<'v>> {
     Unit,
 
@@ -20,19 +22,24 @@ pub enum Value<'v, F: ValueFlavor<'v>> {
     F32(f32),
     F64(f64),
 
+    #[serde(serialize_with = "ser::serialize_list")]
     Array(F::List<Value<'v, F>>),
+    #[serde(serialize_with = "ser::serialize_list")]
     Slice(F::List<Value<'v, F>>),
 
+    #[serde(serialize_with = "ser::serialize_list")]
     Tuple(F::List<Value<'v, F>>),
 
     Struct {
         name: F::Str,
+        #[serde(serialize_with = "ser::serialize_list")]
         fields: F::List<(F::Str, Value<'v, F>)>,
     },
 
     Enum {
         name: F::Str,
         variant: F::Str,
+        #[serde(serialize_with = "ser::serialize_opt_ptr")]
         value: Option<F::Ptr<Value<'v, F>>>,
     },
 }

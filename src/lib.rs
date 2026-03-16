@@ -14,6 +14,7 @@ pub trait Schema {
 }
 
 pub type OwnedSchema<'s> = TypeSchema<'s, Owned>;
+pub type OwnedValue<'s> = Value<'s, Owned>;
 
 pub type BorrowedSchema<'s> = TypeSchema<'s, Borrowed>;
 pub type StaticSchema = TypeSchema<'static, Static>;
@@ -45,5 +46,7 @@ mod tests {
 
         #[cfg(feature = "std")]
         OwnedSchema: (Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
+        #[cfg(feature = "std")]
+        OwnedValue: (Serialize);
     }
 }
