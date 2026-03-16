@@ -38,11 +38,31 @@ pub enum Value<'v, F: ValueFlavor<'v>> {
 
     Enum {
         name: F::Str,
-        variant: F::Str,
-        #[serde(serialize_with = "ser::serialize_opt_ptr")]
-        value: Option<F::Ptr<Value<'v, F>>>,
+        #[serde(serialize_with = "ser::serialize_ptr")]
+        variant: F::Ptr<VariantValue<'v, F>>,
     },
 }
+
+#[derive(Debug, Serialize)]
+#[serde(bound(serialize = "F::Str: Serialize"))]
+pub enum VariantValue<'v, F: ValueFlavor<'v>> {
+    Unit {
+        name: F::Str,
+    },
+
+    Tuple {
+        name: F::Str,
+        #[serde(serialize_with = "ser::serialize_list")]
+        fields: F::List<Value<'v, F>>,
+    },
+
+    Struct {
+        name: F::Str,
+        #[serde(serialize_with = "ser::serialize_list")]
+        fields: F::List<(F::Str, Value<'v, F>)>,
+    },
+}
+
 impl<'s, F> core::fmt::Display for Value<'s, F>
 where
     F: ValueFlavor<'s>,
@@ -100,16 +120,41 @@ where
                 write!(f, " }}")
             }
 
-            Value::Enum {
-                name,
-                variant,
-                value,
-            } => {
-                if let Some(v) = value {
-                    write!(f, "{}::{}({})", &**name, &**variant, &**v)
-                } else {
-                    write!(f, "{}::{}", &**name, &**variant)
+            Value::Enum { name, variant } => {
+                write!(f, "{}::{}", &**name, &**variant)
+            }
+        }
+    }
+}
+
+impl<'s, F> core::fmt::Display for VariantValue<'s, F>
+where
+    F: ValueFlavor<'s>,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        use core::ops::Deref as _;
+
+        match self {
+            VariantValue::Unit { name } => writeln!(f, "{}", &**name),
+            VariantValue::Struct { name, fields } => {
+                write!(f, "{}( {{ ", &**name)?;
+                for (idx, field) in fields.deref().iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", &*field.0, field.1)?;
                 }
+                writeln!(f, " }}")
+            }
+            VariantValue::Tuple { name, fields } => {
+                write!(f, "{}(", &**name)?;
+                for (idx, field) in fields.deref().iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", field.deref())?;
+                }
+                writeln!(f, ")")
             }
         }
     }
