@@ -1,8 +1,7 @@
-mod flavor;
 mod primitive_impls;
 
+use crate::{OwnedSchemaFlavor, SchemaFlavor};
 use ::serde::{Deserialize, Serialize};
-pub use flavor::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(
@@ -65,7 +64,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
 ))]
-pub struct StructSchema<'s, F: flavor::SchemaFlavor<'s>> {
+pub struct StructSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
     #[serde(serialize_with = "F::serialize_list")]
     #[serde(deserialize_with = "F::deserialize_list")]
@@ -77,7 +76,7 @@ pub struct StructSchema<'s, F: flavor::SchemaFlavor<'s>> {
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
 ))]
-pub struct FieldSchema<'s, F: flavor::SchemaFlavor<'s>> {
+pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
     pub key: u32,
     #[serde(serialize_with = "F::serialize_ptr")]
@@ -90,7 +89,7 @@ pub struct FieldSchema<'s, F: flavor::SchemaFlavor<'s>> {
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
 ))]
-pub struct EnumSchema<'s, F: flavor::SchemaFlavor<'s>> {
+pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
     #[serde(serialize_with = "F::serialize_list")]
     #[serde(deserialize_with = "F::deserialize_list")]
@@ -102,7 +101,7 @@ pub struct EnumSchema<'s, F: flavor::SchemaFlavor<'s>> {
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
 ))]
-pub enum VariantSchema<'s, F: flavor::SchemaFlavor<'s>> {
+pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Unit {
         name: F::Str,
         discriminant: i32,

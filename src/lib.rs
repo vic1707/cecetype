@@ -3,15 +3,16 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+mod flavors;
 mod type_schema;
+mod value;
 
-use self::type_schema::*;
+use self::{flavors::*, type_schema::*, value::*};
 
 pub trait Schema {
     const SCHEMA: &'static StaticSchema;
 }
 
-#[cfg(feature = "std")]
 pub type OwnedSchema<'s> = TypeSchema<'s, Owned>;
 
 pub type BorrowedSchema<'s> = TypeSchema<'s, Borrowed>;
@@ -23,7 +24,7 @@ mod tests {
     use ::serde::{Deserialize, Serialize, de::DeserializeOwned};
 
     macro_rules! implements {
-        ( $( 
+        ( $(
             $(#[$meta:meta])*
             $ty:ty : ($($bounds:tt)+) ;
         )+ ) => {

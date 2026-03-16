@@ -1,0 +1,38 @@
+pub struct Owned;
+
+#[cfg(feature = "std")]
+impl<'s> super::SchemaFlavor<'s> for Owned {
+    type Ptr<T: 's> = ::std::boxed::Box<T>;
+    type List<T: 's> = ::std::vec::Vec<::std::boxed::Box<T>>;
+    type Str = ::std::string::String;
+}
+
+#[cfg(feature = "std")]
+impl<'s> super::ValueFlavor<'s> for Owned {
+    type Ptr<T: 's> = ::std::boxed::Box<T>;
+    type List<T: 's> = ::std::vec::Vec<::std::boxed::Box<T>>;
+    type Str = ::std::string::String;
+}
+
+#[cfg(feature = "std")]
+impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
+    fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+        T: ::serde::Deserialize<'de> + 's,
+    {
+        let value = T::deserialize(deserializer)?;
+        Ok(::std::boxed::Box::new(value))
+    }
+
+    fn deserialize_list<'de, D, T>(deserializer: D) -> Result<Self::List<T>, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+        T: ::serde::Deserialize<'de> + 's,
+    {
+        use ::serde::Deserialize as _;
+
+        let values: ::std::vec::Vec<T> = ::std::vec::Vec::deserialize(deserializer)?;
+        Ok(values.into_iter().map(::std::boxed::Box::new).collect())
+    }
+}
