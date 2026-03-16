@@ -1,9 +1,11 @@
 mod flavor;
 mod primitive_impls;
 
+use ::serde::Serialize;
 pub use flavor::*;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(bound(serialize = "F::Str: Serialize"))]
 pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Unit,
 
@@ -24,43 +26,53 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     F64,
 
     Array {
+        #[serde(serialize_with = "F::serialize_ptr")]
         element: F::Ptr<TypeSchema<'s, F>>,
         len: usize,
     },
 
     Slice {
+        #[serde(serialize_with = "F::serialize_ptr")]
         element: F::Ptr<TypeSchema<'s, F>>,
     },
 
     Tuple {
+        #[serde(serialize_with = "F::serialize_list")]
         elements: F::List<TypeSchema<'s, F>>,
     },
 
-    Struct(F::Ptr<StructSchema<'s, F>>),
+    Struct(#[serde(serialize_with = "F::serialize_ptr")] F::Ptr<StructSchema<'s, F>>),
 
-    Enum(F::Ptr<EnumSchema<'s, F>>),
+    Enum(#[serde(serialize_with = "F::serialize_ptr")] F::Ptr<EnumSchema<'s, F>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(bound(serialize = "F::Str: Serialize",))]
 pub struct StructSchema<'s, F: flavor::SchemaFlavor<'s>> {
     pub name: F::Str,
+    #[serde(serialize_with = "F::serialize_list")]
     pub fields: F::List<FieldSchema<'s, F>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(bound(serialize = "F::Str: Serialize",))]
 pub struct FieldSchema<'s, F: flavor::SchemaFlavor<'s>> {
     pub name: F::Str,
     pub key: u32,
+    #[serde(serialize_with = "F::serialize_ptr")]
     pub ty: F::Ptr<TypeSchema<'s, F>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(bound(serialize = "F::Str: Serialize",))]
 pub struct EnumSchema<'s, F: flavor::SchemaFlavor<'s>> {
     pub name: F::Str,
+    #[serde(serialize_with = "F::serialize_list")]
     pub variants: F::List<VariantSchema<'s, F>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(bound(serialize = "F::Str: Serialize",))]
 pub enum VariantSchema<'s, F: flavor::SchemaFlavor<'s>> {
     Unit {
         name: F::Str,
@@ -69,11 +81,13 @@ pub enum VariantSchema<'s, F: flavor::SchemaFlavor<'s>> {
     Tuple {
         name: F::Str,
         discriminant: i32,
+        #[serde(serialize_with = "F::serialize_list")]
         fields: F::List<TypeSchema<'s, F>>,
     },
     Struct {
         name: F::Str,
         discriminant: i32,
+        #[serde(serialize_with = "F::serialize_list")]
         fields: F::List<FieldSchema<'s, F>>,
     },
 }
