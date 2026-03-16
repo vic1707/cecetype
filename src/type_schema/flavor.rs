@@ -30,6 +30,22 @@ where
     }
 }
 
+pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
+    fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+        T: ::serde::Deserialize<'de>;
+
+    fn deserialize_list<'de, D, T>(deserializer: D) -> Result<Self::List<T>, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+        T: ::serde::Deserialize<'de>;
+
+    fn deserialize_str<'de, D>(deserializer: D) -> Result<Self::Str, D::Error>
+    where
+        D: ::serde::Deserializer<'de>;
+}
+
 pub struct Static;
 
 impl SchemaFlavor<'static> for Static {
@@ -54,4 +70,36 @@ impl<'s> SchemaFlavor<'s> for Owned {
     type Ptr<T: 's> = ::std::boxed::Box<T>;
     type List<T: 's> = ::std::vec::Vec<::std::boxed::Box<T>>;
     type Str = ::std::string::String;
+}
+
+#[cfg(feature = "std")]
+impl<'s> OwnedSchemaFlavor<'s> for Owned {
+    fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+        T: ::serde::Deserialize<'de> + 's,
+    {
+        let value = T::deserialize(deserializer)?;
+        Ok(::std::boxed::Box::new(value))
+    }
+
+    fn deserialize_list<'de, D, T>(deserializer: D) -> Result<Self::List<T>, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+        T: ::serde::Deserialize<'de> + 's,
+    {
+        use ::serde::Deserialize as _;
+
+        let values: ::std::vec::Vec<T> = ::std::vec::Vec::deserialize(deserializer)?;
+        Ok(values.into_iter().map(::std::boxed::Box::new).collect())
+    }
+
+    fn deserialize_str<'de, D>(deserializer: D) -> Result<Self::Str, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        use ::serde::Deserialize as _;
+
+        ::std::string::String::deserialize(deserializer)
+    }
 }

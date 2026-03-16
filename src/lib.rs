@@ -31,6 +31,6 @@ mod tests {
     #[cfg(feature = "std")]
     const _: fn() = || {
         fn assert_impl<T: for <'de> Deserialize<'de> + DeserializeOwned + Serialize>() {}
-        // assert_impl::<OwnedSchema>();
+        assert_impl::<OwnedSchema>();
     };
 }

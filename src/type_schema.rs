@@ -1,11 +1,11 @@
 mod flavor;
 mod primitive_impls;
 
-use ::serde::Serialize;
+use ::serde::{Deserialize, Serialize};
 pub use flavor::*;
 
-#[derive(Debug, Serialize)]
-#[serde(bound(serialize = "F::Str: Serialize"))]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(serialize = "F::Str: Serialize", deserialize = "F: OwnedSchemaFlavor<'s>"))]
 pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Unit,
 
@@ -27,67 +27,89 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
 
     Array {
         #[serde(serialize_with = "F::serialize_ptr")]
+        #[serde(deserialize_with = "F::deserialize_ptr")]
         element: F::Ptr<TypeSchema<'s, F>>,
         len: usize,
     },
 
     Slice {
         #[serde(serialize_with = "F::serialize_ptr")]
+        #[serde(deserialize_with = "F::deserialize_ptr")]
         element: F::Ptr<TypeSchema<'s, F>>,
     },
 
     Tuple {
         #[serde(serialize_with = "F::serialize_list")]
+        #[serde(deserialize_with = "F::deserialize_list")]
         elements: F::List<TypeSchema<'s, F>>,
     },
 
-    Struct(#[serde(serialize_with = "F::serialize_ptr")] F::Ptr<StructSchema<'s, F>>),
+    Struct(
+        #[serde(serialize_with = "F::serialize_ptr")]
+        #[serde(deserialize_with = "F::deserialize_ptr")]
+        F::Ptr<StructSchema<'s, F>>,
+    ),
 
-    Enum(#[serde(serialize_with = "F::serialize_ptr")] F::Ptr<EnumSchema<'s, F>>),
+    Enum(
+        #[serde(serialize_with = "F::serialize_ptr")]
+        #[serde(deserialize_with = "F::deserialize_ptr")]
+        F::Ptr<EnumSchema<'s, F>>,
+    ),
 }
 
-#[derive(Debug, Serialize)]
-#[serde(bound(serialize = "F::Str: Serialize",))]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(serialize = "F::Str: Serialize", deserialize = "F: OwnedSchemaFlavor<'s>"))]
 pub struct StructSchema<'s, F: flavor::SchemaFlavor<'s>> {
+    #[serde(deserialize_with = "F::deserialize_str")]
     pub name: F::Str,
     #[serde(serialize_with = "F::serialize_list")]
+    #[serde(deserialize_with = "F::deserialize_list")]
     pub fields: F::List<FieldSchema<'s, F>>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(bound(serialize = "F::Str: Serialize",))]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(serialize = "F::Str: Serialize", deserialize = "F: OwnedSchemaFlavor<'s>"))]
 pub struct FieldSchema<'s, F: flavor::SchemaFlavor<'s>> {
+    #[serde(deserialize_with = "F::deserialize_str")]
     pub name: F::Str,
     pub key: u32,
     #[serde(serialize_with = "F::serialize_ptr")]
+    #[serde(deserialize_with = "F::deserialize_ptr")]
     pub ty: F::Ptr<TypeSchema<'s, F>>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(bound(serialize = "F::Str: Serialize",))]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(serialize = "F::Str: Serialize", deserialize = "F: OwnedSchemaFlavor<'s>"))]
 pub struct EnumSchema<'s, F: flavor::SchemaFlavor<'s>> {
+    #[serde(deserialize_with = "F::deserialize_str")]
     pub name: F::Str,
     #[serde(serialize_with = "F::serialize_list")]
+    #[serde(deserialize_with = "F::deserialize_list")]
     pub variants: F::List<VariantSchema<'s, F>>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(bound(serialize = "F::Str: Serialize",))]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(serialize = "F::Str: Serialize", deserialize = "F: OwnedSchemaFlavor<'s>"))]
 pub enum VariantSchema<'s, F: flavor::SchemaFlavor<'s>> {
     Unit {
+        #[serde(deserialize_with = "F::deserialize_str")]
         name: F::Str,
         discriminant: i32,
     },
     Tuple {
+        #[serde(deserialize_with = "F::deserialize_str")]
         name: F::Str,
         discriminant: i32,
         #[serde(serialize_with = "F::serialize_list")]
+        #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<TypeSchema<'s, F>>,
     },
     Struct {
+        #[serde(deserialize_with = "F::deserialize_str")]
         name: F::Str,
         discriminant: i32,
         #[serde(serialize_with = "F::serialize_list")]
+        #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<FieldSchema<'s, F>>,
     },
 }
