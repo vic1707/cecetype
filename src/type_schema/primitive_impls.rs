@@ -75,3 +75,21 @@ impl<T: Schema> Schema for Option<T> {
         ] as &[&VariantSchema<_>],
     });
 }
+
+macro_rules! impl_tuple_schema {
+    () => {};
+    ($head:ident $(, $tail:ident)*) => {
+        impl<$head: Schema $(, $tail: Schema)*> Schema for ($head, $($tail,)*) {
+            const SCHEMA: &'static StaticSchema = &TypeSchema::Tuple {
+                elements: &[
+                    $head::SCHEMA,
+                    $($tail::SCHEMA),*
+                ],
+            };
+        }
+
+        impl_tuple_schema!($($tail),*);
+    };
+}
+
+impl_tuple_schema!(L, K, J, I, H, G, F, E, D, C, B, A);
