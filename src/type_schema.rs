@@ -1,6 +1,7 @@
 mod primitive_impls;
+mod visitors;
 
-use crate::{OwnedSchemaFlavor, SchemaFlavor, flavors::ser};
+use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
 use ::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -245,5 +246,54 @@ where
         }
 
         write!(f, " }}")
+    }
+}
+
+use crate::Value;
+
+impl<'s, SF> TypeSchema<'s, SF>
+where
+    SF: SchemaFlavor<'s>,
+{
+    pub fn decode_value<'de, D, VF>(&'s self, deserializer: D) -> Result<Value<'s, VF>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+        VF: ValueBuilder<'s>,
+        // To check
+        VF::Str: Deserialize<'de>,
+    {
+        match self {
+            TypeSchema::Unit => {
+                <()>::deserialize(deserializer)?;
+                Ok(Value::Unit)
+            }
+            TypeSchema::Bool => Ok(Value::Bool(bool::deserialize(deserializer)?)),
+            TypeSchema::Str => Ok(Value::Str(<VF::Str>::deserialize(deserializer)?)),
+            TypeSchema::Char => Ok(Value::Char(char::deserialize(deserializer)?)),
+            TypeSchema::U8 => Ok(Value::U8(u8::deserialize(deserializer)?)),
+            TypeSchema::U16 => Ok(Value::U16(u16::deserialize(deserializer)?)),
+            TypeSchema::U32 => Ok(Value::U32(u32::deserialize(deserializer)?)),
+            TypeSchema::U64 => Ok(Value::U64(u64::deserialize(deserializer)?)),
+            TypeSchema::I8 => Ok(Value::I8(i8::deserialize(deserializer)?)),
+            TypeSchema::I16 => Ok(Value::I16(i16::deserialize(deserializer)?)),
+            TypeSchema::I32 => Ok(Value::I32(i32::deserialize(deserializer)?)),
+            TypeSchema::I64 => Ok(Value::I64(i64::deserialize(deserializer)?)),
+            TypeSchema::F32 => Ok(Value::F32(f32::deserialize(deserializer)?)),
+            TypeSchema::F64 => Ok(Value::F64(f64::deserialize(deserializer)?)),
+
+            TypeSchema::Array { element, len } => {
+                deserializer.deserialize_seq(visitors::ArrayVisitor::<SF,VF>::new(element, *len))
+            }
+            TypeSchema::Slice { element } => {
+                deserializer.deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element))
+            }
+            TypeSchema::Tuple { elements } => {
+                deserializer.deserialize_seq(visitors::TupleVisitor::<SF, VF>::new(elements))
+            }
+
+            TypeSchema::Struct(_) => todo!(),
+
+            TypeSchema::Enum(_) => todo!(),
+        }
     }
 }

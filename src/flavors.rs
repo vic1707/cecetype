@@ -23,6 +23,7 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
         D: ::serde::Deserializer<'de>,
         T: ::serde::Deserialize<'de>;
 }
+
 pub trait ValueFlavor<'s>
 where
     Self: 's,
@@ -30,6 +31,12 @@ where
     type Ptr<T: 's>: ::core::ops::Deref<Target = T>;
     type List<T: 's>: ::core::ops::Deref<Target = [Self::Ptr<T>]>;
     type Str: ::core::ops::Deref<Target = str>;
+}
+
+pub trait ValueBuilder<'s>: ValueFlavor<'s> {
+    fn list<T: 's>() -> Self::List<T>;
+    fn list_with_capacity<T: 's>(capacity: usize) -> Self::List<T>;
+    fn list_push<T: 's>(builder: &mut Self::List<T>, value: T);
 }
 
 pub(crate) mod ser {
@@ -48,16 +55,6 @@ pub(crate) mod ser {
             seq.serialize_element(p.deref())?;
         }
         seq.end()
-    }
-
-    pub fn serialize_opt_ptr<S: Serializer, T: Serialize>(
-        ptr: &Option<impl Deref<Target = T>>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        match ptr {
-            None => serializer.serialize_none(),
-            Some(p) => serializer.serialize_some(p.deref()),
-        }
     }
 
     pub fn serialize_ptr<S: Serializer, T: Serialize>(

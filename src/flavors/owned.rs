@@ -36,3 +36,16 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
         Ok(values.into_iter().map(::std::boxed::Box::new).collect())
     }
 }
+
+#[cfg(feature = "std")]
+impl<'s> super::ValueBuilder<'s> for Owned {
+    fn list<T: 's>() -> Self::List<T> {
+        Self::List::new()
+    }
+    fn list_with_capacity<T: 's>(capacity: usize) -> Self::List<T> {
+        Self::List::with_capacity(capacity)
+    }
+    fn list_push<T: 's>(builder: &mut Self::List<T>, value: T) {
+        builder.push(Self::Ptr::new(value));
+    }
+}
