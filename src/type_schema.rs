@@ -1,7 +1,7 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
+use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, ValueBuilder};
 use ::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -79,7 +79,7 @@ pub struct StructSchema<'s, F: SchemaFlavor<'s>> {
 ))]
 pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
-    pub key: u32,
+    // pub key: u32, // Maybe for future protocols
     #[serde(serialize_with = "ser::serialize_ptr")]
     #[serde(deserialize_with = "F::deserialize_ptr")]
     pub ty: F::Ptr<TypeSchema<'s, F>>,
