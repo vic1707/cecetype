@@ -42,7 +42,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     },
 
     Tuple {
-        #[serde(serialize_with = "ser::serialize_list")]
+        #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         elements: F::List<TypeSchema<'s, F>>,
     },
@@ -67,7 +67,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
 ))]
 pub struct StructSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
-    #[serde(serialize_with = "ser::serialize_list")]
+    #[serde(serialize_with = "ser::serialize_list_ptr")]
     #[serde(deserialize_with = "F::deserialize_list")]
     pub fields: F::List<FieldSchema<'s, F>>,
 }
@@ -92,7 +92,7 @@ pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
 ))]
 pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
-    #[serde(serialize_with = "ser::serialize_list")]
+    #[serde(serialize_with = "ser::serialize_list_ptr")]
     #[serde(deserialize_with = "F::deserialize_list")]
     pub variants: F::List<VariantSchema<'s, F>>,
 }
@@ -110,14 +110,14 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Tuple {
         name: F::Str,
         discriminant: i32,
-        #[serde(serialize_with = "ser::serialize_list")]
+        #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<TypeSchema<'s, F>>,
     },
     Struct {
         name: F::Str,
         discriminant: i32,
-        #[serde(serialize_with = "ser::serialize_list")]
+        #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<FieldSchema<'s, F>>,
     },
@@ -255,10 +255,10 @@ impl<'s, SF> TypeSchema<'s, SF>
 where
     SF: SchemaFlavor<'s>,
 {
-    pub fn decode_value<'de, D, VF>(&'s self, deserializer: D) -> Result<Value<'s, VF>, D::Error>
+    pub fn decode_value<'de, D, VF>(&'s self, deserializer: D) -> Result<Value<VF>, D::Error>
     where
         D: serde::Deserializer<'de>,
-        VF: ValueBuilder<'s>,
+        VF: ValueBuilder,
         // To check
         VF::Str: Deserialize<'de>,
     {

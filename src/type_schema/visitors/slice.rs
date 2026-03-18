@@ -8,12 +8,12 @@ use ::{
     },
 };
 
-pub struct SliceVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> {
+pub struct SliceVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
     element: &'s SF::Ptr<TypeSchema<'s, SF>>,
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> SliceVisitor<'s, SF, VF> {
+impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> SliceVisitor<'s, SF, VF> {
     pub fn new(element: &'s SF::Ptr<TypeSchema<'s, SF>>) -> Self {
         Self {
             element,
@@ -25,10 +25,10 @@ impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> SliceVisitor<'s, SF, VF> {
 impl<'de, 's, SF, VF> Visitor<'de> for SliceVisitor<'s, SF, VF>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder<'s>,
+    VF: ValueBuilder,
     VF::Str: Deserialize<'de>,
 {
-    type Value = Value<'s, VF>;
+    type Value = Value<VF>;
 
     fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "Slice")

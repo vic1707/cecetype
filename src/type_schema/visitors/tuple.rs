@@ -8,12 +8,12 @@ use ::{
     },
 };
 
-pub struct TupleVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> {
+pub struct TupleVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
     elements: &'s SF::List<TypeSchema<'s, SF>>,
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> TupleVisitor<'s, SF, VF> {
+impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> TupleVisitor<'s, SF, VF> {
     pub fn new(elements: &'s SF::List<TypeSchema<'s, SF>>) -> Self {
         Self {
             elements,
@@ -25,10 +25,10 @@ impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> TupleVisitor<'s, SF, VF> {
 impl<'de, 's, SF, VF> Visitor<'de> for TupleVisitor<'s, SF, VF>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder<'s>,
+    VF: ValueBuilder,
     VF::Str: Deserialize<'de>,
 {
-    type Value = Value<'s, VF>;
+    type Value = Value<VF>;
 
     fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "tuple")

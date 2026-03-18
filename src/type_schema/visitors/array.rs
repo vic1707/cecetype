@@ -8,13 +8,13 @@ use ::{
     },
 };
 
-pub struct ArrayVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> {
+pub struct ArrayVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
     element: &'s SF::Ptr<TypeSchema<'s, SF>>,
     len: usize,
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> ArrayVisitor<'s, SF, VF> {
+impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> ArrayVisitor<'s, SF, VF> {
     pub fn new(element: &'s SF::Ptr<TypeSchema<'s, SF>>, len: usize) -> Self {
         Self {
             element,
@@ -27,10 +27,10 @@ impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor<'s>> ArrayVisitor<'s, SF, VF> {
 impl<'de, 's, SF, VF> Visitor<'de> for ArrayVisitor<'s, SF, VF>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder<'s>,
+    VF: ValueBuilder,
     VF::Str: Deserialize<'de>,
 {
-    type Value = Value<'s, VF>;
+    type Value = Value<VF>;
 
     fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "array of length {}", self.len)

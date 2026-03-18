@@ -9,7 +9,7 @@ use ::{
     serde::{Deserialize, de::DeserializeSeed},
 };
 
-struct Seed<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder<'s>> {
+struct Seed<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
     schema: &'s TypeSchema<'s, SF>,
 
     _p: PhantomData<VF>,
@@ -18,10 +18,10 @@ struct Seed<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder<'s>> {
 impl<'de, 's, SF, VF> DeserializeSeed<'de> for Seed<'s, SF, VF>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder<'s>,
+    VF: ValueBuilder,
     VF::Str: Deserialize<'de>,
 {
-    type Value = Value<'s, VF>;
+    type Value = Value<VF>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where

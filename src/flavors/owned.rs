@@ -8,9 +8,8 @@ impl<'s> super::SchemaFlavor<'s> for Owned {
 }
 
 #[cfg(feature = "std")]
-impl<'s> super::ValueFlavor<'s> for Owned {
-    type Ptr<T: 's> = ::std::boxed::Box<T>;
-    type List<T: 's> = ::std::vec::Vec<::std::boxed::Box<T>>;
+impl super::ValueFlavor for Owned {
+    type List<T> = ::std::vec::Vec<T>;
     type Str = ::std::string::String;
 }
 
@@ -38,14 +37,14 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
 }
 
 #[cfg(feature = "std")]
-impl<'s> super::ValueBuilder<'s> for Owned {
-    fn list<T: 's>() -> Self::List<T> {
+impl super::ValueBuilder for Owned {
+    fn list<T>() -> Self::List<T> {
         Self::List::new()
     }
-    fn list_with_capacity<T: 's>(capacity: usize) -> Self::List<T> {
+    fn list_with_capacity<T>(capacity: usize) -> Self::List<T> {
         Self::List::with_capacity(capacity)
     }
-    fn list_push<T: 's>(builder: &mut Self::List<T>, value: T) {
-        builder.push(Self::Ptr::new(value));
+    fn list_push<T>(builder: &mut Self::List<T>, value: T) {
+        builder.push(value);
     }
 }

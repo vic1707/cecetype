@@ -48,14 +48,14 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
             &VariantSchema::Tuple {
                 name: "Ok",
                 discriminant: 0, // TODO: generate
-                fields: &[T::SCHEMA] as &[&TypeSchema<_>],
+                fields: &[T::SCHEMA] as &[&_],
             },
             &VariantSchema::Tuple {
                 name: "Err",
                 discriminant: 1, // TODO: generate
-                fields: &[E::SCHEMA] as &[&TypeSchema<_>],
+                fields: &[E::SCHEMA] as &[&_],
             },
-        ] as &[&VariantSchema<_>],
+        ] as &[&_],
     });
 }
 
@@ -66,13 +66,13 @@ impl<T: Schema> Schema for Option<T> {
             &VariantSchema::Tuple {
                 name: "Some",
                 discriminant: 0, // TODO: generate
-                fields: &[T::SCHEMA] as &[&TypeSchema<_>],
+                fields: &[T::SCHEMA] as &[&_],
             },
             &VariantSchema::Unit {
                 name: "None",
                 discriminant: 1, // TODO: generate
             },
-        ] as &[&VariantSchema<_>],
+        ] as &[&_],
     });
 }
 

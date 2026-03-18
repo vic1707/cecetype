@@ -3,7 +3,7 @@ use ::serde::Serialize;
 
 #[derive(Debug, Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
-pub enum Value<'v, F: ValueFlavor<'v>> {
+pub enum Value<F: ValueFlavor> {
     Unit,
 
     Bool(bool),
@@ -23,29 +23,28 @@ pub enum Value<'v, F: ValueFlavor<'v>> {
     F64(f64),
 
     #[serde(serialize_with = "ser::serialize_list")]
-    Array(F::List<Value<'v, F>>),
+    Array(F::List<Value<F>>),
     #[serde(serialize_with = "ser::serialize_list")]
-    Slice(F::List<Value<'v, F>>),
+    Slice(F::List<Value<F>>),
 
     #[serde(serialize_with = "ser::serialize_list")]
-    Tuple(F::List<Value<'v, F>>),
+    Tuple(F::List<Value<F>>),
 
     Struct {
         name: F::Str,
         #[serde(serialize_with = "ser::serialize_list")]
-        fields: F::List<(F::Str, Value<'v, F>)>,
+        fields: F::List<(F::Str, Value<F>)>,
     },
 
     Enum {
         name: F::Str,
-        #[serde(serialize_with = "ser::serialize_ptr")]
-        variant: F::Ptr<VariantValue<'v, F>>,
+        variant: VariantValue<F>,
     },
 }
 
 #[derive(Debug, Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
-pub enum VariantValue<'v, F: ValueFlavor<'v>> {
+pub enum VariantValue<F: ValueFlavor> {
     Unit {
         name: F::Str,
     },
@@ -53,19 +52,19 @@ pub enum VariantValue<'v, F: ValueFlavor<'v>> {
     Tuple {
         name: F::Str,
         #[serde(serialize_with = "ser::serialize_list")]
-        fields: F::List<Value<'v, F>>,
+        fields: F::List<Value<F>>,
     },
 
     Struct {
         name: F::Str,
         #[serde(serialize_with = "ser::serialize_list")]
-        fields: F::List<(F::Str, Value<'v, F>)>,
+        fields: F::List<(F::Str, Value<F>)>,
     },
 }
 
-impl<'s, F> core::fmt::Display for Value<'s, F>
+impl<F> core::fmt::Display for Value<F>
 where
-    F: ValueFlavor<'s>,
+    F: ValueFlavor,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -92,7 +91,7 @@ where
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", &**v)?;
+                    write!(f, "{v}")?;
                 }
                 write!(f, "]")
             }
@@ -103,33 +102,32 @@ where
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", &**v)?;
+                    write!(f, "{v}")?;
                 }
                 write!(f, ")")
             }
 
             Value::Struct { name, fields } => {
                 write!(f, "{} {{ ", &**name)?;
-                for (i, tuple) in fields.iter().enumerate() {
+                for (i, (k, v)) in fields.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    let (k, v) = &**tuple;
                     write!(f, "{}: {}", &**k, v)?;
                 }
                 write!(f, " }}")
             }
 
             Value::Enum { name, variant } => {
-                write!(f, "{}::{}", &**name, &**variant)
+                write!(f, "{}::{}", &**name, variant)
             }
         }
     }
 }
 
-impl<'s, F> core::fmt::Display for VariantValue<'s, F>
+impl< F> core::fmt::Display for VariantValue<F>
 where
-    F: ValueFlavor<'s>,
+    F: ValueFlavor,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use core::ops::Deref as _;
@@ -152,7 +150,7 @@ where
                     if idx != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", field.deref())?;
+                    write!(f, "{field}")?;
                 }
                 write!(f, ")")
             }

@@ -14,7 +14,7 @@ pub trait Schema {
 }
 
 pub type OwnedSchema<'s> = TypeSchema<'s, Owned>;
-pub type OwnedValue<'s> = Value<'s, Owned>;
+pub type OwnedValue<'s> = Value<Owned>;
 
 pub type BorrowedSchema<'s> = TypeSchema<'s, Borrowed>;
 pub type StaticSchema = TypeSchema<'static, Static>;

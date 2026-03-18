@@ -24,19 +24,15 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
         T: ::serde::Deserialize<'de>;
 }
 
-pub trait ValueFlavor<'s>
-where
-    Self: 's,
-{
-    type Ptr<T: 's>: ::core::ops::Deref<Target = T>;
-    type List<T: 's>: ::core::ops::Deref<Target = [Self::Ptr<T>]>;
+pub trait ValueFlavor {
+    type List<T>: ::core::ops::Deref<Target = [T]>;
     type Str: ::core::ops::Deref<Target = str>;
 }
 
-pub trait ValueBuilder<'s>: ValueFlavor<'s> {
-    fn list<T: 's>() -> Self::List<T>;
-    fn list_with_capacity<T: 's>(capacity: usize) -> Self::List<T>;
-    fn list_push<T: 's>(builder: &mut Self::List<T>, value: T);
+pub trait ValueBuilder: ValueFlavor {
+    fn list<T>() -> Self::List<T>;
+    fn list_with_capacity<T>(capacity: usize) -> Self::List<T>;
+    fn list_push<T>(builder: &mut Self::List<T>, value: T);
 }
 
 pub(crate) mod ser {
@@ -45,7 +41,7 @@ pub(crate) mod ser {
         serde::{Serialize, Serializer, ser::SerializeSeq as _},
     };
 
-    pub fn serialize_list<S: Serializer, T: Serialize>(
+    pub fn serialize_list_ptr<S: Serializer, T: Serialize>(
         list: &impl Deref<Target = [impl Deref<Target = T>]>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
@@ -53,6 +49,18 @@ pub(crate) mod ser {
         let mut seq = serializer.serialize_seq(Some(slice.len()))?;
         for p in slice {
             seq.serialize_element(p.deref())?;
+        }
+        seq.end()
+    }
+
+    pub fn serialize_list<S: Serializer, T: Serialize>(
+        list: &impl Deref<Target = [T]>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let slice = list.deref();
+        let mut seq = serializer.serialize_seq(Some(slice.len()))?;
+        for p in slice {
+            seq.serialize_element(p)?;
         }
         seq.end()
     }
