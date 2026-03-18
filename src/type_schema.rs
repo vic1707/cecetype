@@ -90,6 +90,8 @@ pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
 ))]
+// TODO: add Repr (Tagged(External/Internal/Adjacent), Untagged)
+// Currently we assume externally tagged
 pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
     #[serde(serialize_with = "ser::serialize_list_ptr")]
