@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(core_intrinsics)]
+#![feature(core_intrinsics, fmt_helpers_for_derive)]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -48,6 +48,6 @@ mod tests {
         #[cfg(feature = "std")]
         OwnedSchema: (fmt::Display + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
         #[cfg(feature = "std")]
-        OwnedValue: (fmt::Display + PartialEq + Serialize);
+        OwnedValue: (fmt::Display + fmt::Debug + PartialEq + Serialize);
     }
 }

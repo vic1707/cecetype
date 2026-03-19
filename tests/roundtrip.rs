@@ -312,13 +312,8 @@ fn roundtrip<R: Roundtrip, D: Serialize + Schema>(
     let (data, expected) = data_expected;
 
     match R::roundtrip(&data) {
-        Ok(decoded) => {
-            // dbg! { &decoded };
-            assert!(decoded == expected, "{decoded} != {expected}");
-        }
-        Err(err) => {
-            panic!("Couldn't decode payload: {err}")
-        }
+        Ok(decoded) => assert_eq!(decoded, expected),
+        Err(err) => panic!("Couldn't decode payload: {err}")
     }
 }
 

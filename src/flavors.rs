@@ -24,18 +24,18 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
         T: ::serde::Deserialize<'de>;
 }
 
-pub trait ValueFlavor {
-    type List<T: PartialEq>: ::core::ops::DerefMut<Target = [T]> + PartialEq;
-    type Str: ::core::ops::Deref<Target = str> + PartialEq;
+pub trait ValueFlavor: ::core::fmt::Debug {
+    type List<T: PartialEq + ::core::fmt::Debug>: ::core::ops::DerefMut<Target = [T]> + PartialEq + ::core::fmt::Debug;
+    type Str: ::core::ops::Deref<Target = str> + PartialEq + ::core::fmt::Debug;
 }
 
 pub trait ValueBuilder: ValueFlavor {
     fn make_str(str: &str) -> Self::Str;
 
-    fn list<T: PartialEq>() -> Self::List<T>;
-    fn list_from_iter<T: PartialEq>(iter: impl Iterator<Item = T>) -> Self::List<T>;
-    fn list_with_capacity<T: PartialEq>(capacity: usize) -> Self::List<T>;
-    fn list_push<T: PartialEq>(builder: &mut Self::List<T>, value: T);
+    fn list<T: PartialEq + ::core::fmt::Debug>() -> Self::List<T>;
+    fn list_from_iter<T: PartialEq + ::core::fmt::Debug>(iter: impl Iterator<Item = T>) -> Self::List<T>;
+    fn list_with_capacity<T: PartialEq + ::core::fmt::Debug>(capacity: usize) -> Self::List<T>;
+    fn list_push<T: PartialEq + ::core::fmt::Debug>(builder: &mut Self::List<T>, value: T);
 }
 
 pub(crate) mod ser {
