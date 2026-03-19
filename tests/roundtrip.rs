@@ -159,7 +159,7 @@ impl Schema for Complex {
 
         // --- slice ---
         ( // fails
-            [1u8, 2, 3],
+            &[1u8, 2, 3] as &[u8],
             Value::Slice(vec![
                 Value::U8(1),
                 Value::U8(2),
