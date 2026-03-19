@@ -20,6 +20,7 @@ primitive_schema!(i32, I32);
 primitive_schema!(i64, I64);
 primitive_schema!(f32, F32);
 primitive_schema!(f64, F64);
+primitive_schema!(&str, Str);
 primitive_schema!(char, Char);
 
 impl<T: Schema, const N: usize> Schema for [T; N] {
