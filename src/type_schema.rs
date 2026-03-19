@@ -308,19 +308,34 @@ where
                 deserializer.deserialize_seq(visitors::TupleVisitor::<SF, VF>::new(elements))
             }
 
-            TypeSchema::Struct(schema) => {
-                // TODO: check if empty name & variants is fine
-                deserializer.deserialize_struct(
-                    "",
-                    &[],
-                    visitors::StructVisitor::<SF, VF>::new(&schema.name, &schema.fields),
-                )
-            }
+            TypeSchema::Struct(schema) => deserializer.deserialize_struct(
+                "", // dunno
+                _S[schema.fields.len()], // dirty ass hack
+                visitors::StructVisitor::<SF, VF>::new(&schema.name, &schema.fields),
+            ),
 
             TypeSchema::Enum(schema) => {
-                // TODO: check if empty name & variants is fine
-                deserializer.deserialize_enum("", &[], visitors::EnumVisitor::<SF, VF>::new(schema))
+                deserializer.deserialize_enum(
+                    "", // dunno
+                    _S[schema.variants.len()], // dirty ass hack
+                    visitors::EnumVisitor::<SF, VF>::new(schema),
+                )
             }
         }
     }
 }
+
+#[doc(hidden)]
+const _S: [&[&str]; 11] = [
+    &[],
+    &[""],
+    &["", ""],
+    &["", "", ""],
+    &["", "", "", ""],
+    &["", "", "", "", ""],
+    &["", "", "", "", "", ""],
+    &["", "", "", "", "", "", ""],
+    &["", "", "", "", "", "", "", ""],
+    &["", "", "", "", "", "", "", "", ""],
+    &["", "", "", "", "", "", "", "", "", ""],
+];
