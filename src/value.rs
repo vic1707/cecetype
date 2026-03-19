@@ -1,7 +1,7 @@
 use crate::flavors::{ValueFlavor, ser};
 use ::serde::Serialize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
 pub enum Value<F: ValueFlavor> {
     Unit,
@@ -42,7 +42,7 @@ pub enum Value<F: ValueFlavor> {
     },
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
 pub enum VariantValue<F: ValueFlavor> {
     Unit {

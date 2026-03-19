@@ -22,7 +22,7 @@ pub type StaticSchema = TypeSchema<'static, Static>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::serde::{Deserialize, Serialize, de::DeserializeOwned};
+    use ::{core::fmt, serde::{Deserialize, Serialize, de::DeserializeOwned}};
 
     macro_rules! implements {
         ( $(
@@ -40,13 +40,13 @@ mod tests {
     }
 
     implements! {
-        StaticSchema: (Serialize);
+        StaticSchema: (fmt::Debug + fmt::Display + Serialize);
 
-        BorrowedSchema: (Serialize);
+        BorrowedSchema: (fmt::Debug + fmt::Display + Serialize);
 
         #[cfg(feature = "std")]
-        OwnedSchema: (Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
+        OwnedSchema: (fmt::Debug + fmt::Display + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
         #[cfg(feature = "std")]
-        OwnedValue: (Serialize);
+        OwnedValue: (fmt::Debug + fmt::Display + PartialEq + Serialize);
     }
 }
