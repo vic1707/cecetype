@@ -1,7 +1,7 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, ValueBuilder};
+use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
 use ::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -123,6 +123,21 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<FieldSchema<'s, F>>,
     },
+}
+
+impl<'s, F: SchemaFlavor<'s>> VariantSchema<'s, F> {
+    fn name(&self) -> &str {
+        match self {
+            Self::Struct { name, .. } | Self::Unit { name, .. } | Self::Tuple { name, .. } => name,
+        }
+    }
+    fn discriminant(&self) -> &i32 {
+        match self {
+            Self::Struct { discriminant, .. }
+            | Self::Unit { discriminant, .. }
+            | Self::Tuple { discriminant, .. } => discriminant,
+        }
+    }
 }
 
 impl<'s, F> core::fmt::Display for TypeSchema<'s, F>
@@ -284,7 +299,7 @@ where
             TypeSchema::F64 => Ok(Value::F64(f64::deserialize(deserializer)?)),
 
             TypeSchema::Array { element, len } => {
-                deserializer.deserialize_seq(visitors::ArrayVisitor::<SF,VF>::new(element, *len))
+                deserializer.deserialize_seq(visitors::ArrayVisitor::<SF, VF>::new(element, *len))
             }
             TypeSchema::Slice { element } => {
                 deserializer.deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element))
@@ -293,9 +308,19 @@ where
                 deserializer.deserialize_seq(visitors::TupleVisitor::<SF, VF>::new(elements))
             }
 
-            TypeSchema::Struct(_) => todo!(),
+            TypeSchema::Struct(schema) => {
+                // TODO: check if empty name & variants is fine
+                deserializer.deserialize_struct(
+                    "",
+                    &[],
+                    visitors::StructVisitor::<SF, VF>::new(&schema.name, &schema.fields),
+                )
+            }
 
-            TypeSchema::Enum(_) => todo!(),
+            TypeSchema::Enum(schema) => {
+                // TODO: check if empty name & variants is fine
+                deserializer.deserialize_enum("", &[], visitors::EnumVisitor::<SF, VF>::new(schema))
+            }
         }
     }
 }

@@ -38,8 +38,15 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
 
 #[cfg(feature = "std")]
 impl super::ValueBuilder for Owned {
+    fn make_str(str: &str) -> Self::Str {
+        ::std::string::String::from(str)
+    }
+
     fn list<T>() -> Self::List<T> {
         Self::List::new()
+    }
+    fn list_from_iter<T>(iter: impl Iterator<Item = T>) -> Self::List<T> {
+        iter.collect()
     }
     fn list_with_capacity<T>(capacity: usize) -> Self::List<T> {
         Self::List::with_capacity(capacity)

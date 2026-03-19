@@ -1,7 +1,12 @@
 mod array;
+mod r#enum;
 mod slice;
+mod r#struct;
 mod tuple;
-pub use self::{array::ArrayVisitor, tuple::TupleVisitor, slice::SliceVisitor};
+pub use self::{
+    array::ArrayVisitor, r#enum::EnumVisitor, slice::SliceVisitor, r#struct::StructVisitor,
+    tuple::TupleVisitor,
+};
 
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
