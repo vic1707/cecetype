@@ -25,17 +25,17 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
 }
 
 pub trait ValueFlavor {
-    type List<T>: ::core::ops::DerefMut<Target = [T]>;
-    type Str: ::core::ops::Deref<Target = str>;
+    type List<T: PartialEq>: ::core::ops::DerefMut<Target = [T]> + PartialEq;
+    type Str: ::core::ops::Deref<Target = str> + PartialEq;
 }
 
 pub trait ValueBuilder: ValueFlavor {
     fn make_str(str: &str) -> Self::Str;
 
-    fn list<T>() -> Self::List<T>;
-    fn list_from_iter<T>(iter: impl Iterator<Item = T>) -> Self::List<T>;
-    fn list_with_capacity<T>(capacity: usize) -> Self::List<T>;
-    fn list_push<T>(builder: &mut Self::List<T>, value: T);
+    fn list<T: PartialEq>() -> Self::List<T>;
+    fn list_from_iter<T: PartialEq>(iter: impl Iterator<Item = T>) -> Self::List<T>;
+    fn list_with_capacity<T: PartialEq>(capacity: usize) -> Self::List<T>;
+    fn list_push<T: PartialEq>(builder: &mut Self::List<T>, value: T);
 }
 
 pub(crate) mod ser {

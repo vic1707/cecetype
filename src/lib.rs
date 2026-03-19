@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(core_intrinsics)]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -40,13 +41,13 @@ mod tests {
     }
 
     implements! {
-        StaticSchema: (fmt::Debug + fmt::Display + Serialize);
+        StaticSchema: (fmt::Display + Serialize);
 
-        BorrowedSchema: (fmt::Debug + fmt::Display + Serialize);
+        BorrowedSchema: (fmt::Display + Serialize);
 
         #[cfg(feature = "std")]
-        OwnedSchema: (fmt::Debug + fmt::Display + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
+        OwnedSchema: (fmt::Display + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
         #[cfg(feature = "std")]
-        OwnedValue: (fmt::Debug + fmt::Display + PartialEq + Serialize);
+        OwnedValue: (fmt::Display + PartialEq + Serialize);
     }
 }

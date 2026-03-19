@@ -9,7 +9,7 @@ impl<'s> super::SchemaFlavor<'s> for Owned {
 
 #[cfg(feature = "std")]
 impl super::ValueFlavor for Owned {
-    type List<T> = ::std::vec::Vec<T>;
+    type List<T: PartialEq> = ::std::vec::Vec<T>;
     type Str = ::std::string::String;
 }
 
@@ -42,16 +42,16 @@ impl super::ValueBuilder for Owned {
         ::std::string::String::from(str)
     }
 
-    fn list<T>() -> Self::List<T> {
+    fn list<T: PartialEq>() -> Self::List<T> {
         Self::List::new()
     }
-    fn list_from_iter<T>(iter: impl Iterator<Item = T>) -> Self::List<T> {
+    fn list_from_iter<T: PartialEq>(iter: impl Iterator<Item = T>) -> Self::List<T> {
         iter.collect()
     }
-    fn list_with_capacity<T>(capacity: usize) -> Self::List<T> {
+    fn list_with_capacity<T: PartialEq>(capacity: usize) -> Self::List<T> {
         Self::List::with_capacity(capacity)
     }
-    fn list_push<T>(builder: &mut Self::List<T>, value: T) {
+    fn list_push<T: PartialEq>(builder: &mut Self::List<T>, value: T) {
         builder.push(value);
     }
 }
