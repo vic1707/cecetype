@@ -305,7 +305,7 @@ where
                 deserializer.deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element))
             }
             TypeSchema::Tuple { elements } => {
-                deserializer.deserialize_seq(visitors::TupleVisitor::<SF, VF>::new(elements))
+                deserializer.deserialize_tuple(elements.len(), visitors::TupleVisitor::<SF, VF>::new(elements))
             }
 
             TypeSchema::Struct(schema) => deserializer.deserialize_struct(

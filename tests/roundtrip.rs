@@ -1,5 +1,8 @@
+use ::{
+    core::{error, fmt},
+    serde::{Deserialize, Serialize},
+};
 use schema::*;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct MyStruct {
@@ -101,12 +104,10 @@ impl Schema for DeepEnum {
             &VariantSchema::Struct {
                 name: "B",
                 discriminant: 1,
-                fields: &[
-                    &FieldSchema {
-                        name: "nested",
-                        ty: Nested::SCHEMA,
-                    },
-                ] as &[&_],
+                fields: &[&FieldSchema {
+                    name: "nested",
+                    ty: Nested::SCHEMA,
+                }] as &[&_],
             },
         ] as &[&_],
     });
@@ -156,8 +157,18 @@ impl Schema for Complex {
             ])
         ),
 
+        // --- slice ---
+        ( // fails
+            [1u8, 2, 3],
+            Value::Slice(vec![
+                Value::U8(1),
+                Value::U8(2),
+                Value::U8(3),
+            ])
+        ),
+
         // --- array ---
-        (
+        ( // fails
             [1u8, 2, 3],
             Value::Array(vec![
                 Value::U8(1),
@@ -190,7 +201,7 @@ impl Schema for Complex {
         ),
 
         // --- enum struct ---
-        (
+        ( // fails?
             MyEnum::Struct { x: 1, y: 2 },
             Value::Enum {
                 name: "MyEnum".to_owned(),
@@ -229,7 +240,7 @@ impl Schema for Complex {
         ),
 
         // --- tuple + array ---
-        (
+        ( // fails
             Complex {
                 tuple: (7, true),
                 array: [1, 2, 3],
@@ -257,7 +268,7 @@ impl Schema for Complex {
         ),
 
         // --- deep enum ---
-        (
+        ( // fails
             DeepEnum::B {
                 nested: Nested {
                     inner: MyStruct { a: 9, b: true },
@@ -294,36 +305,51 @@ impl Schema for Complex {
         ),
     ],
 )]
-fn test_json<R: Roundtrip, D: Serialize + Schema>(
+fn roundtrip<R: Roundtrip, D: Serialize + Schema>(
     _protocol: R,
     data_expected: (D, OwnedValue)
 ) {
     let (data, expected) = data_expected;
-    assert!(R::roundtrip(&data) == expected)
+
+    match R::roundtrip(&data) {
+        Ok(decoded) => {
+            // dbg! { &decoded };
+            assert!(decoded == expected, "{decoded} != {expected}");
+        }
+        Err(err) => {
+            panic!("Couldn't decode payload: {err}")
+        }
+    }
 }
 
 trait Roundtrip {
-    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> OwnedValue<'_>;
+    type Error: fmt::Display + error::Error;
+
+    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error>;
 }
 
 struct Json;
 
 impl Roundtrip for Json {
-    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> OwnedValue<'_> {
+    type Error = ::serde_json::Error;
+
+    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
         let json = ::serde_json::to_string(value).unwrap();
         let mut de = ::serde_json::Deserializer::from_str(&json);
 
-        T::SCHEMA.decode_value(&mut de).unwrap()
+        T::SCHEMA.decode_value(&mut de)
     }
 }
 
 struct Postcard;
 
 impl Roundtrip for Postcard {
-    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> OwnedValue<'_> {
+    type Error = ::postcard::Error;
+
+    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
         let bytes = ::postcard::to_vec::<_, 1024>(value).unwrap();
         let mut de = ::postcard::Deserializer::from_bytes(&bytes);
 
-        T::SCHEMA.decode_value(&mut de).unwrap()
+        T::SCHEMA.decode_value(&mut de)
     }
 }
