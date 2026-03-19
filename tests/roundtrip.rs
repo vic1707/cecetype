@@ -138,7 +138,7 @@ impl Schema for Complex {
 }
 
 #[rstest::rstest(
-    _protocol => [Json, Postcard],
+    _protocol => [Json, Postcard, Yaml],
     data_expected => [
         // --- primitives ---
         (123u32, Value::U32(123)),
@@ -346,5 +346,19 @@ impl Roundtrip for Postcard {
         let mut de = ::postcard::Deserializer::from_bytes(&bytes);
 
         T::SCHEMA.decode_value(&mut de)
+    }
+}
+
+
+struct Yaml;
+
+impl Roundtrip for Yaml {
+    type Error = ::yaml_serde::Error;
+
+    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
+        let yaml = ::yaml_serde::to_string(value).unwrap();
+        let de = ::yaml_serde::Deserializer::from_str(&yaml);
+
+        T::SCHEMA.decode_value(de)
     }
 }
