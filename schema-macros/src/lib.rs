@@ -3,12 +3,18 @@ use ::{quote::quote, syn::Fields};
 #[proc_macro_derive(Schema, attributes(serde))]
 pub fn derive_schema(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream {
     expand(input)
+        // .inspect(|o| eprintln!("{o}"))
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
 
 fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::TokenStream> {
-    let ::syn::DeriveInput { data, ident, .. } = ::syn::parse(input)?;
+    let ::syn::DeriveInput {
+        data,
+        ident,
+        mut generics,
+        ..
+    } = ::syn::parse(input)?;
 
     let schema = match data {
         ::syn::Data::Struct(ref data) => struct_schema(&ident, data),
@@ -21,8 +27,20 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
         }
     };
 
+    let generics_ident = generics
+        .type_params()
+        .map(|syn::TypeParam { ident, .. }| ident.clone())
+        .collect::<Vec<_>>();
+    let where_clause = generics.make_where_clause();
+    for ty in generics_ident {
+        where_clause
+            .predicates
+            .push(::syn::parse_quote! { #ty: ::schema::Schema });
+    }
+
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     Ok(quote! {
-        impl ::schema::Schema for #ident {
+        impl #impl_generics ::schema::Schema for #ident #ty_generics #where_clause {
             const SCHEMA: &'static ::schema::StaticSchema = &#schema;
         }
     })

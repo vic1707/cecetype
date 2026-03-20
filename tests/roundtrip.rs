@@ -44,6 +44,14 @@ struct Complex {
     array: [u8; 3],
 }
 
+#[derive(Serialize, Schema)]
+struct GenericStruct<T>(T);
+
+#[derive(Serialize, Schema)]
+enum GenericEnum<T> {
+    Toto(T),
+}
+
 #[rstest::rstest]
 #[case::unit(((), Value::Unit))]
 #[case::option_none((Option::<u8>::None, Value::Option(None)))]
@@ -70,10 +78,12 @@ struct Complex {
 #[case::unit_struct((MyUnitStruct, Value::UnitStruct { name: "MyUnitStruct".to_owned() }))]
 #[case::newtype_struct((MyNewTypeStruct(16), Value::NewTypeStruct { name: "MyNewTypeStruct".to_owned(), field: Box::new(Value::U8(16)) }))]
 #[case::tuple_struct((MyTupleStruct(16, ()), Value::TupleStruct { name: "MyTupleStruct".to_owned(), fields: vec![Value::U8(16), Value::Unit] }))]
+#[case::generic_struct((GenericStruct(16u8), Value::NewTypeStruct { name: "GenericStruct".to_owned(), field: Box::new(Value::U8(16)) }))]
 #[case::struct_((MyStruct { a: 42, b: true }, Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(42)), ("b".to_owned(), Value::Bool(true))] }))]
 #[case::enum_unit((MyEnum::Unit, Value::Enum { name: "MyEnum".to_owned(), variant: VariantValue::Unit { name: "Unit".to_owned() } }))]
 #[case::enum_tuple((MyEnum::Tuple(10, false), Value::Enum { name: "MyEnum".to_owned(), variant: VariantValue::Tuple { name: "Tuple".to_owned(), fields: vec![Value::U32(10), Value::Bool(false)] } }))]
 #[case::enum_struct((MyEnum::Struct { x: 1, y: 2 }, Value::Enum { name: "MyEnum".to_owned(), variant: VariantValue::Struct { name: "Struct".to_owned(), fields: vec![("x".to_owned(), Value::U8(1)), ("y".to_owned(), Value::U8(2))] } }))]
+#[case::generic_enum((GenericEnum::Toto(12u8), Value::Enum { name: "GenericEnum".to_owned(), variant: VariantValue::NewType { name: "Toto".to_owned(), field: Box::new(Value::U8(12)) } }))]
 #[case::nested((Nested { inner: MyStruct { a: 1, b: false }, flag: true }, Value::Struct { name: "Nested".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(1)), ("b".to_owned(), Value::Bool(false))] }), ("flag".to_owned(), Value::Bool(true))] }))]
 #[case::complex((Complex { tuple: (7, true), array: [1, 2, 3] }, Value::Struct { name: "Complex".to_owned(), fields: vec![("tuple".to_owned(), Value::Tuple(vec![Value::U32(7), Value::Bool(true)])), ("array".to_owned(), Value::Array(vec![Value::U8(1),Value::U8(2),Value::U8(3)]))] }))]
 #[case::deep_enum((DeepEnum::B { nested: Nested { inner: MyStruct { a: 9, b: true }, flag: false } }, Value::Enum { name: "DeepEnum".to_owned(), variant: VariantValue::Struct { name: "B".to_owned(), fields: vec![("nested".to_owned(), Value::Struct { name: "Nested".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(9)), ("b".to_owned(), Value::Bool(true))] }), ("flag".to_owned(), Value::Bool(false))] })]} }))]
