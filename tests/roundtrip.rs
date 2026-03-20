@@ -144,19 +144,16 @@ impl Schema for Complex {
     });
 }
 
-#[rstest::rstest(
-    _protocol => [Json, Postcard, Yaml],
-    data_expected => [
-        // --- primitives ---
+#[rstest::rstest]
+fn roundtrip<R: Roundtrip, D: Serialize + Schema>(
+    #[values(Json, Postcard, Yaml)]
+    _protocol: R,
+    #[values(
         ((), Value::Unit),
         (123u32, Value::U32(123)),
         (true, Value::Bool(true)),
-
-        // --- string / char ---
         ("hello", Value::Str("hello".to_owned())),
         ('x', Value::Char('x')),
-
-        // --- tuple ---
         (
             (1u32, false),
             Value::Tuple(vec![
@@ -164,8 +161,6 @@ impl Schema for Complex {
                 Value::Bool(false),
             ])
         ),
-
-        // --- slice ---
         (
             &[1u8, 2, 3] as &[u8],
             Value::Slice(vec![
@@ -174,8 +169,6 @@ impl Schema for Complex {
                 Value::U8(3),
             ])
         ),
-
-        // --- array ---
         ( // fails
             [1u8, 2, 3],
             Value::Array(vec![
@@ -184,16 +177,12 @@ impl Schema for Complex {
                 Value::U8(3),
             ])
         ),
-
-        // --- unit struct ---
         (
             MyUnitStruct,
             Value::UnitStruct { 
                 name: "MyUnitStruct".to_owned(), 
             }
         ),
-
-        // --- simple struct ---
         (
             MyStruct { a: 42, b: true },
             Value::Struct { 
@@ -204,8 +193,6 @@ impl Schema for Complex {
                 ]
             }
         ),
-
-        // --- enum unit ---
         (
             MyEnum::Unit,
             Value::Enum {
@@ -215,8 +202,6 @@ impl Schema for Complex {
                 }
             }
         ),
-
-        // --- enum tuple ---
         (
             MyEnum::Tuple(10, false),
             Value::Enum {
@@ -227,8 +212,6 @@ impl Schema for Complex {
                 }
             }
         ),
-
-        // --- enum struct ---
         ( // fails?
             MyEnum::Struct { x: 1, y: 2 },
             Value::Enum {
@@ -242,8 +225,6 @@ impl Schema for Complex {
                 }
             }
         ),
-
-        // --- nested struct ---
         (
             Nested {
                 inner: MyStruct { a: 1, b: false },
@@ -266,8 +247,6 @@ impl Schema for Complex {
                 ]
             }
         ),
-
-        // --- tuple + array ---
         ( // fails
             Complex {
                 tuple: (7, true),
@@ -294,8 +273,6 @@ impl Schema for Complex {
                 ]
             }
         ),
-
-        // --- deep enum ---
         ( // fails
             DeepEnum::B {
                 nested: Nested {
@@ -331,14 +308,9 @@ impl Schema for Complex {
                 }
             }
         ),
-    ],
-)]
-fn roundtrip<R: Roundtrip, D: Serialize + Schema>(
-    _protocol: R,
-    data_expected: (D, OwnedValue)
+    )]
+    (data, expected): (D, OwnedValue)
 ) {
-    let (data, expected) = data_expected;
-
     match R::roundtrip(&data) {
         Ok(decoded) => assert_eq!(decoded, expected),
         Err(err) => panic!("Couldn't decode payload: {err}")
