@@ -119,25 +119,25 @@ pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
 pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Unit {
         name: F::Str,
-        discriminant: i32,
+        discriminant: u32,
     },
     NewType {
         name: F::Str,
-        discriminant: i32,
+        discriminant: u32,
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         field: F::Ptr<TypeSchema<'s, F>>,
     },
     Tuple {
         name: F::Str,
-        discriminant: i32,
+        discriminant: u32,
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<TypeSchema<'s, F>>,
     },
     Struct {
         name: F::Str,
-        discriminant: i32,
+        discriminant: u32,
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<FieldSchema<'s, F>>,
@@ -153,7 +153,7 @@ impl<'s, F: SchemaFlavor<'s>> VariantSchema<'s, F> {
             | Self::NewType { name, .. } => name,
         }
     }
-    fn discriminant(&self) -> &i32 {
+    fn discriminant(&self) -> &u32 {
         match self {
             Self::Struct { discriminant, .. }
             | Self::Unit { discriminant, .. }

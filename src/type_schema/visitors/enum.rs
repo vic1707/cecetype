@@ -14,7 +14,7 @@ use ::{
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum VariantId<VF: ValueFlavor> {
-    Index(i32),
+    Index(u32),
     Name(VF::Str),
 }
 
