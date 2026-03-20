@@ -54,6 +54,10 @@ where
             VF::list_push(&mut values, v);
         }
 
+        if seq.next_element::<de::IgnoredAny>()?.is_some() {
+            return Err(de::Error::invalid_length(self.len + 1, &self));
+        }
+
         Ok(Value::Array(values))
     }
 }
