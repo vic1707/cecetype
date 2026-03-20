@@ -3,8 +3,8 @@ use ::{core::ops::Deref as _, derive_where::derive_where, serde::Serialize};
 
 #[derive(Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
-#[derive_where(Debug; F: ::core::fmt::Debug)]
-#[derive_where(PartialEq; F: PartialEq)]
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
 pub enum Value<F: ValueFlavor> {
     Unit,
 
@@ -62,8 +62,8 @@ pub enum Value<F: ValueFlavor> {
 
 #[derive(Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
-#[derive_where(Debug; F: ::core::fmt::Debug)]
-#[derive_where(PartialEq; F: PartialEq)]
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(PartialEq; )] // prevents compiler bounds check overflow & `F: PartialEq` bound
 pub enum VariantValue<F: ValueFlavor> {
     Unit {
         name: F::Str,
