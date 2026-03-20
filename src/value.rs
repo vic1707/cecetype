@@ -1,4 +1,4 @@
-use crate::flavors::{ValueFlavor, ser};
+use crate::flavors::{ser, ValueFlavor};
 use ::serde::Serialize;
 
 #[derive(Serialize)]
@@ -30,6 +30,9 @@ pub enum Value<F: ValueFlavor> {
     #[serde(serialize_with = "ser::serialize_list")]
     Tuple(F::List<Self>),
 
+    UnitStruct {
+        name: F::Str,
+    },
     Struct {
         name: F::Str,
         #[serde(serialize_with = "ser::serialize_list")]
@@ -107,6 +110,7 @@ where
                 write!(f, ")")
             }
 
+            Value::UnitStruct { name } => write!(f, "{}", &**name),
             Value::Struct { name, fields } => {
                 write!(f, "{} {{ ", &**name)?;
                 for (i, (k, v)) in fields.iter().enumerate() {
@@ -200,6 +204,7 @@ impl<F: ValueFlavor> ::core::cmp::PartialEq for Value<F> {
         let __arg1_discr = ::core::intrinsics::discriminant_value(other);
         __self_discr == __arg1_discr
             && match (self, other) {
+                (Value::Unit, Value::Unit) => true,
                 (Value::Bool(__self_0), Value::Bool(__arg1_0)) => __self_0 == __arg1_0,
                 (Value::Str(__self_0), Value::Str(__arg1_0)) => __self_0 == __arg1_0,
                 (Value::Char(__self_0), Value::Char(__arg1_0)) => __self_0 == __arg1_0,
@@ -216,6 +221,9 @@ impl<F: ValueFlavor> ::core::cmp::PartialEq for Value<F> {
                 (Value::Array(__self_0), Value::Array(__arg1_0)) => __self_0 == __arg1_0,
                 (Value::Slice(__self_0), Value::Slice(__arg1_0)) => __self_0 == __arg1_0,
                 (Value::Tuple(__self_0), Value::Tuple(__arg1_0)) => __self_0 == __arg1_0,
+                (Value::UnitStruct { name: __self_0 }, Value::UnitStruct { name: __arg1_0 }) => {
+                    __self_0 == __arg1_0
+                }
                 (
                     Value::Struct {
                         name: __self_0,
@@ -236,7 +244,7 @@ impl<F: ValueFlavor> ::core::cmp::PartialEq for Value<F> {
                         variant: __arg1_1,
                     },
                 ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                _ => true,
+                _ => false,
             }
     }
 }
@@ -292,6 +300,9 @@ impl<F: ::core::fmt::Debug + ValueFlavor> ::core::fmt::Debug for Value<F> {
             }
             Value::Tuple(__self_0) => {
                 ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Tuple", &__self_0)
+            }
+            Value::UnitStruct { name: __self_0 } => {
+                ::core::fmt::Formatter::debug_struct_fields_finish(f, __self_0, &[], &[])
             }
             Value::Struct {
                 name: __self_0,

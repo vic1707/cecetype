@@ -1,7 +1,7 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
+use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, ValueBuilder};
 use ::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,6 +47,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
         elements: F::List<TypeSchema<'s, F>>,
     },
 
+    UnitStruct(F::Str),
     Struct(
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
@@ -187,6 +188,7 @@ where
                 write!(f, ")")
             }
 
+            TypeSchema::UnitStruct(name) => write!(f, "{}", name.deref()),
             TypeSchema::Struct(s) => write!(f, "{}", s.deref()),
 
             TypeSchema::Enum(e) => write!(f, "{}", e.deref()),
@@ -304,19 +306,22 @@ where
             TypeSchema::Slice { element } => {
                 deserializer.deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element))
             }
-            TypeSchema::Tuple { elements } => {
-                deserializer.deserialize_tuple(elements.len(), visitors::TupleVisitor::<SF, VF>::new(elements))
-            }
+            TypeSchema::Tuple { elements } => deserializer.deserialize_tuple(
+                elements.len(),
+                visitors::TupleVisitor::<SF, VF>::new(elements),
+            ),
 
+            TypeSchema::UnitStruct(name) => deserializer
+                .deserialize_unit_struct("", visitors::UnitStructVisitor::<SF, VF>::new(name)),
             TypeSchema::Struct(schema) => deserializer.deserialize_struct(
-                "", // dunno
+                "",                      // dunno
                 _S[schema.fields.len()], // dirty ass hack
                 visitors::StructVisitor::<SF, VF>::new(&schema.name, &schema.fields),
             ),
 
             TypeSchema::Enum(schema) => {
                 deserializer.deserialize_enum(
-                    "", // dunno
+                    "",                        // dunno
                     _S[schema.variants.len()], // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(schema),
                 )

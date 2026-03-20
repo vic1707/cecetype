@@ -3,8 +3,8 @@ use crate::{FieldSchema, SchemaFlavor, Value, ValueBuilder};
 use ::{
     core::marker::PhantomData,
     serde::{
-        Deserialize,
         de::{self, MapAccess, SeqAccess, Visitor},
+        Deserialize,
     },
 };
 
@@ -119,6 +119,51 @@ where
         Ok(Value::Struct {
             name: VF::make_str(self.name),
             fields: values,
+        })
+    }
+}
+
+pub struct UnitStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+{
+    name: &'s SF::Str,
+
+    _p: PhantomData<VF>,
+}
+
+impl<'s, SF, VF> UnitStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+{
+    pub fn new(name: &'s SF::Str) -> Self {
+        Self {
+            name,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<'de, 's, SF, VF> Visitor<'de> for UnitStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+    VF::Str: Deserialize<'de>,
+{
+    type Value = Value<VF>;
+
+    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "unit struct {}", &**self.name)
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(Value::UnitStruct {
+            name: VF::make_str(self.name),
         })
     }
 }

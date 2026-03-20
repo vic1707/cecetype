@@ -27,6 +27,13 @@ impl Schema for MyStruct {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct MyUnitStruct;
+
+impl Schema for MyUnitStruct {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::UnitStruct("MyUnitStruct");
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 enum MyEnum {
     Unit,
     Tuple(u32, bool),
@@ -141,6 +148,7 @@ impl Schema for Complex {
     _protocol => [Json, Postcard, Yaml],
     data_expected => [
         // --- primitives ---
+        ((), Value::Unit),
         (123u32, Value::U32(123)),
         (true, Value::Bool(true)),
 
@@ -176,6 +184,15 @@ impl Schema for Complex {
                 Value::U8(3),
             ])
         ),
+
+        // --- unit struct ---
+        (
+            MyUnitStruct,
+            Value::UnitStruct { 
+                name: "MyUnitStruct".to_owned(), 
+            }
+        ),
+
         // --- simple struct ---
         (
             MyStruct { a: 42, b: true },
@@ -185,6 +202,17 @@ impl Schema for Complex {
                     ("a".to_owned(), Value::U32(42)),
                     ("b".to_owned(), Value::Bool(true)),
                 ]
+            }
+        ),
+
+        // --- enum unit ---
+        (
+            MyEnum::Unit,
+            Value::Enum {
+                name: "MyEnum".to_owned(),
+                variant: VariantValue::Unit {
+                    name: "Unit".to_owned(), 
+                }
             }
         ),
 

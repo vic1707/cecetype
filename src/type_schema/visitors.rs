@@ -4,14 +4,17 @@ mod slice;
 mod r#struct;
 mod tuple;
 pub use self::{
-    array::ArrayVisitor, r#enum::EnumVisitor, slice::SliceVisitor, r#struct::StructVisitor,
+    array::ArrayVisitor,
+    r#enum::EnumVisitor,
+    r#struct::{StructVisitor, UnitStructVisitor},
+    slice::SliceVisitor,
     tuple::TupleVisitor,
 };
 
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
     core::marker::PhantomData,
-    serde::{Deserialize, de::DeserializeSeed},
+    serde::{de::DeserializeSeed, Deserialize},
 };
 
 struct Seed<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
