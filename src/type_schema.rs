@@ -301,7 +301,8 @@ where
             TypeSchema::F64 => Ok(Value::F64(f64::deserialize(deserializer)?)),
 
             TypeSchema::Array { element, len } => {
-                deserializer.deserialize_seq(visitors::ArrayVisitor::<SF, VF>::new(element, *len))
+                // array is fixed length, not a seq
+                deserializer.deserialize_tuple(*len, visitors::ArrayVisitor::<SF, VF>::new(element, *len))
             }
             TypeSchema::Slice { element } => {
                 deserializer.deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element))
