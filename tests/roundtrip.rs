@@ -158,7 +158,7 @@ impl Schema for Complex {
         ),
 
         // --- slice ---
-        ( // fails
+        (
             &[1u8, 2, 3] as &[u8],
             Value::Slice(vec![
                 Value::U8(1),
@@ -329,10 +329,14 @@ impl Roundtrip for Json {
     type Error = ::serde_json::Error;
 
     fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let json = ::serde_json::to_string(value).unwrap();
-        let mut de = ::serde_json::Deserializer::from_str(&json);
+        let encoded_schema = ::serde_json::to_string(T::SCHEMA).expect("Schema serialization failed");
+        let decoded_schema = ::serde_json::from_str::<OwnedSchema>(&encoded_schema).expect("Schema deserialization failed");
 
-        T::SCHEMA.decode_value(&mut de)
+        let json = ::serde_json::to_string(value).expect("Value serialization failed");
+        dbg! { &json };
+
+        let mut de = ::serde_json::Deserializer::from_str(&json);
+        decoded_schema.decode_value(&mut de)
     }
 }
 
@@ -342,10 +346,14 @@ impl Roundtrip for Postcard {
     type Error = ::postcard::Error;
 
     fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let bytes = ::postcard::to_vec::<_, 1024>(value).unwrap();
-        let mut de = ::postcard::Deserializer::from_bytes(&bytes);
+        let encoded_schema = ::postcard::to_vec::<_, 1024>(T::SCHEMA).expect("Schema serialization failed");
+        let decoded_schema = ::postcard::from_bytes::<OwnedSchema>(&encoded_schema).expect("Schema deserialization failed");
 
-        T::SCHEMA.decode_value(&mut de)
+        let bytes = ::postcard::to_vec::<_, 1024>(value).expect("Value serialization failed");
+        dbg! { &bytes };
+
+        let mut de = ::postcard::Deserializer::from_bytes(&bytes);
+        decoded_schema.decode_value(&mut de)
     }
 }
 
@@ -356,9 +364,13 @@ impl Roundtrip for Yaml {
     type Error = ::yaml_serde::Error;
 
     fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let yaml = ::yaml_serde::to_string(value).unwrap();
-        let de = ::yaml_serde::Deserializer::from_str(&yaml);
+        let encoded_schema = ::yaml_serde::to_string(T::SCHEMA).expect("Schema serialization failed");
+        let decoded_schema = ::yaml_serde::from_str::<OwnedSchema>(&encoded_schema).expect("Schema deserialization failed");
 
-        T::SCHEMA.decode_value(de)
+        let yaml = ::yaml_serde::to_string(value).expect("Value serialization failed");
+        dbg! { &yaml };
+
+        let de = ::yaml_serde::Deserializer::from_str(&yaml);
+        decoded_schema.decode_value(de)
     }
 }
