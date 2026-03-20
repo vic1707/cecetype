@@ -2,7 +2,10 @@ mod primitive_impls;
 mod visitors;
 
 use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
-use ::serde::{Deserialize, Serialize};
+use ::{
+    core::ops::Deref as _,
+    serde::{Deserialize, Serialize},
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound(
@@ -75,6 +78,10 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
         #[serde(deserialize_with = "F::deserialize_list")]
         variants: F::List<VariantSchema<'s, F>>,
     },
+
+    #[serde(serialize_with = "ser::serialize_ptr")]
+    #[serde(deserialize_with = "F::deserialize_ptr")]
+    Option(F::Ptr<Self>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -161,8 +168,6 @@ where
     F: SchemaFlavor<'s>,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        use core::ops::Deref as _;
-
         match self {
             TypeSchema::Unit => write!(f, "()"),
             TypeSchema::Bool => write!(f, "bool"),
@@ -283,6 +288,8 @@ where
 
                 write!(f, " }}")
             }
+
+            TypeSchema::Option(schema) => write!(f, "Option<{}>", schema.deref()),
         }
     }
 }
@@ -354,6 +361,10 @@ where
                     visitors::_S[variants.len()], // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(name, variants),
                 )
+            }
+
+            TypeSchema::Option(schema) => {
+                deserializer.deserialize_option(visitors::OptionVisitor::<SF, VF>::new(schema))
             }
         }
     }

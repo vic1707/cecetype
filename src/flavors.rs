@@ -83,4 +83,11 @@ pub(crate) mod ser {
     ) -> Result<S::Ok, S::Error> {
         ptr.deref().serialize(serializer)
     }
+
+    pub fn serialize_opt_ptr<S: Serializer, T: Serialize>(
+        ptr: &Option<impl Deref<Target = T>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        ptr.as_ref().map(|p| p.deref()).serialize(serializer)
+    }
 }

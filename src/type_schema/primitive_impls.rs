@@ -65,20 +65,7 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
 }
 
 impl<T: Schema> Schema for Option<T> {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
-        name: "Option",
-        variants: &[
-            &VariantSchema::Unit {
-                name: "None",
-                discriminant: 0, // TODO: generate
-            },
-            &VariantSchema::NewType {
-                name: "Some",
-                discriminant: 1, // TODO: generate
-                field: T::SCHEMA,
-            },
-        ] as &[&_],
-    };
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Option(T::SCHEMA);
 }
 
 macro_rules! impl_tuple_schema {

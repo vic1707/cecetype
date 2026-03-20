@@ -1,4 +1,3 @@
-// TODO: Add tests with options and results
 use ::{
     core::{error, fmt},
     serde::{Deserialize, Serialize},
@@ -169,6 +168,8 @@ impl Schema for Complex {
 
 #[rstest::rstest]
 #[case::unit(((), Value::Unit))]
+#[case::option_none((Option::<u8>::None, Value::Option(None)))]
+#[case::option_some((Some(12u8), Value::Option(Some(Box::new(Value::U8(12))))))]
 #[case::result_ok((Result::<u8, &str>::Ok(12), Value::Enum { name: "Result".to_owned(), variant: VariantValue::NewType { name: "Ok".to_owned(), field: Box::new(Value::U8(12)) } }))]
 #[case::result_err((Result::<u8, &str>::Err("error"), Value::Enum { name: "Result".to_owned(), variant: VariantValue::NewType { name: "Err".to_owned(), field: Box::new(Value::Str("error".to_owned())) } }))]
 #[case::u8_max((u8::MAX, Value::U8(255)))]

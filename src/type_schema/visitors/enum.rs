@@ -1,6 +1,6 @@
 use super::{StructVisitor, TupleVisitor};
 use crate::{
-    SchemaFlavor, Value, ValueBuilder, ValueFlavor, VariantSchema, VariantValue,
+    SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor, VariantSchema, VariantValue,
     type_schema::visitors::Seed,
 };
 use ::{
@@ -142,5 +142,48 @@ where
         };
 
         Ok(value)
+    }
+}
+
+pub struct OptionVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+    some: &'s TypeSchema<'s, SF>,
+
+    _p: PhantomData<VF>,
+}
+
+impl<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> OptionVisitor<'s, SF, VF> {
+    pub fn new(some: &'s TypeSchema<'s, SF>) -> Self {
+        Self {
+            some,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<'de, 's, SF, VF> Visitor<'de> for OptionVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+    VF::Str: Deserialize<'de>,
+{
+    type Value = Value<VF>;
+
+    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "Option<{}>", self.some)
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Value::Option(None))
+    }
+
+    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = self.some.decode_value::<_, VF>(deserializer)?;
+        Ok(Value::Option(Some(VF::make_ptr(value))))
     }
 }

@@ -53,6 +53,9 @@ pub enum Value<F: ValueFlavor> {
         name: F::Str,
         variant: VariantValue<F>,
     },
+
+    #[serde(serialize_with = "ser::serialize_opt_ptr")]
+    Option(Option<F::Ptr<Value<F>>>),
 }
 
 #[derive(Serialize)]
@@ -154,6 +157,11 @@ where
             Value::Enum { name, variant } => {
                 write!(f, "{}::{}", name.deref(), variant)
             }
+
+            Value::Option(value) => match value {
+                Some(value) => write!(f, "Some({})", value.deref()),
+                None => write!(f, "None"),
+            },
         }
     }
 }
@@ -303,6 +311,7 @@ impl<F: ValueFlavor> ::core::cmp::PartialEq for Value<F> {
                         variant: __arg1_1,
                     },
                 ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
+                (Value::Option(__self_0), Value::Option(__arg1_0)) => __self_0 == __arg1_0,
                 _ => true,
             }
     }
@@ -388,6 +397,9 @@ impl<F: ::core::fmt::Debug + ValueFlavor> ::core::fmt::Debug for Value<F> {
             } => ::core::fmt::Formatter::debug_struct_field2_finish(
                 f, "Enum", "name", __self_0, "variant", &__self_1,
             ),
+            Value::Option(__self_0) => {
+                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Option", &__self_0)
+            }
         }
     }
 }

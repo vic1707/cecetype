@@ -5,7 +5,7 @@ mod r#struct;
 mod tuple;
 pub use self::{
     array::ArrayVisitor,
-    r#enum::EnumVisitor,
+    r#enum::{EnumVisitor, OptionVisitor},
     slice::SliceVisitor,
     r#struct::{NewTypeStructVisitor, StructVisitor, TupleStructVisitor, UnitStructVisitor},
     tuple::TupleVisitor,
