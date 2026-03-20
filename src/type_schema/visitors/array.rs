@@ -50,7 +50,6 @@ where
                 })?
                 .ok_or_else(|| de::Error::invalid_length(i, &self))?;
 
-            std::dbg! { &v };
             VF::list_push(&mut values, v);
         }
 
