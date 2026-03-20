@@ -3,11 +3,16 @@ name = "schema"
 version = "0.0.0"
 edition = "2024"
 
+[workspace]
+members = ["schema-macros"]
+
 [features]
-default = ["std"]
+default = ["std", "macros"]
 std = ["serde/std"]
+macros = ["dep:schema-macros"]
 
 [dependencies]
+schema-macros = { path = "schema-macros", optional = true }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
