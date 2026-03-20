@@ -1,9 +1,9 @@
 // TODO: Add tests with options and results
-use schema::*;
 use ::{
     core::{error, fmt},
     serde::{Deserialize, Serialize},
 };
+use schema::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct MyStruct {
@@ -175,6 +175,8 @@ impl Schema for Complex {
 #[case::i64_max((i64::MAX, Value::I64(i64::MAX)))]
 #[case::f32_inf((12.5f32, Value::F32(12.5)))]
 #[case::bool((true, Value::Bool(true)))]
+#[case::empty_string(("", Value::Str("".to_owned())))]
+#[case::unicode(("é🚀", Value::Str("é🚀".to_owned())))]
 #[case::string(("hello", Value::Str("hello".to_owned())))]
 #[case::char(('x', Value::Char('x')))]
 #[case::nested_tuple(( (((((12u8,),),),),), Value::Tuple(vec![Value::Tuple(vec![Value::Tuple(vec![Value::Tuple(vec![Value::Tuple(vec![Value::U8(12)])])])])]) ))]
@@ -201,6 +203,154 @@ fn roundtrip<R: Roundtrip, D: Serialize + Schema>(
     match R::roundtrip(&data) {
         Ok(decoded) => assert_eq!(decoded, expected),
         Err(err) => panic!("Couldn't decode payload: {err}"),
+    }
+}
+
+#[test]
+fn struct_missing_field() {
+    let json = r#"{ "a": 42 }"#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let err = MyStruct::SCHEMA
+        .decode_value::<_, Owned>(&mut de)
+        .unwrap_err();
+
+    assert_eq!(err.to_string(), "missing field `b` at line 1 column 11");
+}
+
+#[test]
+fn struct_unknown_field() {
+    let json = r#"{ "a": 42, "b": true, "c": 1 }"#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let err = MyStruct::SCHEMA
+        .decode_value::<_, Owned>(&mut de)
+        .unwrap_err();
+
+    assert_eq!(err.to_string(), "unknown field `c` at line 1 column 25");
+}
+
+#[test]
+fn struct_duplicate_field() {
+    let json = r#"{ "a": 1, "a": 2, "b": true }"#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let err = MyStruct::SCHEMA
+        .decode_value::<_, Owned>(&mut de)
+        .unwrap_err();
+
+    assert_eq!(err.to_string(), "duplicate field `a` at line 1 column 13");
+}
+
+#[test]
+fn tuple_too_short() {
+    let json = r#"[1]"#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let err = <(u32, bool)>::SCHEMA
+        .decode_value::<_, Owned>(&mut de)
+        .unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "invalid length 1, expected tuple at line 1 column 3"
+    );
+}
+
+#[test]
+fn tuple_too_long() {
+    let json = r#"[1, true, false]"#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let err = <(u32, bool)>::SCHEMA
+        .decode_value::<_, Owned>(&mut de)
+        .unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "invalid length 3, expected tuple at line 1 column 16"
+    );
+}
+
+#[test]
+fn tuple_wrong_type() {
+    let json = r#"[1, "14"]"#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let err = <(u32, bool)>::SCHEMA
+        .decode_value::<_, Owned>(&mut de)
+        .unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        r#"invalid type: string "14", expected a boolean at line 1 column 8"#
+    );
+}
+
+#[test]
+fn enum_unknown_variant_name() {
+    let json = r#""Unknown""#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let err = MyEnum::SCHEMA
+        .decode_value::<_, Owned>(&mut de)
+        .unwrap_err();
+
+    assert_eq!(err.to_string(), "unknown variant: `Unknown`");
+}
+
+#[test]
+fn enum_unknown_variant_index() {
+    let json = r#"{ 99: {} }"#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let err = MyEnum::SCHEMA
+        .decode_value::<_, Owned>(&mut de)
+        .unwrap_err();
+
+    assert_eq!(err.to_string(), "unknown variant: `[id: 99]`");
+}
+
+#[test]
+fn slice_of_structs() {
+    let data = vec![MyStruct { a: 1, b: true }, MyStruct { a: 2, b: false }];
+
+    let json = serde_json::to_string(&data).unwrap();
+    let mut de = serde_json::Deserializer::from_str(&json);
+
+    let schema = <[MyStruct]>::SCHEMA;
+    let value = schema.decode_value::<_, Owned>(&mut de).unwrap();
+
+    match value {
+        Value::Slice(v) => assert_eq!(v.len(), 2),
+        _ => panic!("expected slice"),
+    }
+}
+
+#[test]
+fn array_of_enum() {
+    let data = [MyEnum::Unit, MyEnum::Unit];
+
+    let result = Json::roundtrip(&data).unwrap();
+
+    match result {
+        Value::Array(v) => assert_eq!(v.len(), 2),
+        _ => panic!("expected array"),
+    }
+}
+
+#[test]
+fn struct_field_order_irrelevant() {
+    let json = r#"{ "b": true, "a": 42 }"#;
+
+    let mut de = serde_json::Deserializer::from_str(json);
+    let value = MyStruct::SCHEMA.decode_value::<_, Owned>(&mut de).unwrap();
+
+    match value {
+        Value::Struct { fields, .. } => {
+            assert_eq!(fields.len(), 2);
+        }
+        _ => panic!("expected struct"),
     }
 }
 

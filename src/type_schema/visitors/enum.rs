@@ -3,8 +3,8 @@ use crate::{SchemaFlavor, Value, ValueBuilder, ValueFlavor, VariantSchema, Varia
 use ::{
     core::{fmt, marker::PhantomData, ops::Deref as _},
     serde::{
-        de::{EnumAccess, VariantAccess as _, Visitor},
         Deserialize,
+        de::{EnumAccess, VariantAccess as _, Visitor},
     },
 };
 
@@ -72,7 +72,7 @@ where
                 .find(|v| v.discriminant() == &idx),
         }
         .ok_or_else(|| {
-            serde::de::Error::custom(format_args!("unknown variant: {variant_identifier}"))
+            serde::de::Error::custom(format_args!("unknown variant: `{variant_identifier}`"))
         })?;
 
         let value = match variant_schema.deref() {
