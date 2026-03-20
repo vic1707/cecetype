@@ -3,8 +3,8 @@ use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
     core::marker::PhantomData,
     serde::{
-        de::{self, SeqAccess, Visitor},
         Deserialize,
+        de::{self, SeqAccess, Visitor},
     },
 };
 

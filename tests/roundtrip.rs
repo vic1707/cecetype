@@ -169,6 +169,8 @@ impl Schema for Complex {
 
 #[rstest::rstest]
 #[case::unit(((), Value::Unit))]
+#[case::result_ok((Result::<u8, &str>::Ok(12), Value::Enum { name: "Result".to_owned(), variant: VariantValue::NewType { name: "Ok".to_owned(), field: Box::new(Value::U8(12)) } }))]
+#[case::result_err((Result::<u8, &str>::Err("error"), Value::Enum { name: "Result".to_owned(), variant: VariantValue::NewType { name: "Err".to_owned(), field: Box::new(Value::Str("error".to_owned())) } }))]
 #[case::u8_max((u8::MAX, Value::U8(255)))]
 #[case::u32((123u32, Value::U32(123)))]
 #[case::i64_min((i64::MIN, Value::I64(i64::MIN)))]

@@ -1,7 +1,7 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, ValueBuilder};
+use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
 use ::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -114,6 +114,13 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
         name: F::Str,
         discriminant: i32,
     },
+    NewType {
+        name: F::Str,
+        discriminant: i32,
+        #[serde(serialize_with = "ser::serialize_ptr")]
+        #[serde(deserialize_with = "F::deserialize_ptr")]
+        field: F::Ptr<TypeSchema<'s, F>>,
+    },
     Tuple {
         name: F::Str,
         discriminant: i32,
@@ -133,14 +140,18 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
 impl<'s, F: SchemaFlavor<'s>> VariantSchema<'s, F> {
     fn name(&self) -> &str {
         match self {
-            Self::Struct { name, .. } | Self::Unit { name, .. } | Self::Tuple { name, .. } => name,
+            Self::Struct { name, .. }
+            | Self::Unit { name, .. }
+            | Self::Tuple { name, .. }
+            | Self::NewType { name, .. } => name,
         }
     }
     fn discriminant(&self) -> &i32 {
         match self {
             Self::Struct { discriminant, .. }
             | Self::Unit { discriminant, .. }
-            | Self::Tuple { discriminant, .. } => discriminant,
+            | Self::Tuple { discriminant, .. }
+            | Self::NewType { discriminant, .. } => discriminant,
         }
     }
 }
@@ -260,6 +271,13 @@ where
                             }
                             write!(f, ")")?;
                         }
+                        VariantSchema::NewType {
+                            name,
+                            discriminant,
+                            field,
+                        } => {
+                            write!(f, "{} = {}({})", name.deref(), discriminant, field.deref())?;
+                        }
                     }
                 }
 
@@ -302,7 +320,8 @@ where
 
             TypeSchema::Array { element, len } => {
                 // array is fixed length, not a seq
-                deserializer.deserialize_tuple(*len, visitors::ArrayVisitor::<SF, VF>::new(element, *len))
+                deserializer
+                    .deserialize_tuple(*len, visitors::ArrayVisitor::<SF, VF>::new(element, *len))
             }
             TypeSchema::Slice { element } => {
                 deserializer.deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element))

@@ -3,8 +3,8 @@ use crate::{FieldSchema, SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
     core::{marker::PhantomData, ops::Deref as _},
     serde::{
-        de::{self, MapAccess, SeqAccess, Visitor},
         Deserialize,
+        de::{self, MapAccess, SeqAccess, Visitor},
     },
 };
 

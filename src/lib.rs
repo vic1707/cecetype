@@ -25,7 +25,7 @@ mod tests {
     use super::*;
     use ::{
         core::fmt,
-        serde::{de::DeserializeOwned, Deserialize, Serialize},
+        serde::{Deserialize, Serialize, de::DeserializeOwned},
     };
 
     macro_rules! implements {

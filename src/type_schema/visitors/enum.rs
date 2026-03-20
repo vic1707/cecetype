@@ -1,5 +1,8 @@
 use super::{StructVisitor, TupleVisitor};
-use crate::{SchemaFlavor, Value, ValueBuilder, ValueFlavor, VariantSchema, VariantValue};
+use crate::{
+    SchemaFlavor, Value, ValueBuilder, ValueFlavor, VariantSchema, VariantValue,
+    type_schema::visitors::Seed,
+};
 use ::{
     core::{fmt, marker::PhantomData, ops::Deref as _},
     serde::{
@@ -99,6 +102,21 @@ where
                     variant: VariantValue::Tuple {
                         name: VF::make_str(variant_schema.name()),
                         fields,
+                    },
+                }
+            }
+
+            VariantSchema::NewType { field, .. } => {
+                let field = VF::make_ptr(variant_access.newtype_variant_seed(Seed {
+                    schema: field,
+                    _p: PhantomData,
+                })?);
+
+                Value::Enum {
+                    name: VF::make_str(self.name),
+                    variant: VariantValue::NewType {
+                        name: VF::make_str(variant_schema.name()),
+                        field,
                     },
                 }
             }

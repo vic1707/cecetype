@@ -50,7 +50,7 @@ pub trait ValueBuilder: ValueFlavor {
 pub(crate) mod ser {
     use ::{
         core::ops::Deref,
-        serde::{ser::SerializeSeq as _, Serialize, Serializer},
+        serde::{Serialize, Serializer, ser::SerializeSeq as _},
     };
 
     pub fn serialize_list_ptr<S: Serializer, T: Serialize>(

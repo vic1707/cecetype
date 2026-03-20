@@ -6,15 +6,15 @@ mod tuple;
 pub use self::{
     array::ArrayVisitor,
     r#enum::EnumVisitor,
-    r#struct::{NewTypeStructVisitor, StructVisitor, TupleStructVisitor, UnitStructVisitor},
     slice::SliceVisitor,
+    r#struct::{NewTypeStructVisitor, StructVisitor, TupleStructVisitor, UnitStructVisitor},
     tuple::TupleVisitor,
 };
 
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
     core::marker::PhantomData,
-    serde::{de::DeserializeSeed, Deserialize},
+    serde::{Deserialize, de::DeserializeSeed},
 };
 
 struct Seed<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {

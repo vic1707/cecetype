@@ -50,15 +50,15 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
         name: "Result",
         variants: &[
-            &VariantSchema::Tuple {
+            &VariantSchema::NewType {
                 name: "Ok",
                 discriminant: 0, // TODO: generate
-                fields: &[T::SCHEMA] as &[&_],
+                field: T::SCHEMA,
             },
-            &VariantSchema::Tuple {
+            &VariantSchema::NewType {
                 name: "Err",
                 discriminant: 1, // TODO: generate
-                fields: &[E::SCHEMA] as &[&_],
+                field: E::SCHEMA,
             },
         ] as &[&_],
     };
@@ -68,14 +68,14 @@ impl<T: Schema> Schema for Option<T> {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
         name: "Option",
         variants: &[
-            &VariantSchema::Tuple {
-                name: "Some",
-                discriminant: 0, // TODO: generate
-                fields: &[T::SCHEMA] as &[&_],
-            },
             &VariantSchema::Unit {
                 name: "None",
+                discriminant: 0, // TODO: generate
+            },
+            &VariantSchema::NewType {
+                name: "Some",
                 discriminant: 1, // TODO: generate
+                field: T::SCHEMA,
             },
         ] as &[&_],
     };

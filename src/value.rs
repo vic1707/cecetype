@@ -1,4 +1,4 @@
-use crate::flavors::{ser, ValueFlavor};
+use crate::flavors::{ValueFlavor, ser};
 use ::{core::ops::Deref as _, serde::Serialize};
 
 #[derive(Serialize)]
@@ -66,6 +66,12 @@ pub enum VariantValue<F: ValueFlavor> {
         name: F::Str,
         #[serde(serialize_with = "ser::serialize_list")]
         fields: F::List<Value<F>>,
+    },
+
+    NewType {
+        name: F::Str,
+        #[serde(serialize_with = "ser::serialize_ptr")]
+        field: F::Ptr<Value<F>>,
     },
 
     Struct {
@@ -179,6 +185,9 @@ where
                 }
                 write!(f, ")")
             }
+            VariantValue::NewType { name, field } => {
+                write!(f, "{}({})", name.deref(), field.deref())
+            }
         }
     }
 }
@@ -201,6 +210,16 @@ impl<F: ValueFlavor> ::core::cmp::PartialEq for VariantValue<F> {
                     VariantValue::Tuple {
                         name: __arg1_0,
                         fields: __arg1_1,
+                    },
+                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
+                (
+                    VariantValue::NewType {
+                        name: __self_0,
+                        field: __self_1,
+                    },
+                    VariantValue::NewType {
+                        name: __arg1_0,
+                        field: __arg1_1,
                     },
                 ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
                 (
@@ -384,6 +403,12 @@ impl<F: ValueFlavor> ::core::fmt::Debug for VariantValue<F> {
                 fields: __self_1,
             } => ::core::fmt::Formatter::debug_struct_field2_finish(
                 f, "Tuple", "name", __self_0, "fields", &__self_1,
+            ),
+            VariantValue::NewType {
+                name: __self_0,
+                field: __self_1,
+            } => ::core::fmt::Formatter::debug_struct_field2_finish(
+                f, "NewType", "name", __self_0, "field", &__self_1,
             ),
             VariantValue::Struct {
                 name: __self_0,
