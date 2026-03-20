@@ -58,7 +58,7 @@ pub enum Value<F: ValueFlavor> {
     Option(Option<F::Ptr<Value<F>>>),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, PartialEq, Debug)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
 pub enum VariantValue<F: ValueFlavor> {
     Unit {
@@ -200,52 +200,7 @@ where
     }
 }
 
-impl<F: ValueFlavor> ::core::cmp::PartialEq for VariantValue<F> {
-    #[inline]
-    fn eq(&self, other: &VariantValue<F>) -> bool {
-        let __self_discr = ::core::intrinsics::discriminant_value(self);
-        let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-        __self_discr == __arg1_discr
-            && match (self, other) {
-                (VariantValue::Unit { name: __self_0 }, VariantValue::Unit { name: __arg1_0 }) => {
-                    __self_0 == __arg1_0
-                }
-                (
-                    VariantValue::Tuple {
-                        name: __self_0,
-                        fields: __self_1,
-                    },
-                    VariantValue::Tuple {
-                        name: __arg1_0,
-                        fields: __arg1_1,
-                    },
-                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                (
-                    VariantValue::NewType {
-                        name: __self_0,
-                        field: __self_1,
-                    },
-                    VariantValue::NewType {
-                        name: __arg1_0,
-                        field: __arg1_1,
-                    },
-                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                (
-                    VariantValue::Struct {
-                        name: __self_0,
-                        fields: __self_1,
-                    },
-                    VariantValue::Struct {
-                        name: __arg1_0,
-                        fields: __arg1_1,
-                    },
-                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                _ => unsafe { ::core::intrinsics::unreachable() },
-            }
-    }
-}
-
-impl<F: ValueFlavor> ::core::cmp::PartialEq for Value<F> {
+impl<F: ValueFlavor + PartialEq> ::core::cmp::PartialEq for Value<F> {
     #[inline]
     fn eq(&self, other: &Value<F>) -> bool {
         let __self_discr = ::core::intrinsics::discriminant_value(self);
@@ -400,34 +355,6 @@ impl<F: ::core::fmt::Debug + ValueFlavor> ::core::fmt::Debug for Value<F> {
             Value::Option(__self_0) => {
                 ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Option", &__self_0)
             }
-        }
-    }
-}
-impl<F: ValueFlavor> ::core::fmt::Debug for VariantValue<F> {
-    #[inline]
-    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        match self {
-            VariantValue::Unit { name: __self_0 } => {
-                ::core::fmt::Formatter::debug_struct_field1_finish(f, "Unit", "name", &__self_0)
-            }
-            VariantValue::Tuple {
-                name: __self_0,
-                fields: __self_1,
-            } => ::core::fmt::Formatter::debug_struct_field2_finish(
-                f, "Tuple", "name", __self_0, "fields", &__self_1,
-            ),
-            VariantValue::NewType {
-                name: __self_0,
-                field: __self_1,
-            } => ::core::fmt::Formatter::debug_struct_field2_finish(
-                f, "NewType", "name", __self_0, "field", &__self_1,
-            ),
-            VariantValue::Struct {
-                name: __self_0,
-                fields: __self_1,
-            } => ::core::fmt::Formatter::debug_struct_field2_finish(
-                f, "Struct", "name", __self_0, "fields", &__self_1,
-            ),
         }
     }
 }

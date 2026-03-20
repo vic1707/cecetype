@@ -24,7 +24,7 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
         T: ::serde::Deserialize<'de>;
 }
 
-pub trait ValueFlavor: ::core::fmt::Debug {
+pub trait ValueFlavor: ::core::fmt::Debug + PartialEq {
     type Ptr<T: PartialEq + ::core::fmt::Debug>: ::core::ops::Deref<Target = T>
         + PartialEq
         + ::core::fmt::Debug;
