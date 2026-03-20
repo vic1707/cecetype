@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(core_intrinsics, fmt_helpers_for_derive)]
 
 #[cfg(feature = "std")]
 extern crate std;

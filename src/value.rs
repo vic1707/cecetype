@@ -1,8 +1,10 @@
 use crate::flavors::{ValueFlavor, ser};
-use ::{core::ops::Deref as _, serde::Serialize};
+use ::{core::ops::Deref as _, derive_where::derive_where, serde::Serialize};
 
 #[derive(Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
+#[derive_where(Debug; F: ::core::fmt::Debug)]
+#[derive_where(PartialEq; F: PartialEq)]
 pub enum Value<F: ValueFlavor> {
     Unit,
 
@@ -58,8 +60,10 @@ pub enum Value<F: ValueFlavor> {
     Option(Option<F::Ptr<Value<F>>>),
 }
 
-#[derive(Serialize, PartialEq, Debug)]
+#[derive(Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
+#[derive_where(Debug; F: ::core::fmt::Debug)]
+#[derive_where(PartialEq; F: PartialEq)]
 pub enum VariantValue<F: ValueFlavor> {
     Unit {
         name: F::Str,
@@ -195,165 +199,6 @@ where
             }
             VariantValue::NewType { name, field } => {
                 write!(f, "{}({})", name.deref(), field.deref())
-            }
-        }
-    }
-}
-
-impl<F: ValueFlavor + PartialEq> ::core::cmp::PartialEq for Value<F> {
-    #[inline]
-    fn eq(&self, other: &Value<F>) -> bool {
-        let __self_discr = ::core::intrinsics::discriminant_value(self);
-        let __arg1_discr = ::core::intrinsics::discriminant_value(other);
-        __self_discr == __arg1_discr
-            && match (self, other) {
-                (Value::Bool(__self_0), Value::Bool(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::Str(__self_0), Value::Str(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::Char(__self_0), Value::Char(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::U8(__self_0), Value::U8(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::U16(__self_0), Value::U16(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::U32(__self_0), Value::U32(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::U64(__self_0), Value::U64(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::I8(__self_0), Value::I8(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::I16(__self_0), Value::I16(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::I32(__self_0), Value::I32(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::I64(__self_0), Value::I64(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::F32(__self_0), Value::F32(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::F64(__self_0), Value::F64(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::Array(__self_0), Value::Array(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::Slice(__self_0), Value::Slice(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::Tuple(__self_0), Value::Tuple(__arg1_0)) => __self_0 == __arg1_0,
-                (Value::UnitStruct { name: __self_0 }, Value::UnitStruct { name: __arg1_0 }) => {
-                    __self_0 == __arg1_0
-                }
-                (
-                    Value::NewTypeStruct {
-                        name: __self_0,
-                        field: __self_1,
-                    },
-                    Value::NewTypeStruct {
-                        name: __arg1_0,
-                        field: __arg1_1,
-                    },
-                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                (
-                    Value::TupleStruct {
-                        name: __self_0,
-                        fields: __self_1,
-                    },
-                    Value::TupleStruct {
-                        name: __arg1_0,
-                        fields: __arg1_1,
-                    },
-                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                (
-                    Value::Struct {
-                        name: __self_0,
-                        fields: __self_1,
-                    },
-                    Value::Struct {
-                        name: __arg1_0,
-                        fields: __arg1_1,
-                    },
-                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                (
-                    Value::Enum {
-                        name: __self_0,
-                        variant: __self_1,
-                    },
-                    Value::Enum {
-                        name: __arg1_0,
-                        variant: __arg1_1,
-                    },
-                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                (Value::Option(__self_0), Value::Option(__arg1_0)) => __self_0 == __arg1_0,
-                _ => true,
-            }
-    }
-}
-
-impl<F: ::core::fmt::Debug + ValueFlavor> ::core::fmt::Debug for Value<F> {
-    #[inline]
-    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        match self {
-            Value::Unit => ::core::fmt::Formatter::write_str(f, "Unit"),
-            Value::Bool(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Bool", &__self_0)
-            }
-            Value::Str(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Str", &__self_0)
-            }
-            Value::Char(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Char", &__self_0)
-            }
-            Value::U8(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U8", &__self_0)
-            }
-            Value::U16(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U16", &__self_0)
-            }
-            Value::U32(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U32", &__self_0)
-            }
-            Value::U64(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "U64", &__self_0)
-            }
-            Value::I8(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I8", &__self_0)
-            }
-            Value::I16(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I16", &__self_0)
-            }
-            Value::I32(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I32", &__self_0)
-            }
-            Value::I64(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "I64", &__self_0)
-            }
-            Value::F32(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "F32", &__self_0)
-            }
-            Value::F64(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "F64", &__self_0)
-            }
-            Value::Array(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Array", &__self_0)
-            }
-            Value::Slice(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Slice", &__self_0)
-            }
-            Value::Tuple(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Tuple", &__self_0)
-            }
-            Value::UnitStruct { name: __self_0 } => {
-                ::core::fmt::Formatter::debug_struct_fields_finish(f, __self_0, &[], &[])
-            }
-            Value::NewTypeStruct {
-                name: __self_0,
-                field: __self_1,
-            } => ::core::fmt::Formatter::debug_struct_field2_finish(
-                f, "Struct", "name", __self_0, "field", &__self_1,
-            ),
-            Value::TupleStruct {
-                name: __self_0,
-                fields: __self_1,
-            } => ::core::fmt::Formatter::debug_struct_field2_finish(
-                f, "Struct", "name", __self_0, "fields", &__self_1,
-            ),
-            Value::Struct {
-                name: __self_0,
-                fields: __self_1,
-            } => ::core::fmt::Formatter::debug_struct_field2_finish(
-                f, "Struct", "name", __self_0, "fields", &__self_1,
-            ),
-            Value::Enum {
-                name: __self_0,
-                variant: __self_1,
-            } => ::core::fmt::Formatter::debug_struct_field2_finish(
-                f, "Enum", "name", __self_0, "variant", &__self_1,
-            ),
-            Value::Option(__self_0) => {
-                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Option", &__self_0)
             }
         }
     }
