@@ -4,166 +4,45 @@ use ::{
 };
 use schema::*;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
 struct MyStruct {
     a: u32,
     b: bool,
 }
 
-impl Schema for MyStruct {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
-        name: "MyStruct",
-        fields: &[
-            &FieldSchema {
-                name: "a",
-                ty: &TypeSchema::U32,
-            },
-            &FieldSchema {
-                name: "b",
-                ty: &TypeSchema::Bool,
-            },
-        ] as &[&_],
-    };
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
 struct MyUnitStruct;
 
-impl Schema for MyUnitStruct {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::UnitStruct {
-        name: "MyUnitStruct",
-    };
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
 struct MyNewTypeStruct(u8);
 
-impl Schema for MyNewTypeStruct {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::NewTypeStruct {
-        name: "MyNewTypeStruct",
-        field: &TypeSchema::U8,
-    };
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
 struct MyTupleStruct(u8, ());
 
-impl Schema for MyTupleStruct {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::TupleStruct {
-        name: "MyTupleStruct",
-        fields: &[&TypeSchema::U8, &TypeSchema::Unit],
-    };
-}
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
 enum MyEnum {
     Unit,
     Tuple(u32, bool),
     Struct { x: u8, y: u8 },
 }
 
-impl Schema for MyEnum {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
-        name: "MyEnum",
-        variants: &[
-            &VariantSchema::Unit {
-                name: "Unit",
-                discriminant: 0,
-            },
-            &VariantSchema::Tuple {
-                name: "Tuple",
-                discriminant: 1,
-                fields: &[&TypeSchema::U32, &TypeSchema::Bool] as &[&_],
-            },
-            &VariantSchema::Struct {
-                name: "Struct",
-                discriminant: 2,
-                fields: &[
-                    &FieldSchema {
-                        name: "x",
-                        ty: &TypeSchema::U8,
-                    },
-                    &FieldSchema {
-                        name: "y",
-                        ty: &TypeSchema::U8,
-                    },
-                ] as &[&_],
-            },
-        ] as &[&_],
-    };
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
 struct Nested {
     inner: MyStruct,
     flag: bool,
 }
 
-impl Schema for Nested {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
-        name: "Nested",
-        fields: &[
-            &FieldSchema {
-                name: "inner",
-                ty: MyStruct::SCHEMA,
-            },
-            &FieldSchema {
-                name: "flag",
-                ty: &TypeSchema::Bool,
-            },
-        ] as &[&_],
-    };
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
 enum DeepEnum {
     A(MyStruct),
     B { nested: Nested },
 }
 
-impl Schema for DeepEnum {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
-        name: "DeepEnum",
-        variants: &[
-            &VariantSchema::Tuple {
-                name: "A",
-                discriminant: 0,
-                fields: &[MyStruct::SCHEMA] as &[&_],
-            },
-            &VariantSchema::Struct {
-                name: "B",
-                discriminant: 1,
-                fields: &[&FieldSchema {
-                    name: "nested",
-                    ty: Nested::SCHEMA,
-                }] as &[&_],
-            },
-        ] as &[&_],
-    };
-}
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
 struct Complex {
     tuple: (u32, bool),
     array: [u8; 3],
-}
-
-impl Schema for Complex {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
-        name: "Complex",
-        fields: &[
-            &FieldSchema {
-                name: "tuple",
-                ty: <(u32, bool)>::SCHEMA,
-            },
-            &FieldSchema {
-                name: "array",
-                ty: &TypeSchema::Array {
-                    element: &TypeSchema::U8,
-                    len: 3,
-                },
-            },
-        ] as &[&_],
-    };
 }
 
 #[rstest::rstest]

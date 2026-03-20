@@ -7,6 +7,9 @@ mod flavors;
 mod type_schema;
 mod value;
 
+#[cfg(feature = "macros")]
+pub use ::schema_macros::Schema;
+
 pub use self::{flavors::*, type_schema::*, value::*};
 
 pub trait Schema {
