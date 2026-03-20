@@ -324,32 +324,17 @@ where
             ),
             TypeSchema::Struct { name, fields } => deserializer.deserialize_struct(
                 "",               // dunno
-                _S[fields.len()], // dirty ass hack
+                visitors::_S[fields.len()], // dirty ass hack
                 visitors::StructVisitor::<SF, VF>::new(name, fields),
             ),
 
             TypeSchema::Enum { name, variants } => {
                 deserializer.deserialize_enum(
                     "",                 // dunno
-                    _S[variants.len()], // dirty ass hack
+                    visitors::_S[variants.len()], // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(name, variants),
                 )
             }
         }
     }
 }
-
-#[doc(hidden)]
-const _S: [&[&str]; 11] = [
-    &[],
-    &[""],
-    &["", ""],
-    &["", "", ""],
-    &["", "", "", ""],
-    &["", "", "", "", ""],
-    &["", "", "", "", "", ""],
-    &["", "", "", "", "", "", ""],
-    &["", "", "", "", "", "", "", ""],
-    &["", "", "", "", "", "", "", "", ""],
-    &["", "", "", "", "", "", "", "", "", ""],
-];

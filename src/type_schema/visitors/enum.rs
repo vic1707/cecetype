@@ -106,7 +106,7 @@ where
             VariantSchema::Struct { name, fields, .. } => {
                 // TODO: ok fields empty?
                 let Value::Struct { fields, .. } = variant_access
-                    .struct_variant(&[], StructVisitor::<SF, VF>::new(name, fields))?
+                    .struct_variant(super::_S[fields.len()], StructVisitor::<SF, VF>::new(name, fields))?
                 else {
                     unreachable!()
                 };
