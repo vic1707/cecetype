@@ -1,10 +1,10 @@
 use super::Seed;
-use crate::{FieldSchema, SchemaFlavor, Value, ValueBuilder};
+use crate::{FieldSchema, SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
-    core::marker::PhantomData,
+    core::{marker::PhantomData, ops::Deref as _},
     serde::{
-        de::{self, MapAccess, SeqAccess, Visitor},
         Deserialize,
+        de::{self, MapAccess, SeqAccess, Visitor},
     },
 };
 
@@ -42,15 +42,13 @@ where
     type Value = Value<VF>;
 
     fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "struct {}", &**self.name)
+        write!(f, "struct {}", self.name.deref())
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {
-        use ::core::ops::Deref as _;
-
         let fields = self.fields.deref();
         let mut values = VF::list_with_capacity(fields.len());
 
@@ -79,8 +77,6 @@ where
     where
         A: MapAccess<'de>,
     {
-        use ::core::ops::Deref as _;
-
         let fields = self.fields.deref();
 
         let mut slots = VF::list_from_iter((0..fields.len()).map(|_| None));
@@ -90,11 +86,13 @@ where
                 .iter()
                 .zip(slots.iter_mut())
                 .find(|(f, _)| *f.name == *key)
-                .ok_or_else(|| de::Error::custom(format_args!("unknown field `{}`", &*key)))?
+                .ok_or_else(|| {
+                    de::Error::custom(format_args!("unknown field `{}`", key.deref()))
+                })?
             else {
                 return Err(de::Error::custom(format_args!(
                     "duplicate field `{}`",
-                    &*key
+                    key.deref()
                 )));
             };
 
@@ -110,7 +108,7 @@ where
 
         for (field, slot) in fields.iter().zip(slots.iter_mut()) {
             let value = slot.take().ok_or_else(|| {
-                de::Error::custom(format_args!("missing field `{}`", &*field.name))
+                de::Error::custom(format_args!("missing field `{}`", field.name.deref()))
             })?;
 
             VF::list_push(&mut values, (VF::make_str(&field.name), value));
@@ -155,7 +153,7 @@ where
     type Value = Value<VF>;
 
     fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "unit struct {}", &**self.name)
+        write!(f, "unit struct {}", self.name.deref())
     }
 
     fn visit_unit<E>(self) -> Result<Self::Value, E>
@@ -164,6 +162,122 @@ where
     {
         Ok(Value::UnitStruct {
             name: VF::make_str(self.name),
+        })
+    }
+}
+
+pub struct TupleStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+{
+    name: &'s SF::Str,
+    fields: &'s SF::List<TypeSchema<'s, SF>>,
+
+    _p: PhantomData<VF>,
+}
+
+impl<'s, SF, VF> TupleStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+{
+    pub fn new(name: &'s SF::Str, fields: &'s SF::List<TypeSchema<'s, SF>>) -> Self {
+        Self {
+            name,
+            fields,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<'de, 's, SF, VF> Visitor<'de> for TupleStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+    VF::Str: Deserialize<'de>,
+{
+    type Value = Value<VF>;
+
+    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "newtype struct {}", self.name.deref())
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let fields = self.fields.deref();
+        let mut values = VF::list_with_capacity(fields.len());
+
+        for (i, schema) in fields.iter().enumerate() {
+            let value = seq
+                .next_element_seed(Seed {
+                    schema,
+                    _p: PhantomData,
+                })?
+                .ok_or_else(|| de::Error::invalid_length(i, &self))?;
+
+            VF::list_push(&mut values, value);
+        }
+
+        if seq.next_element::<de::IgnoredAny>()?.is_some() {
+            return Err(de::Error::invalid_length(fields.len() + 1, &self));
+        }
+
+        Ok(Value::TupleStruct {
+            name: VF::make_str(self.name),
+            fields: values,
+        })
+    }
+}
+
+pub struct NewTypeStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+{
+    name: &'s SF::Str,
+    field: &'s TypeSchema<'s, SF>,
+
+    _p: PhantomData<VF>,
+}
+
+impl<'s, SF, VF> NewTypeStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+{
+    pub fn new(name: &'s SF::Str, fields: &'s TypeSchema<'s, SF>) -> Self {
+        Self {
+            name,
+            field: fields,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<'de, 's, SF, VF> Visitor<'de> for NewTypeStructVisitor<'s, SF, VF>
+where
+    SF: SchemaFlavor<'s>,
+    VF: ValueBuilder,
+    VF::Str: Deserialize<'de>,
+{
+    type Value = Value<VF>;
+
+    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "newtype struct {}", self.name.deref())
+    }
+
+    fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let value = self.field.decode_value::<_, VF>(deserializer)?;
+
+        Ok(Value::NewTypeStruct {
+            name: VF::make_str(self.name),
+            field: VF::make_ptr(value),
         })
     }
 }

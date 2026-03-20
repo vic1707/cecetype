@@ -1,7 +1,7 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, ValueBuilder};
+use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
 use ::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,46 +31,50 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Array {
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
-        element: F::Ptr<TypeSchema<'s, F>>,
+        element: F::Ptr<Self>,
         len: usize,
     },
 
     Slice {
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
-        element: F::Ptr<TypeSchema<'s, F>>,
+        element: F::Ptr<Self>,
     },
 
     Tuple {
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
-        elements: F::List<TypeSchema<'s, F>>,
+        elements: F::List<Self>,
     },
 
-    UnitStruct(F::Str),
-    Struct(
+    UnitStruct {
+        name: F::Str,
+    },
+    NewTypeStruct {
+        name: F::Str,
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
-        F::Ptr<StructSchema<'s, F>>,
-    ),
+        field: F::Ptr<Self>,
+    },
+    TupleStruct {
+        name: F::Str,
+        #[serde(serialize_with = "ser::serialize_list_ptr")]
+        #[serde(deserialize_with = "F::deserialize_list")]
+        fields: F::List<Self>,
+    },
+    Struct {
+        name: F::Str,
+        #[serde(serialize_with = "ser::serialize_list_ptr")]
+        #[serde(deserialize_with = "F::deserialize_list")]
+        fields: F::List<FieldSchema<'s, F>>,
+    },
 
-    Enum(
-        #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        F::Ptr<EnumSchema<'s, F>>,
-    ),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "F::Str: Serialize",
-    deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
-))]
-pub struct StructSchema<'s, F: SchemaFlavor<'s>> {
-    pub name: F::Str,
-    #[serde(serialize_with = "ser::serialize_list_ptr")]
-    #[serde(deserialize_with = "F::deserialize_list")]
-    pub fields: F::List<FieldSchema<'s, F>>,
+    Enum {
+        name: F::Str,
+        #[serde(serialize_with = "ser::serialize_list_ptr")]
+        #[serde(deserialize_with = "F::deserialize_list")]
+        variants: F::List<VariantSchema<'s, F>>,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -188,88 +192,84 @@ where
                 write!(f, ")")
             }
 
-            TypeSchema::UnitStruct(name) => write!(f, "{}", name.deref()),
-            TypeSchema::Struct(s) => write!(f, "{}", s.deref()),
-
-            TypeSchema::Enum(e) => write!(f, "{}", e.deref()),
-        }
-    }
-}
-
-impl<'s, F> core::fmt::Display for StructSchema<'s, F>
-where
-    F: SchemaFlavor<'s>,
-{
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        use core::ops::Deref as _;
-
-        write!(f, "{} {{ ", &*self.name)?;
-
-        for (idx, field) in self.fields.deref().iter().enumerate() {
-            if idx != 0 {
-                write!(f, ", ")?;
+            TypeSchema::UnitStruct { name } => write!(f, "{}", name.deref()),
+            TypeSchema::NewTypeStruct { name, field } => {
+                write!(f, "{} ({})", name.deref(), field.deref())
             }
-            write!(f, "{}: {}", &*field.name, field.ty.deref())?;
-        }
+            TypeSchema::TupleStruct { name, fields } => {
+                write!(f, "{} (", name.deref())?;
 
-        write!(f, " }}")
-    }
-}
-
-impl<'s, F> core::fmt::Display for EnumSchema<'s, F>
-where
-    F: SchemaFlavor<'s>,
-{
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        use core::ops::Deref as _;
-
-        write!(f, "{} {{ ", &*self.name)?;
-
-        for (idx, variant) in self.variants.deref().iter().enumerate() {
-            if idx != 0 {
-                write!(f, " | ")?;
-            }
-            match &**variant {
-                VariantSchema::Unit { name, discriminant } => {
-                    write!(f, "{} = {}", &**name, discriminant)?
-                }
-                VariantSchema::Struct {
-                    name,
-                    discriminant,
-                    fields,
-                } => {
-                    write!(f, "{} = {}({{ ", &**name, discriminant)?;
-                    for (idx, field) in fields.deref().iter().enumerate() {
-                        if idx != 0 {
-                            write!(f, ", ")?;
-                        }
-                        write!(f, "{}: {}", &*field.name, field.ty.deref())?;
+                for (idx, field) in fields.deref().iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, ", ")?;
                     }
-                    write!(f, " }})")?;
+                    write!(f, "{}", field.deref())?;
                 }
-                VariantSchema::Tuple {
-                    name,
-                    discriminant,
-                    fields,
-                } => {
-                    write!(f, "{} = {}(", &**name, discriminant)?;
-                    for (idx, field) in fields.deref().iter().enumerate() {
-                        if idx != 0 {
-                            write!(f, ", ")?;
-                        }
-                        write!(f, "{}", field.deref())?;
+
+                write!(f, ")")
+            }
+            TypeSchema::Struct { name, fields } => {
+                write!(f, "{} {{ ", name.deref())?;
+
+                for (idx, field) in fields.deref().iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, ", ")?;
                     }
-                    write!(f, ")")?;
+                    write!(f, "{}: {}", field.name.deref(), field.ty.deref())?;
                 }
+
+                write!(f, " }}")
+            }
+
+            TypeSchema::Enum { name, variants } => {
+                write!(f, "{} {{ ", name.deref())?;
+
+                for (idx, variant) in variants.deref().iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, " | ")?;
+                    }
+                    match variant.deref() {
+                        VariantSchema::Unit { name, discriminant } => {
+                            write!(f, "{} = {}", name.deref(), discriminant)?
+                        }
+                        VariantSchema::Struct {
+                            name,
+                            discriminant,
+                            fields,
+                        } => {
+                            write!(f, "{} = {}({{ ", name.deref(), discriminant)?;
+                            for (idx, field) in fields.deref().iter().enumerate() {
+                                if idx != 0 {
+                                    write!(f, ", ")?;
+                                }
+                                write!(f, "{}: {}", field.name.deref(), field.ty.deref())?;
+                            }
+                            write!(f, " }})")?;
+                        }
+                        VariantSchema::Tuple {
+                            name,
+                            discriminant,
+                            fields,
+                        } => {
+                            write!(f, "{} = {}(", name.deref(), discriminant)?;
+                            for (idx, field) in fields.deref().iter().enumerate() {
+                                if idx != 0 {
+                                    write!(f, ", ")?;
+                                }
+                                write!(f, "{}", field.deref())?;
+                            }
+                            write!(f, ")")?;
+                        }
+                    }
+                }
+
+                write!(f, " }}")
             }
         }
-
-        write!(f, " }}")
     }
 }
 
 use crate::Value;
-
 impl<'s, SF> TypeSchema<'s, SF>
 where
     SF: SchemaFlavor<'s>,
@@ -311,19 +311,28 @@ where
                 visitors::TupleVisitor::<SF, VF>::new(elements),
             ),
 
-            TypeSchema::UnitStruct(name) => deserializer
+            TypeSchema::UnitStruct { name } => deserializer
                 .deserialize_unit_struct("", visitors::UnitStructVisitor::<SF, VF>::new(name)),
-            TypeSchema::Struct(schema) => deserializer.deserialize_struct(
-                "",                      // dunno
-                _S[schema.fields.len()], // dirty ass hack
-                visitors::StructVisitor::<SF, VF>::new(&schema.name, &schema.fields),
+            TypeSchema::NewTypeStruct { name, field } => deserializer.deserialize_newtype_struct(
+                "",
+                visitors::NewTypeStructVisitor::<SF, VF>::new(name, field),
+            ),
+            TypeSchema::TupleStruct { name, fields } => deserializer.deserialize_tuple_struct(
+                "",
+                fields.len(),
+                visitors::TupleStructVisitor::<SF, VF>::new(name, fields),
+            ),
+            TypeSchema::Struct { name, fields } => deserializer.deserialize_struct(
+                "",               // dunno
+                _S[fields.len()], // dirty ass hack
+                visitors::StructVisitor::<SF, VF>::new(name, fields),
             ),
 
-            TypeSchema::Enum(schema) => {
+            TypeSchema::Enum { name, variants } => {
                 deserializer.deserialize_enum(
-                    "",                        // dunno
-                    _S[schema.variants.len()], // dirty ass hack
-                    visitors::EnumVisitor::<SF, VF>::new(schema),
+                    "",                 // dunno
+                    _S[variants.len()], // dirty ass hack
+                    visitors::EnumVisitor::<SF, VF>::new(name, variants),
                 )
             }
         }

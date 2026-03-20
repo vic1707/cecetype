@@ -1,3 +1,4 @@
+// TODO: Add tests with options and results
 use ::{
     core::{error, fmt},
     serde::{Deserialize, Serialize},
@@ -11,7 +12,7 @@ struct MyStruct {
 }
 
 impl Schema for MyStruct {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct(&StructSchema {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
         name: "MyStruct",
         fields: &[
             &FieldSchema {
@@ -23,14 +24,36 @@ impl Schema for MyStruct {
                 ty: &TypeSchema::Bool,
             },
         ] as &[&_],
-    });
+    };
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct MyUnitStruct;
 
 impl Schema for MyUnitStruct {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::UnitStruct("MyUnitStruct");
+    const SCHEMA: &'static StaticSchema = &TypeSchema::UnitStruct {
+        name: "MyUnitStruct",
+    };
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct MyNewTypeStruct(u8);
+
+impl Schema for MyNewTypeStruct {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::NewTypeStruct {
+        name: "MyNewTypeStruct",
+        field: &TypeSchema::U8,
+    };
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct MyTupleStruct(u8, ());
+
+impl Schema for MyTupleStruct {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::TupleStruct {
+        name: "MyTupleStruct",
+        fields: &[&TypeSchema::U8, &TypeSchema::Unit],
+    };
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -41,7 +64,7 @@ enum MyEnum {
 }
 
 impl Schema for MyEnum {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum(&EnumSchema {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
         name: "MyEnum",
         variants: &[
             &VariantSchema::Unit {
@@ -68,7 +91,7 @@ impl Schema for MyEnum {
                 ] as &[&_],
             },
         ] as &[&_],
-    });
+    };
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -78,7 +101,7 @@ struct Nested {
 }
 
 impl Schema for Nested {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct(&StructSchema {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
         name: "Nested",
         fields: &[
             &FieldSchema {
@@ -90,7 +113,7 @@ impl Schema for Nested {
                 ty: &TypeSchema::Bool,
             },
         ] as &[&_],
-    });
+    };
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -100,7 +123,7 @@ enum DeepEnum {
 }
 
 impl Schema for DeepEnum {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum(&EnumSchema {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
         name: "DeepEnum",
         variants: &[
             &VariantSchema::Tuple {
@@ -117,7 +140,7 @@ impl Schema for DeepEnum {
                 }] as &[&_],
             },
         ] as &[&_],
-    });
+    };
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct Complex {
@@ -126,7 +149,7 @@ struct Complex {
 }
 
 impl Schema for Complex {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct(&StructSchema {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
         name: "Complex",
         fields: &[
             &FieldSchema {
@@ -141,179 +164,35 @@ impl Schema for Complex {
                 },
             },
         ] as &[&_],
-    });
+    };
 }
 
 #[rstest::rstest]
+#[case::unit(((), Value::Unit))]
+#[case::u32((123u32, Value::U32(123)))]
+#[case::bool((true, Value::Bool(true)))]
+#[case::string(("hello", Value::Str("hello".to_owned())))]
+#[case::char(('x', Value::Char('x')))]
+#[case::tuple(((1u32, false), Value::Tuple(vec![Value::U32(1), Value::Bool(false)])))]
+#[case::slice((&[1u8, 2, 3] as &[u8], Value::Slice(vec![Value::U8(1), Value::U8(2), Value::U8(3)])))]
+#[case::array(([1u8, 2, 3], Value::Array(vec![Value::U8(1), Value::U8(2), Value::U8(3)])))]
+#[case::unit_struct((MyUnitStruct, Value::UnitStruct { name: "MyUnitStruct".to_owned() }))]
+#[case::newtype_struct((MyNewTypeStruct(16), Value::NewTypeStruct { name: "MyNewTypeStruct".to_owned(), field: Box::new(Value::U8(16)) }))]
+#[case::tuple_struct((MyTupleStruct(16, ()), Value::TupleStruct { name: "MyTupleStruct".to_owned(), fields: vec![Value::U8(16), Value::Unit] }))]
+#[case::struct_((MyStruct { a: 42, b: true }, Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(42)), ("b".to_owned(), Value::Bool(true))] }))]
+#[case::enum_unit((MyEnum::Unit, Value::Enum { name: "MyEnum".to_owned(), variant: VariantValue::Unit { name: "Unit".to_owned() } }))]
+#[case::enum_tuple((MyEnum::Tuple(10, false), Value::Enum { name: "MyEnum".to_owned(), variant: VariantValue::Tuple { name: "Tuple".to_owned(), fields: vec![Value::U32(10), Value::Bool(false)] } }))]
+#[case::enum_struct((MyEnum::Struct { x: 1, y: 2 }, Value::Enum { name: "MyEnum".to_owned(), variant: VariantValue::Struct { name: "Struct".to_owned(), fields: vec![("x".to_owned(), Value::U8(1)), ("y".to_owned(), Value::U8(2))] } }))]
+#[case::nested((Nested { inner: MyStruct { a: 1, b: false }, flag: true }, Value::Struct { name: "Nested".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(1)), ("b".to_owned(), Value::Bool(false))] }), ("flag".to_owned(), Value::Bool(true))] }))]
+#[case::complex((Complex { tuple: (7, true), array: [1, 2, 3] }, Value::Struct { name: "Complex".to_owned(), fields: vec![("tuple".to_owned(), Value::Tuple(vec![Value::U32(7), Value::Bool(true)])), ("array".to_owned(), Value::Array(vec![Value::U8(1),Value::U8(2),Value::U8(3)]))] }))]
+#[case::deep_enum((DeepEnum::B { nested: Nested { inner: MyStruct { a: 9, b: true }, flag: false } }, Value::Enum { name: "DeepEnum".to_owned(), variant: VariantValue::Struct { name: "B".to_owned(), fields: vec![("nested".to_owned(), Value::Struct { name: "Nested".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(9)), ("b".to_owned(), Value::Bool(true))] }), ("flag".to_owned(), Value::Bool(false))] })]} }))]
 fn roundtrip<R: Roundtrip, D: Serialize + Schema>(
-    #[values(Json, Postcard, Yaml)]
-    _protocol: R,
-    #[values(
-        ((), Value::Unit),
-        (123u32, Value::U32(123)),
-        (true, Value::Bool(true)),
-        ("hello", Value::Str("hello".to_owned())),
-        ('x', Value::Char('x')),
-        (
-            (1u32, false),
-            Value::Tuple(vec![
-                Value::U32(1),
-                Value::Bool(false),
-            ])
-        ),
-        (
-            &[1u8, 2, 3] as &[u8],
-            Value::Slice(vec![
-                Value::U8(1),
-                Value::U8(2),
-                Value::U8(3),
-            ])
-        ),
-        ( // fails
-            [1u8, 2, 3],
-            Value::Array(vec![
-                Value::U8(1),
-                Value::U8(2),
-                Value::U8(3),
-            ])
-        ),
-        (
-            MyUnitStruct,
-            Value::UnitStruct { 
-                name: "MyUnitStruct".to_owned(), 
-            }
-        ),
-        (
-            MyStruct { a: 42, b: true },
-            Value::Struct { 
-                name: "MyStruct".to_owned(), 
-                fields: vec![
-                    ("a".to_owned(), Value::U32(42)),
-                    ("b".to_owned(), Value::Bool(true)),
-                ]
-            }
-        ),
-        (
-            MyEnum::Unit,
-            Value::Enum {
-                name: "MyEnum".to_owned(),
-                variant: VariantValue::Unit {
-                    name: "Unit".to_owned(), 
-                }
-            }
-        ),
-        (
-            MyEnum::Tuple(10, false),
-            Value::Enum {
-                name: "MyEnum".to_owned(),
-                variant: VariantValue::Tuple {
-                    name: "Tuple".to_owned(), 
-                    fields: vec![Value::U32(10), Value::Bool(false)]
-                }
-            }
-        ),
-        ( // fails?
-            MyEnum::Struct { x: 1, y: 2 },
-            Value::Enum {
-                name: "MyEnum".to_owned(),
-                variant: VariantValue::Struct {
-                    name: "Struct".to_owned(),
-                    fields: vec![
-                        ("x".to_owned(), Value::U8(1)),
-                        ("y".to_owned(), Value::U8(2)),
-                    ]
-                }
-            }
-        ),
-        (
-            Nested {
-                inner: MyStruct { a: 1, b: false },
-                flag: true,
-            },
-            Value::Struct {
-                name: "Nested".to_owned(),
-                fields: vec![
-                    (
-                        "inner".to_owned(),
-                        Value::Struct {
-                            name: "MyStruct".to_owned(),
-                            fields: vec![
-                                ("a".to_owned(), Value::U32(1)),
-                                ("b".to_owned(), Value::Bool(false)),
-                            ]
-                        }
-                    ),
-                    ("flag".to_owned(), Value::Bool(true)),
-                ]
-            }
-        ),
-        ( // fails
-            Complex {
-                tuple: (7, true),
-                array: [1, 2, 3],
-            },
-            Value::Struct {
-                name: "Complex".to_owned(),
-                fields: vec![
-                    (
-                        "tuple".to_owned(),
-                        Value::Tuple(vec![
-                            Value::U32(7),
-                            Value::Bool(true),
-                        ])
-                    ),
-                    (
-                        "array".to_owned(),
-                        Value::Array(vec![
-                            Value::U8(1),
-                            Value::U8(2),
-                            Value::U8(3),
-                        ])
-                    ),
-                ]
-            }
-        ),
-        ( // fails
-            DeepEnum::B {
-                nested: Nested {
-                    inner: MyStruct { a: 9, b: true },
-                    flag: false,
-                }
-            },
-            Value::Enum {
-                name: "DeepEnum".to_owned(),
-                variant: VariantValue::Struct {
-                    name: "B".to_owned(),
-                    fields: vec![
-                        (
-                            "nested".to_owned(),
-                            Value::Struct {
-                                name: "Nested".to_owned(),
-                                fields: vec![
-                                    (
-                                        "inner".to_owned(),
-                                        Value::Struct {
-                                            name: "MyStruct".to_owned(),
-                                            fields: vec![
-                                                ("a".to_owned(), Value::U32(9)),
-                                                ("b".to_owned(), Value::Bool(true)),
-                                            ]
-                                        }
-                                    ),
-                                    ("flag".to_owned(), Value::Bool(false)),
-                                ]
-                            }
-                        )
-                    ]
-                }
-            }
-        ),
-    )]
-    (data, expected): (D, OwnedValue)
+    #[values(Json, Postcard, Yaml)] _protocol: R,
+    #[case] (data, expected): (D, OwnedValue),
 ) {
     match R::roundtrip(&data) {
         Ok(decoded) => assert_eq!(decoded, expected),
-        Err(err) => panic!("Couldn't decode payload: {err}")
+        Err(err) => panic!("Couldn't decode payload: {err}"),
     }
 }
 
@@ -329,8 +208,10 @@ impl Roundtrip for Json {
     type Error = ::serde_json::Error;
 
     fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let encoded_schema = ::serde_json::to_string(T::SCHEMA).expect("Schema serialization failed");
-        let decoded_schema = ::serde_json::from_str::<OwnedSchema>(&encoded_schema).expect("Schema deserialization failed");
+        let encoded_schema =
+            ::serde_json::to_string(T::SCHEMA).expect("Schema serialization failed");
+        let decoded_schema = ::serde_json::from_str::<OwnedSchema>(&encoded_schema)
+            .expect("Schema deserialization failed");
 
         let json = ::serde_json::to_string(value).expect("Value serialization failed");
         dbg! { &json };
@@ -346,8 +227,10 @@ impl Roundtrip for Postcard {
     type Error = ::postcard::Error;
 
     fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let encoded_schema = ::postcard::to_vec::<_, 1024>(T::SCHEMA).expect("Schema serialization failed");
-        let decoded_schema = ::postcard::from_bytes::<OwnedSchema>(&encoded_schema).expect("Schema deserialization failed");
+        let encoded_schema =
+            ::postcard::to_vec::<_, 1024>(T::SCHEMA).expect("Schema serialization failed");
+        let decoded_schema = ::postcard::from_bytes::<OwnedSchema>(&encoded_schema)
+            .expect("Schema deserialization failed");
 
         let bytes = ::postcard::to_vec::<_, 1024>(value).expect("Value serialization failed");
         dbg! { &bytes };
@@ -357,15 +240,16 @@ impl Roundtrip for Postcard {
     }
 }
 
-
 struct Yaml;
 
 impl Roundtrip for Yaml {
     type Error = ::yaml_serde::Error;
 
     fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let encoded_schema = ::yaml_serde::to_string(T::SCHEMA).expect("Schema serialization failed");
-        let decoded_schema = ::yaml_serde::from_str::<OwnedSchema>(&encoded_schema).expect("Schema deserialization failed");
+        let encoded_schema =
+            ::yaml_serde::to_string(T::SCHEMA).expect("Schema serialization failed");
+        let decoded_schema = ::yaml_serde::from_str::<OwnedSchema>(&encoded_schema)
+            .expect("Schema deserialization failed");
 
         let yaml = ::yaml_serde::to_string(value).expect("Value serialization failed");
         dbg! { &yaml };

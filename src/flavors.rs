@@ -25,11 +25,14 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
 }
 
 pub trait ValueFlavor: ::core::fmt::Debug {
+    type Ptr<T: PartialEq + ::core::fmt::Debug>: ::core::ops::Deref<Target = T> + PartialEq + ::core::fmt::Debug;
     type List<T: PartialEq + ::core::fmt::Debug>: ::core::ops::DerefMut<Target = [T]> + PartialEq + ::core::fmt::Debug;
     type Str: ::core::ops::Deref<Target = str> + PartialEq + ::core::fmt::Debug;
 }
 
 pub trait ValueBuilder: ValueFlavor {
+    fn make_ptr<T: PartialEq + ::core::fmt::Debug>(value: T) -> Self::Ptr<T>;
+    
     fn make_str(str: &str) -> Self::Str;
 
     fn list<T: PartialEq + ::core::fmt::Debug>() -> Self::List<T>;

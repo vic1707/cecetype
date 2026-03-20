@@ -10,6 +10,7 @@ impl<'s> super::SchemaFlavor<'s> for Owned {
 
 #[cfg(feature = "std")]
 impl super::ValueFlavor for Owned {
+    type Ptr<T: PartialEq + ::core::fmt::Debug> = ::std::boxed::Box<T>;
     type List<T: PartialEq + ::core::fmt::Debug> = ::std::vec::Vec<T>;
     type Str = ::std::string::String;
 }
@@ -39,6 +40,10 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
 
 #[cfg(feature = "std")]
 impl super::ValueBuilder for Owned {
+    fn make_ptr<T: PartialEq + ::core::fmt::Debug>(value: T) -> Self::Ptr<T> {
+        ::std::boxed::Box::new(value)
+    }
+
     fn make_str(str: &str) -> Self::Str {
         ::std::string::String::from(str)
     }

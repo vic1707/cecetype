@@ -1,5 +1,5 @@
-use crate::flavors::{ser, ValueFlavor};
-use ::serde::Serialize;
+use crate::flavors::{ValueFlavor, ser};
+use ::{core::ops::Deref as _, serde::Serialize};
 
 #[derive(Serialize)]
 #[serde(bound(serialize = "F::Str: Serialize"))]
@@ -32,6 +32,16 @@ pub enum Value<F: ValueFlavor> {
 
     UnitStruct {
         name: F::Str,
+    },
+    NewTypeStruct {
+        name: F::Str,
+        #[serde(serialize_with = "ser::serialize_ptr")]
+        field: F::Ptr<Self>,
+    },
+    TupleStruct {
+        name: F::Str,
+        #[serde(serialize_with = "ser::serialize_list")]
+        fields: F::List<Self>,
     },
     Struct {
         name: F::Str,
@@ -73,7 +83,7 @@ where
         match self {
             Value::Unit => write!(f, "()"),
             Value::Bool(v) => write!(f, "{v}"),
-            Value::Str(v) => write!(f, "\"{}\"", &**v),
+            Value::Str(v) => write!(f, "\"{}\"", v.deref()),
             Value::Char(v) => write!(f, "'{v}'"),
 
             Value::U8(v) => write!(f, "{v}"),
@@ -110,20 +120,33 @@ where
                 write!(f, ")")
             }
 
-            Value::UnitStruct { name } => write!(f, "{}", &**name),
+            Value::UnitStruct { name } => write!(f, "{}", name.deref()),
+            Value::NewTypeStruct { name, field } => {
+                write!(f, "{}({})", name.deref(), field.deref())
+            }
+            Value::TupleStruct { name, fields } => {
+                write!(f, "{} (", name.deref())?;
+                for (i, v) in fields.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{v}")?;
+                }
+                write!(f, ")")
+            }
             Value::Struct { name, fields } => {
-                write!(f, "{} {{ ", &**name)?;
+                write!(f, "{} {{ ", name.deref())?;
                 for (i, (k, v)) in fields.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", &**k, v)?;
+                    write!(f, "{}: {}", k.deref(), v)?;
                 }
                 write!(f, " }}")
             }
 
             Value::Enum { name, variant } => {
-                write!(f, "{}::{}", &**name, variant)
+                write!(f, "{}::{}", name.deref(), variant)
             }
         }
     }
@@ -134,22 +157,20 @@ where
     F: ValueFlavor,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        use core::ops::Deref as _;
-
         match self {
-            VariantValue::Unit { name } => write!(f, "{}", &**name),
+            VariantValue::Unit { name } => write!(f, "{}", name.deref()),
             VariantValue::Struct { name, fields } => {
-                write!(f, "{}({{ ", &**name)?;
+                write!(f, "{}({{ ", name.deref())?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", &*field.0, field.1)?;
+                    write!(f, "{}: {}", field.0.deref(), field.1)?;
                 }
                 write!(f, " }})")
             }
             VariantValue::Tuple { name, fields } => {
-                write!(f, "{}(", &**name)?;
+                write!(f, "{}(", name.deref())?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
@@ -204,7 +225,6 @@ impl<F: ValueFlavor> ::core::cmp::PartialEq for Value<F> {
         let __arg1_discr = ::core::intrinsics::discriminant_value(other);
         __self_discr == __arg1_discr
             && match (self, other) {
-                (Value::Unit, Value::Unit) => true,
                 (Value::Bool(__self_0), Value::Bool(__arg1_0)) => __self_0 == __arg1_0,
                 (Value::Str(__self_0), Value::Str(__arg1_0)) => __self_0 == __arg1_0,
                 (Value::Char(__self_0), Value::Char(__arg1_0)) => __self_0 == __arg1_0,
@@ -225,6 +245,26 @@ impl<F: ValueFlavor> ::core::cmp::PartialEq for Value<F> {
                     __self_0 == __arg1_0
                 }
                 (
+                    Value::NewTypeStruct {
+                        name: __self_0,
+                        field: __self_1,
+                    },
+                    Value::NewTypeStruct {
+                        name: __arg1_0,
+                        field: __arg1_1,
+                    },
+                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
+                (
+                    Value::TupleStruct {
+                        name: __self_0,
+                        fields: __self_1,
+                    },
+                    Value::TupleStruct {
+                        name: __arg1_0,
+                        fields: __arg1_1,
+                    },
+                ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
+                (
                     Value::Struct {
                         name: __self_0,
                         fields: __self_1,
@@ -244,10 +284,11 @@ impl<F: ValueFlavor> ::core::cmp::PartialEq for Value<F> {
                         variant: __arg1_1,
                     },
                 ) => __self_0 == __arg1_0 && __self_1 == __arg1_1,
-                _ => false,
+                _ => true,
             }
     }
 }
+
 impl<F: ::core::fmt::Debug + ValueFlavor> ::core::fmt::Debug for Value<F> {
     #[inline]
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
@@ -304,6 +345,18 @@ impl<F: ::core::fmt::Debug + ValueFlavor> ::core::fmt::Debug for Value<F> {
             Value::UnitStruct { name: __self_0 } => {
                 ::core::fmt::Formatter::debug_struct_fields_finish(f, __self_0, &[], &[])
             }
+            Value::NewTypeStruct {
+                name: __self_0,
+                field: __self_1,
+            } => ::core::fmt::Formatter::debug_struct_field2_finish(
+                f, "Struct", "name", __self_0, "field", &__self_1,
+            ),
+            Value::TupleStruct {
+                name: __self_0,
+                fields: __self_1,
+            } => ::core::fmt::Formatter::debug_struct_field2_finish(
+                f, "Struct", "name", __self_0, "fields", &__self_1,
+            ),
             Value::Struct {
                 name: __self_0,
                 fields: __self_1,

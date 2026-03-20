@@ -1,4 +1,4 @@
-use crate::{EnumSchema, Schema, StaticSchema, TypeSchema, VariantSchema};
+use crate::{Schema, StaticSchema, TypeSchema, VariantSchema};
 
 macro_rules! primitive_schema {
     ($ty:ty, $variant:ident) => {
@@ -47,7 +47,7 @@ impl<T: Schema> Schema for &mut T {
 }
 
 impl<T: Schema, E: Schema> Schema for Result<T, E> {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum(&EnumSchema {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
         name: "Result",
         variants: &[
             &VariantSchema::Tuple {
@@ -61,11 +61,11 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
                 fields: &[E::SCHEMA] as &[&_],
             },
         ] as &[&_],
-    });
+    };
 }
 
 impl<T: Schema> Schema for Option<T> {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum(&EnumSchema {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
         name: "Option",
         variants: &[
             &VariantSchema::Tuple {
@@ -78,7 +78,7 @@ impl<T: Schema> Schema for Option<T> {
                 discriminant: 1, // TODO: generate
             },
         ] as &[&_],
-    });
+    };
 }
 
 macro_rules! impl_tuple_schema {

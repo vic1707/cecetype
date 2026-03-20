@@ -1,9 +1,7 @@
 use super::{StructVisitor, TupleVisitor};
-use crate::{
-    EnumSchema, SchemaFlavor, Value, ValueBuilder, ValueFlavor, VariantSchema, VariantValue,
-};
+use crate::{SchemaFlavor, Value, ValueBuilder, ValueFlavor, VariantSchema, VariantValue};
 use ::{
-    core::{fmt, marker::PhantomData},
+    core::{fmt, marker::PhantomData, ops::Deref as _},
     serde::{
         Deserialize,
         de::{EnumAccess, VariantAccess as _, Visitor},
@@ -21,20 +19,23 @@ impl<VF: ValueFlavor> fmt::Display for VariantId<VF> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Index(idx) => write!(f, "[id: {idx}]"),
-            Self::Name(name) => write!(f, "{}", &**name),
+            Self::Name(name) => write!(f, "{}", name.deref()),
         }
     }
 }
 
 pub struct EnumVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
-    schema: &'s SF::Ptr<EnumSchema<'s, SF>>,
+    name: &'s SF::Str,
+    variants: &'s SF::List<VariantSchema<'s, SF>>,
+
     _p: PhantomData<VF>,
 }
 
 impl<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> EnumVisitor<'s, SF, VF> {
-    pub fn new(schema: &'s SF::Ptr<EnumSchema<'s, SF>>) -> Self {
+    pub fn new(name: &'s SF::Str, variants: &'s SF::List<VariantSchema<'s, SF>>) -> Self {
         Self {
-            schema,
+            name,
+            variants,
             _p: PhantomData,
         }
     }
@@ -49,26 +50,22 @@ where
     type Value = Value<VF>;
 
     fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "enum {}", &*self.schema.name)
+        write!(f, "enum {}", self.name.deref())
     }
 
     fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
     where
         A: EnumAccess<'de>,
     {
-        use core::ops::Deref as _;
-
         let (variant_identifier, variant_access) = data.variant::<VariantId<VF>>()?;
 
         let variant_schema = match variant_identifier {
             VariantId::Name(ref variant_name) => self
-                .schema
                 .variants
                 .deref()
                 .iter()
-                .find(|v| v.name() == &**variant_name),
+                .find(|v| v.name() == variant_name.deref()),
             VariantId::Index(idx) => self
-                .schema
                 .variants
                 .deref()
                 .iter()
@@ -78,12 +75,12 @@ where
             serde::de::Error::custom(format_args!("unknown variant: {variant_identifier}"))
         })?;
 
-        let value = match &**variant_schema {
+        let value = match variant_schema.deref() {
             VariantSchema::Unit { .. } => {
                 variant_access.unit_variant()?;
 
                 Value::Enum {
-                    name: VF::make_str(&self.schema.name),
+                    name: VF::make_str(self.name),
                     variant: VariantValue::Unit {
                         name: VF::make_str(variant_schema.name()),
                     },
@@ -98,7 +95,7 @@ where
                 };
 
                 Value::Enum {
-                    name: VF::make_str(&self.schema.name),
+                    name: VF::make_str(self.name),
                     variant: VariantValue::Tuple {
                         name: VF::make_str(variant_schema.name()),
                         fields,
@@ -115,7 +112,7 @@ where
                 };
 
                 Value::Enum {
-                    name: VF::make_str(&self.schema.name),
+                    name: VF::make_str(self.name),
                     variant: VariantValue::Struct {
                         name: VF::make_str(variant_schema.name()),
                         fields,
