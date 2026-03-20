@@ -1,45 +1,44 @@
 use ::{
     core::{error, fmt},
-    serde::{Deserialize, Serialize},
+    serde::Serialize,
 };
 use schema::*;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
+#[derive(Serialize, Schema)]
 struct MyStruct {
     a: u32,
     b: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
+#[derive(Serialize, Schema)]
 struct MyUnitStruct;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
+#[derive(Serialize, Schema)]
 struct MyNewTypeStruct(u8);
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
+#[derive(Serialize, Schema)]
 struct MyTupleStruct(u8, ());
 
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
+#[derive(Serialize, Schema)]
 enum MyEnum {
     Unit,
     Tuple(u32, bool),
     Struct { x: u8, y: u8 },
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
+#[derive(Serialize, Schema)]
 struct Nested {
     inner: MyStruct,
     flag: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
+#[derive(Serialize, Schema)]
 enum DeepEnum {
     A(MyStruct),
     B { nested: Nested },
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Schema)]
+#[derive(Serialize, Schema)]
 struct Complex {
     tuple: (u32, bool),
     array: [u8; 3],
