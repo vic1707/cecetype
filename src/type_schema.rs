@@ -1,7 +1,7 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
+use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, ValueBuilder};
 use ::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -323,14 +323,14 @@ where
                 visitors::TupleStructVisitor::<SF, VF>::new(name, fields),
             ),
             TypeSchema::Struct { name, fields } => deserializer.deserialize_struct(
-                "",               // dunno
+                "",                         // dunno
                 visitors::_S[fields.len()], // dirty ass hack
                 visitors::StructVisitor::<SF, VF>::new(name, fields),
             ),
 
             TypeSchema::Enum { name, variants } => {
                 deserializer.deserialize_enum(
-                    "",                 // dunno
+                    "",                           // dunno
                     visitors::_S[variants.len()], // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(name, variants),
                 )

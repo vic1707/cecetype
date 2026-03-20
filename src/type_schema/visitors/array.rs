@@ -3,8 +3,8 @@ use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
     core::marker::PhantomData,
     serde::{
-        Deserialize,
         de::{self, SeqAccess, Visitor},
+        Deserialize,
     },
 };
 
@@ -42,13 +42,13 @@ where
     {
         let mut values = VF::list_with_capacity(self.len);
 
-        for _ in 0..self.len {
+        for i in 0..self.len {
             let v = seq
                 .next_element_seed(Seed {
                     schema: self.element,
                     _p: PhantomData,
                 })?
-                .ok_or_else(|| de::Error::invalid_length(values.len(), &self))?;
+                .ok_or_else(|| de::Error::invalid_length(i, &self))?;
 
             std::dbg! { &v };
             VF::list_push(&mut values, v);

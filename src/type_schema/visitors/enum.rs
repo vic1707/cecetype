@@ -3,8 +3,8 @@ use crate::{SchemaFlavor, Value, ValueBuilder, ValueFlavor, VariantSchema, Varia
 use ::{
     core::{fmt, marker::PhantomData, ops::Deref as _},
     serde::{
-        Deserialize,
         de::{EnumAccess, VariantAccess as _, Visitor},
+        Deserialize,
     },
 };
 
@@ -105,8 +105,10 @@ where
 
             VariantSchema::Struct { name, fields, .. } => {
                 // TODO: ok fields empty?
-                let Value::Struct { fields, .. } = variant_access
-                    .struct_variant(super::_S[fields.len()], StructVisitor::<SF, VF>::new(name, fields))?
+                let Value::Struct { fields, .. } = variant_access.struct_variant(
+                    super::_S[fields.len()],
+                    StructVisitor::<SF, VF>::new(name, fields),
+                )?
                 else {
                     unreachable!()
                 };

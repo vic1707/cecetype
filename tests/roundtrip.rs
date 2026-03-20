@@ -1,9 +1,9 @@
 // TODO: Add tests with options and results
+use schema::*;
 use ::{
     core::{error, fmt},
     serde::{Deserialize, Serialize},
 };
-use schema::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct MyStruct {

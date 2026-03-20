@@ -1,4 +1,4 @@
-use crate::flavors::{ValueFlavor, ser};
+use crate::flavors::{ser, ValueFlavor};
 use ::{core::ops::Deref as _, serde::Serialize};
 
 #[derive(Serialize)]

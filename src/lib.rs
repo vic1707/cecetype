@@ -23,7 +23,10 @@ pub type StaticSchema = TypeSchema<'static, Static>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::{core::fmt, serde::{Deserialize, Serialize, de::DeserializeOwned}};
+    use ::{
+        core::fmt,
+        serde::{de::DeserializeOwned, Deserialize, Serialize},
+    };
 
     macro_rules! implements {
         ( $(

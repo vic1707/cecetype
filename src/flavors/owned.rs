@@ -51,7 +51,9 @@ impl super::ValueBuilder for Owned {
     fn list<T: PartialEq + ::core::fmt::Debug>() -> Self::List<T> {
         Self::List::new()
     }
-    fn list_from_iter<T: PartialEq + ::core::fmt::Debug>(iter: impl Iterator<Item = T>) -> Self::List<T> {
+    fn list_from_iter<T: PartialEq + ::core::fmt::Debug>(
+        iter: impl Iterator<Item = T>,
+    ) -> Self::List<T> {
         iter.collect()
     }
     fn list_with_capacity<T: PartialEq + ::core::fmt::Debug>(capacity: usize) -> Self::List<T> {

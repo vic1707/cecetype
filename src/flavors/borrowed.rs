@@ -6,7 +6,6 @@ impl super::SchemaFlavor<'static> for Static {
     type Str = &'static str;
 }
 
-
 pub struct Borrowed;
 
 impl<'s> super::SchemaFlavor<'s> for Borrowed {
@@ -14,4 +13,3 @@ impl<'s> super::SchemaFlavor<'s> for Borrowed {
     type List<T: 's> = &'s [&'s T];
     type Str = &'s str;
 }
-
