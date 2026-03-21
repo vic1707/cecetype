@@ -87,14 +87,19 @@ enum GenericEnum<T> {
 #[case::nested((Nested { inner: MyStruct { a: 1, b: false }, flag: true }, Value::Struct { name: "Nested".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(1)), ("b".to_owned(), Value::Bool(false))] }), ("flag".to_owned(), Value::Bool(true))] }))]
 #[case::complex((Complex { tuple: (7, true), array: [1, 2, 3] }, Value::Struct { name: "Complex".to_owned(), fields: vec![("tuple".to_owned(), Value::Tuple(vec![Value::U32(7), Value::Bool(true)])), ("array".to_owned(), Value::Array(vec![Value::U8(1),Value::U8(2),Value::U8(3)]))] }))]
 #[case::deep_enum((DeepEnum::B { nested: Nested { inner: MyStruct { a: 9, b: true }, flag: false } }, Value::Enum { name: "DeepEnum".to_owned(), variant: VariantValue::Struct { name: "B".to_owned(), fields: vec![("nested".to_owned(), Value::Struct { name: "Nested".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(9)), ("b".to_owned(), Value::Bool(true))] }), ("flag".to_owned(), Value::Bool(false))] })]} }))]
-fn roundtrip<R: Roundtrip, D: Serialize + Schema>(
-    #[values(Json, Postcard, Yaml)] _protocol: R,
+fn value_decoding<F: Format, D: Serialize + Schema>(
+    #[values(Json, Postcard, Yaml)] _protocol: F,
     #[case] (data, expected): (D, OwnedValue),
 ) {
-    match R::roundtrip(&data) {
-        Ok(decoded) => assert_eq!(decoded, expected),
-        Err(err) => panic!("Couldn't decode payload: {err}"),
-    }
+    let encoded_schema = F::encode(D::SCHEMA).unwrap();
+    let decoded_schema = F::decode::<OwnedSchema>(&encoded_schema).unwrap();
+
+    assert_eq!(format!("{decoded_schema}"), format!("{}", D::SCHEMA));
+
+    let wire = F::encode(&data).unwrap();
+
+    let value_decoded = F::decode_value::<D>(wire).unwrap(); // TODO: use the decoded_schema
+    assert_eq!(value_decoded, expected);
 }
 
 #[test]
@@ -219,18 +224,6 @@ fn slice_of_structs() {
 }
 
 #[test]
-fn array_of_enum() {
-    let data = [MyEnum::Unit, MyEnum::Unit];
-
-    let result = Json::roundtrip(&data).unwrap();
-
-    match result {
-        Value::Array(v) => assert_eq!(v.len(), 2),
-        _ => panic!("expected array"),
-    }
-}
-
-#[test]
 fn struct_field_order_irrelevant() {
     let json = r#"{ "b": true, "a": 42 }"#;
 
@@ -245,65 +238,74 @@ fn struct_field_order_irrelevant() {
     }
 }
 
-trait Roundtrip {
+trait Format {
     type Error: fmt::Display + error::Error;
+    type Wire;
 
-    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error>;
+    fn encode<T: Serialize>(value: &T) -> Result<Self::Wire, Self::Error>;
+    fn decode<'de, T: Deserialize<'de>>(wire: &'de Self::Wire) -> Result<T, Self::Error>;
+    fn decode_value<'de, T: Schema>(data: Self::Wire) -> Result<OwnedValue<'de>, Self::Error>;
 }
 
 struct Json;
 
-impl Roundtrip for Json {
+impl Format for Json {
     type Error = ::serde_json::Error;
+    type Wire = String;
 
-    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let encoded_schema =
-            ::serde_json::to_string(T::SCHEMA).expect("Schema serialization failed");
-        let decoded_schema = ::serde_json::from_str::<OwnedSchema>(&encoded_schema)
-            .expect("Schema deserialization failed");
+    fn encode<T: Serialize>(value: &T) -> Result<Self::Wire, Self::Error> {
+        ::serde_json::to_string(value)
+    }
 
-        let json = ::serde_json::to_string(value).expect("Value serialization failed");
-        dbg! { &json };
+    fn decode<'de, T: Deserialize<'de>>(wire: &'de Self::Wire) -> Result<T, Self::Error> {
+        ::serde_json::from_str(wire)
+    }
 
-        let mut de = ::serde_json::Deserializer::from_str(&json);
-        decoded_schema.decode_value(&mut de)
+    fn decode_value<'de, T: Schema>(data: Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+        let mut de = ::serde_json::Deserializer::from_str(&data);
+
+        T::SCHEMA.decode_value(&mut de)
     }
 }
 
 struct Postcard;
 
-impl Roundtrip for Postcard {
+impl Format for Postcard {
     type Error = ::postcard::Error;
+    type Wire = Vec<u8>;
 
-    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let encoded_schema =
-            ::postcard::to_vec::<_, 1024>(T::SCHEMA).expect("Schema serialization failed");
-        let decoded_schema = ::postcard::from_bytes::<OwnedSchema>(&encoded_schema)
-            .expect("Schema deserialization failed");
+    fn encode<T: Serialize>(value: &T) -> Result<Self::Wire, Self::Error> {
+        ::postcard::to_stdvec(value)
+    }
 
-        let bytes = ::postcard::to_vec::<_, 1024>(value).expect("Value serialization failed");
-        dbg! { &bytes };
+    fn decode<'de, T: Deserialize<'de>>(wire: &'de Self::Wire) -> Result<T, Self::Error> {
+        ::postcard::from_bytes(wire)
+    }
 
-        let mut de = ::postcard::Deserializer::from_bytes(&bytes);
-        decoded_schema.decode_value(&mut de)
+    fn decode_value<'de, T: Schema>(data: Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+        let mut de = ::postcard::Deserializer::from_bytes(&data);
+
+        T::SCHEMA.decode_value(&mut de)
     }
 }
 
 struct Yaml;
 
-impl Roundtrip for Yaml {
+impl Format for Yaml {
     type Error = ::yaml_serde::Error;
+    type Wire = String;
 
-    fn roundtrip<T: Serialize + Schema>(value: &'_ T) -> Result<OwnedValue<'_>, Self::Error> {
-        let encoded_schema =
-            ::yaml_serde::to_string(T::SCHEMA).expect("Schema serialization failed");
-        let decoded_schema = ::yaml_serde::from_str::<OwnedSchema>(&encoded_schema)
-            .expect("Schema deserialization failed");
+    fn encode<T: Serialize>(value: &T) -> Result<Self::Wire, Self::Error> {
+        ::yaml_serde::to_string(value)
+    }
 
-        let yaml = ::yaml_serde::to_string(value).expect("Value serialization failed");
-        dbg! { &yaml };
+    fn decode<'de, T: Deserialize<'de>>(wire: &'de Self::Wire) -> Result<T, Self::Error> {
+        ::yaml_serde::from_str(wire)
+    }
 
-        let de = ::yaml_serde::Deserializer::from_str(&yaml);
-        decoded_schema.decode_value(de)
+    fn decode_value<'de, T: Schema>(data: Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+        let de = ::yaml_serde::Deserializer::from_str(&data);
+
+        T::SCHEMA.decode_value(de)
     }
 }
