@@ -22,6 +22,8 @@ primitive_schema!(f32, F32);
 primitive_schema!(f64, F64);
 primitive_schema!(&str, Str);
 primitive_schema!(char, Char);
+#[cfg(feature = "std")]
+primitive_schema!(::std::string::String, Str);
 
 impl<T: Schema, const N: usize> Schema for [T; N] {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Array {
