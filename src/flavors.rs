@@ -66,29 +66,10 @@ pub(crate) mod ser {
         seq.end()
     }
 
-    pub fn serialize_list<S: Serializer, T: Serialize>(
-        list: &impl Deref<Target = [T]>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        let slice = list.deref();
-        let mut seq = serializer.serialize_seq(Some(slice.len()))?;
-        for p in slice {
-            seq.serialize_element(p)?;
-        }
-        seq.end()
-    }
-
     pub fn serialize_ptr<S: Serializer, T: Serialize>(
         ptr: &impl Deref<Target = T>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         ptr.deref().serialize(serializer)
-    }
-
-    pub fn serialize_opt_ptr<S: Serializer, T: Serialize>(
-        ptr: &Option<impl Deref<Target = T>>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        ptr.as_ref().map(|p| p.deref()).serialize(serializer)
     }
 }

@@ -1,7 +1,7 @@
 use crate::{ValueBuilder, flavors::ValueFlavor};
 use ::{core::ops::Deref as _, derive_where::derive_where};
 
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(Debug;)] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
 pub enum Value<F: ValueFlavor> {
     Unit,
@@ -43,36 +43,34 @@ pub enum Value<F: ValueFlavor> {
         fields: F::List<(F::Str, Self)>,
     },
 
-    Enum {
+    EnumUnit {
         name: F::Str,
         discriminant: u32,
-        variant: VariantValue<F>,
+        variant_name: F::Str,
     },
 
-    Option(Option<F::Ptr<Value<F>>>),
-}
-
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(PartialEq; )] // prevents compiler bounds check overflow & `F: PartialEq` bound
-pub enum VariantValue<F: ValueFlavor> {
-    Unit {
+    EnumTuple {
         name: F::Str,
+        discriminant: u32,
+        variant_name: F::Str,
+        fields: F::List<Self>,
     },
 
-    Tuple {
+    EnumNewType {
         name: F::Str,
-        fields: F::List<Value<F>>,
+        discriminant: u32,
+        variant_name: F::Str,
+        field: F::Ptr<Self>,
     },
 
-    NewType {
+    EnumStruct {
         name: F::Str,
-        field: F::Ptr<Value<F>>,
+        discriminant: u32,
+        variant_name: F::Str,
+        fields: F::List<(F::Str, Self)>,
     },
 
-    Struct {
-        name: F::Str,
-        fields: F::List<(F::Str, Value<F>)>,
-    },
+    Option(Option<F::Ptr<Self>>),
 }
 
 impl<F> core::fmt::Display for Value<F>
@@ -145,31 +143,20 @@ where
                 write!(f, " }}")
             }
 
-            Value::Enum {
+            Value::EnumUnit {
                 name,
-                discriminant,
-                variant,
+                discriminant: _, // TODO: do we print that?
+                variant_name,
             } => {
-                write!(f, "{}::{}", name.deref(), variant) // TODO: discriminant
+                write!(f, "{}::{}", name.deref(), variant_name.deref())
             }
-
-            Value::Option(value) => match value {
-                Some(value) => write!(f, "Some({})", value.deref()),
-                None => write!(f, "None"),
-            },
-        }
-    }
-}
-
-impl<F> core::fmt::Display for VariantValue<F>
-where
-    F: ValueFlavor,
-{
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            VariantValue::Unit { name } => write!(f, "{}", name.deref()),
-            VariantValue::Struct { name, fields } => {
-                write!(f, "{}({{ ", name.deref())?;
+            Value::EnumStruct {
+                name,
+                discriminant: _, // TODO: do we print that?
+                variant_name,
+                fields,
+            } => {
+                write!(f, "{}::{}({{ ", name.deref(), variant_name.deref())?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
@@ -178,8 +165,13 @@ where
                 }
                 write!(f, " }})")
             }
-            VariantValue::Tuple { name, fields } => {
-                write!(f, "{}(", name.deref())?;
+            Value::EnumTuple {
+                name,
+                discriminant: _, // TODO: do we print that?
+                variant_name,
+                fields,
+            } => {
+                write!(f, "{}::{}(", name.deref(), variant_name.deref())?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
@@ -188,9 +180,25 @@ where
                 }
                 write!(f, ")")
             }
-            VariantValue::NewType { name, field } => {
-                write!(f, "{}({})", name.deref(), field.deref())
+            Value::EnumNewType {
+                name,
+                discriminant: _, // TODO: do we print that?
+                variant_name,
+                field,
+            } => {
+                write!(
+                    f,
+                    "{}::{}({})",
+                    name.deref(),
+                    variant_name.deref(),
+                    field.deref()
+                )
             }
+
+            Value::Option(value) => match value {
+                Some(value) => write!(f, "Some({})", value.deref()),
+                None => write!(f, "None"),
+            },
         }
     }
 }
@@ -263,73 +271,72 @@ where
                 st.end()
             }
 
-            Value::Enum {
+            Value::EnumUnit {
                 name,
                 discriminant,
-                variant,
-            } => serialize_enum(name, *discriminant, variant, serializer),
+                variant_name,
+            } => serializer.serialize_unit_variant(
+                F::make_static_str(name),
+                *discriminant,
+                F::make_static_str(variant_name),
+            ),
+
+            Value::EnumNewType {
+                name,
+                discriminant,
+                variant_name,
+                field,
+            } => serializer.serialize_newtype_variant(
+                F::make_static_str(name),
+                *discriminant,
+                F::make_static_str(variant_name),
+                field.deref(),
+            ),
+
+            Value::EnumTuple {
+                name,
+                discriminant,
+                variant_name,
+                fields,
+            } => {
+                use ::serde::ser::SerializeTupleVariant as _;
+
+                let mut tv = serializer.serialize_tuple_variant(
+                    F::make_static_str(name),
+                    *discriminant,
+                    F::make_static_str(variant_name),
+                    fields.len(),
+                )?;
+                for f in fields.deref() {
+                    tv.serialize_field(f)?;
+                }
+                tv.end()
+            }
+
+            Value::EnumStruct {
+                name,
+                discriminant,
+                variant_name,
+                fields,
+            } => {
+                use ::serde::ser::SerializeStructVariant as _;
+
+                let mut sv = serializer.serialize_struct_variant(
+                    F::make_static_str(name),
+                    *discriminant,
+                    F::make_static_str(variant_name),
+                    fields.len(),
+                )?;
+                for (k, v) in fields.deref() {
+                    sv.serialize_field(F::make_static_str(k), v)?;
+                }
+                sv.end()
+            }
 
             Value::Option(opt) => match opt {
                 Some(v) => serializer.serialize_some(v.deref()),
                 None => serializer.serialize_none(),
             },
-        }
-    }
-}
-
-fn serialize_enum<F, S>(
-    enum_name: &F::Str,
-    discriminant: u32,
-    variant: &VariantValue<F>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    F: ValueFlavor + ValueBuilder,
-    S: ::serde::Serializer,
-    F::Str: ::serde::Serialize,
-{
-    match variant {
-        VariantValue::Unit { name } => serializer.serialize_unit_variant(
-            F::make_static_str(enum_name),
-            discriminant,
-            F::make_static_str(name),
-        ),
-
-        VariantValue::NewType { name, field } => serializer.serialize_newtype_variant(
-            F::make_static_str(enum_name),
-            discriminant,
-            F::make_static_str(name),
-            field.deref(),
-        ),
-
-        VariantValue::Tuple { name, fields } => {
-            use ::serde::ser::SerializeTupleVariant as _;
-
-            let mut tv = serializer.serialize_tuple_variant(
-                F::make_static_str(enum_name),
-                discriminant,
-                F::make_static_str(name),
-                fields.len(),
-            )?;
-            for f in fields.deref() {
-                tv.serialize_field(f)?;
-            }
-            tv.end()
-        }
-
-        VariantValue::Struct { name, fields } => {
-            use ::serde::ser::SerializeStructVariant as _;
-
-            let mut sv = serializer.serialize_struct_variant(
-                F::make_static_str(enum_name),
-                discriminant,
-                F::make_static_str(name),
-                fields.len(),
-            )?;
-            for (k, v) in fields.deref() {
-                sv.serialize_field(F::make_static_str(k), v)?;
-            }
-            sv.end()
         }
     }
 }

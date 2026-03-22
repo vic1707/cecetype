@@ -1,6 +1,6 @@
 use super::{StructVisitor, TupleVisitor};
 use crate::{
-    SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor, VariantSchema, VariantValue,
+    SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor, VariantSchema,
     type_schema::visitors::Seed,
 };
 use ::{
@@ -82,12 +82,10 @@ where
             VariantSchema::Unit { .. } => {
                 variant_access.unit_variant()?;
 
-                Value::Enum {
+                Value::EnumUnit {
                     name: VF::make_str(self.name),
                     discriminant: *variant_schema.discriminant(),
-                    variant: VariantValue::Unit {
-                        name: VF::make_str(variant_schema.name()),
-                    },
+                    variant_name: VF::make_str(variant_schema.name()),
                 }
             }
 
@@ -98,13 +96,11 @@ where
                     unreachable!()
                 };
 
-                Value::Enum {
+                Value::EnumTuple {
                     name: VF::make_str(self.name),
                     discriminant: *variant_schema.discriminant(),
-                    variant: VariantValue::Tuple {
-                        name: VF::make_str(variant_schema.name()),
-                        fields,
-                    },
+                    variant_name: VF::make_str(variant_schema.name()),
+                    fields,
                 }
             }
 
@@ -114,13 +110,11 @@ where
                     _p: PhantomData,
                 })?);
 
-                Value::Enum {
+                Value::EnumNewType {
                     name: VF::make_str(self.name),
                     discriminant: *variant_schema.discriminant(),
-                    variant: VariantValue::NewType {
-                        name: VF::make_str(variant_schema.name()),
-                        field,
-                    },
+                    variant_name: VF::make_str(variant_schema.name()),
+                    field,
                 }
             }
 
@@ -134,13 +128,11 @@ where
                     unreachable!()
                 };
 
-                Value::Enum {
+                Value::EnumStruct {
                     name: VF::make_str(self.name),
                     discriminant: *variant_schema.discriminant(),
-                    variant: VariantValue::Struct {
-                        name: VF::make_str(variant_schema.name()),
-                        fields,
-                    },
+                    variant_name: VF::make_str(variant_schema.name()),
+                    fields,
                 }
             }
         };
