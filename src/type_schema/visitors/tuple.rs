@@ -1,7 +1,7 @@
 use super::Seed;
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
-    core::{marker::PhantomData, ops::Deref as _},
+    core::{marker::PhantomData, fmt},
     serde::{
         Deserialize,
         de::{self, SeqAccess, Visitor},
@@ -14,7 +14,7 @@ pub struct TupleVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
 }
 
 impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> TupleVisitor<'s, SF, VF> {
-    pub fn new(elements: &'s SF::List<TypeSchema<'s, SF>>) -> Self {
+    pub const fn new(elements: &'s SF::List<TypeSchema<'s, SF>>) -> Self {
         Self {
             elements,
             _p: PhantomData,
@@ -30,8 +30,8 @@ where
 {
     type Value = Value<VF>;
 
-    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "tuple")
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "tuple")
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -40,15 +40,15 @@ where
     {
         let mut values = VF::list_with_capacity(self.elements.len());
 
-        for schema in self.elements.deref() {
-            let v = seq
+        for schema in &**self.elements {
+            let el = seq
                 .next_element_seed(Seed {
                     schema,
                     _p: PhantomData,
                 })?
                 .ok_or_else(|| de::Error::invalid_length(values.len(), &self))?;
 
-            VF::list_push(&mut values, v);
+            VF::list_push(&mut values, el);
         }
 
         if seq.next_element::<de::IgnoredAny>()?.is_some() {

@@ -1,7 +1,7 @@
 use super::Seed;
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
-    core::marker::PhantomData,
+    core::{marker::PhantomData, fmt},
     serde::{
         Deserialize,
         de::{SeqAccess, Visitor},
@@ -14,7 +14,7 @@ pub struct SliceVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
 }
 
 impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> SliceVisitor<'s, SF, VF> {
-    pub fn new(element: &'s SF::Ptr<TypeSchema<'s, SF>>) -> Self {
+    pub const fn new(element: &'s SF::Ptr<TypeSchema<'s, SF>>) -> Self {
         Self {
             element,
             _p: PhantomData,
@@ -30,8 +30,8 @@ where
 {
     type Value = Value<VF>;
 
-    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "Slice")
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "Slice")
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -40,11 +40,11 @@ where
     {
         let mut values = VF::list();
 
-        while let Some(v) = seq.next_element_seed(Seed {
+        while let Some(el) = seq.next_element_seed(Seed {
             schema: self.element,
             _p: PhantomData,
         })? {
-            VF::list_push(&mut values, v);
+            VF::list_push(&mut values, el);
         }
 
         Ok(Value::Slice(values))

@@ -1,2 +1,35 @@
 [env]
-RUSTFLAGS="-Znext-solver"
+RUSTFLAGS = "-Znext-solver"
+
+[build]
+rustflags = [
+    ## Warning ##
+    # "-Dclippy::cargo",
+    "-Dclippy::nursery",
+    "-Dclippy::pedantic",
+    "-Dclippy::restriction",
+    ## Conflicts ##
+    "-Aclippy::blanket_clippy_restriction_lints", # clippy::restriction                   - can't enable clippy::restriction if this is enabled
+    "-Aclippy::implicit_return",                  # clippy::needless-return               - remove return keyword when not needed
+    "-Aclippy::mod_module_files",                 # clippy::self_named_module_files       - `./foo/mod.rs` instead of `./foo.rs` + `./foo/*.rs`
+    "-Aclippy::pub-with-shorthand",               # clippy::pub-without-shorthand         - pub(<scope>) instead of pub(in <scope>)
+    "-Aclippy::self_named_module_files",          # clippy::mod_module_files              - `./foo.rs` + `./foo/*.rs` instead of `./foo/mod.rs`
+    "-Aclippy::separated_literal_suffix",         # clippy::unseparated-literal-suffix    - 2.0_f32 vs 2.0f32
+    ## Allowed ##
+    "-Aclippy::arbitrary_source_item_ordering", # too much even for me
+    "-Aclippy::arithmetic_side_effects",
+    "-Aclippy::impl_trait_in_params",
+    "-Aclippy::missing_trait_methods",          # convenience
+    "-Aclippy::pattern_type_mismatch",          # forces ref patterns
+    "-Aclippy::pub_use",
+    "-Aclippy::question_mark_used",             # convenience
+    "-Aclippy::single_char_lifetime_names",
+    "-Aclippy::single_call_fn",                 # function only called once
+    ## Don't care during DEV ##
+    "-Aclippy::missing_docs_in_private_items",
+    "-Aclippy::missing_errors_doc",
+    "-Aclippy::exhaustive_enums",
+    "-Aclippy::exhaustive_structs",
+    "-Aclippy::unreachable",
+    "-Aclippy::too_many_lines",
+]

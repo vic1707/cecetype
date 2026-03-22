@@ -1,7 +1,7 @@
 #![no_std]
 
-#[cfg(feature = "std")]
-extern crate std;
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
 mod flavors;
 mod type_schema;
@@ -50,9 +50,9 @@ mod tests {
 
         BorrowedSchema: (fmt::Display + Serialize);
 
-        #[cfg(feature = "std")]
+        #[cfg(feature = "alloc")]
         OwnedSchema: (fmt::Display + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
-        #[cfg(feature = "std")]
+        #[cfg(feature = "alloc")]
         OwnedValue: (fmt::Display + fmt::Debug + PartialEq + Serialize);
     }
 }

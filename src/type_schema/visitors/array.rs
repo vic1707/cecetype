@@ -1,7 +1,7 @@
 use super::Seed;
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
-    core::marker::PhantomData,
+    core::{marker::PhantomData, fmt},
     serde::{
         Deserialize,
         de::{self, SeqAccess, Visitor},
@@ -15,7 +15,7 @@ pub struct ArrayVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
 }
 
 impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> ArrayVisitor<'s, SF, VF> {
-    pub fn new(element: &'s SF::Ptr<TypeSchema<'s, SF>>, len: usize) -> Self {
+    pub const fn new(element: &'s SF::Ptr<TypeSchema<'s, SF>>, len: usize) -> Self {
         Self {
             element,
             len,
@@ -32,8 +32,8 @@ where
 {
     type Value = Value<VF>;
 
-    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "array of length {}", self.len)
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "array of length {}", self.len)
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -43,14 +43,14 @@ where
         let mut values = VF::list_with_capacity(self.len);
 
         for i in 0..self.len {
-            let v = seq
+            let el = seq
                 .next_element_seed(Seed {
                     schema: self.element,
                     _p: PhantomData,
                 })?
                 .ok_or_else(|| de::Error::invalid_length(i, &self))?;
 
-            VF::list_push(&mut values, v);
+            VF::list_push(&mut values, el);
         }
 
         if seq.next_element::<de::IgnoredAny>()?.is_some() {

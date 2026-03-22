@@ -1,4 +1,6 @@
 use crate::{Schema, StaticSchema, TypeSchema, VariantSchema};
+#[cfg(feature = "alloc")]
+use ::alloc::string::String;
 
 macro_rules! primitive_schema {
     ($ty:ty, $variant:ident) => {
@@ -22,8 +24,8 @@ primitive_schema!(f32, F32);
 primitive_schema!(f64, F64);
 primitive_schema!(&str, Str);
 primitive_schema!(char, Char);
-#[cfg(feature = "std")]
-primitive_schema!(::std::string::String, Str);
+#[cfg(feature = "alloc")]
+primitive_schema!(String, Str);
 
 impl<T: Schema, const N: usize> Schema for [T; N] {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Array {
@@ -48,26 +50,20 @@ impl<T: Schema> Schema for &mut T {
     const SCHEMA: &'static StaticSchema = T::SCHEMA;
 }
 
+const OK_DISCRIMINANT: u32 = 0;
+const ERR_DISCRIMINANT: u32 = 1;
 impl<T: Schema, E: Schema> Schema for Result<T, E> {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
         name: "Result",
         variants: &[
             &VariantSchema::NewType {
                 name: "Ok",
-                discriminant: {
-                    let desc = unsafe { *(&Result::Ok(()) as *const Result<(), ()> as *const u8) };
-                    assert!(desc == 0, "Not the expected value");
-                    desc as u32
-                },
+                discriminant: OK_DISCRIMINANT,
                 field: T::SCHEMA,
             },
             &VariantSchema::NewType {
                 name: "Err",
-                discriminant: {
-                    let desc = unsafe { *(&Result::Err(()) as *const Result<(), ()> as *const u8) };
-                    assert!(desc == 1, "Not the expected value");
-                    desc as u32
-                },
+                discriminant: ERR_DISCRIMINANT,
                 field: E::SCHEMA,
             },
         ],
@@ -95,3 +91,24 @@ macro_rules! impl_tuple_schema {
 }
 
 impl_tuple_schema!(L, K, J, I, H, G, F, E, D, C, B, A);
+
+#[cfg(test)]
+mod tests {
+    #![expect(
+        clippy::as_conversions,
+        clippy::undocumented_unsafe_blocks,
+        clippy::ptr_as_ptr,
+        reason = "testing"
+    )]
+    use super::*;
+    use ::core::ptr;
+
+    const _: () = {
+        assert! {
+            unsafe { *(ptr::from_ref::<Result<(), ()>>(&Result::Ok(())) as *const u8) } as u32  == OK_DISCRIMINANT
+        };
+        assert! {
+            unsafe { *(ptr::from_ref::<Result<(), ()>>(&Result::Err(())) as *const u8) } as u32  == ERR_DISCRIMINANT
+        };
+    };
+}

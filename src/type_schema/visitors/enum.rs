@@ -7,7 +7,7 @@ use ::{
     core::{fmt, marker::PhantomData, ops::Deref as _},
     serde::{
         Deserialize,
-        de::{EnumAccess, VariantAccess as _, Visitor},
+        de::{self, EnumAccess, VariantAccess as _, Visitor},
     },
 };
 
@@ -22,7 +22,7 @@ impl<VF: ValueFlavor> fmt::Display for VariantId<VF> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Index(idx) => write!(f, "[id: {idx}]"),
-            Self::Name(name) => write!(f, "{}", name.deref()),
+            Self::Name(name) => write!(f, "{}", &**name),
         }
     }
 }
@@ -35,7 +35,7 @@ pub struct EnumVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
 }
 
 impl<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> EnumVisitor<'s, SF, VF> {
-    pub fn new(name: &'s SF::Str, variants: &'s SF::List<VariantSchema<'s, SF>>) -> Self {
+    pub const fn new(name: &'s SF::Str, variants: &'s SF::List<VariantSchema<'s, SF>>) -> Self {
         Self {
             name,
             variants,
@@ -52,8 +52,8 @@ where
 {
     type Value = Value<VF>;
 
-    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "enum {}", self.name.deref())
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "enum {}", &**self.name)
     }
 
     fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
@@ -62,23 +62,22 @@ where
     {
         let (variant_identifier, variant_access) = data.variant::<VariantId<VF>>()?;
 
-        let variant_schema = match variant_identifier {
-            VariantId::Name(ref variant_name) => self
+        let variant_schema = match &variant_identifier {
+            VariantId::Name(variant_name) => self
                 .variants
-                .deref()
                 .iter()
-                .find(|v| v.name() == variant_name.deref()),
+                .find(|variant| variant.name() == &**variant_name),
             VariantId::Index(idx) => self
                 .variants
                 .deref()
                 .iter()
-                .find(|v| v.discriminant() == &idx),
+                .find(|variant| variant.discriminant() == idx),
         }
         .ok_or_else(|| {
-            serde::de::Error::custom(format_args!("unknown variant: `{variant_identifier}`"))
+            de::Error::custom(format_args!("unknown variant: `{variant_identifier}`"))
         })?;
 
-        let value = match variant_schema.deref() {
+        let value = match &**variant_schema {
             VariantSchema::Unit { .. } => {
                 variant_access.unit_variant()?;
 
@@ -90,7 +89,7 @@ where
             }
 
             VariantSchema::Tuple { fields, .. } => {
-                let Value::Tuple(fields) = variant_access
+                let Value::Tuple(fields_schema) = variant_access
                     .tuple_variant(fields.len(), TupleVisitor::<SF, VF>::new(fields))?
                 else {
                     unreachable!()
@@ -100,13 +99,16 @@ where
                     name: VF::make_str(self.name),
                     discriminant: *variant_schema.discriminant(),
                     variant_name: VF::make_str(variant_schema.name()),
-                    fields,
+                    fields: fields_schema,
                 }
             }
 
-            VariantSchema::NewType { field, .. } => {
+            VariantSchema::NewType {
+                field: field_schema,
+                ..
+            } => {
                 let field = VF::make_ptr(variant_access.newtype_variant_seed(Seed {
-                    schema: field,
+                    schema: field_schema,
                     _p: PhantomData,
                 })?);
 
@@ -119,8 +121,12 @@ where
             }
 
             VariantSchema::Struct { name, fields, .. } => {
-                // TODO: ok fields empty?
-                let Value::Struct { fields, .. } = variant_access.struct_variant(
+                let Value::Struct {
+                    fields: fields_schema,
+                    ..
+                } = variant_access.struct_variant(
+                    // Cannot send ampty list as postcard uses the lenght to encode
+                    #[expect(clippy::indexing_slicing, reason = "serde expects static strs")]
                     super::_S[fields.len()],
                     StructVisitor::<SF, VF>::new(name, fields),
                 )?
@@ -132,7 +138,7 @@ where
                     name: VF::make_str(self.name),
                     discriminant: *variant_schema.discriminant(),
                     variant_name: VF::make_str(variant_schema.name()),
-                    fields,
+                    fields: fields_schema,
                 }
             }
         };
@@ -148,7 +154,7 @@ pub struct OptionVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
 }
 
 impl<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> OptionVisitor<'s, SF, VF> {
-    pub fn new(some: &'s TypeSchema<'s, SF>) -> Self {
+    pub const fn new(some: &'s TypeSchema<'s, SF>) -> Self {
         Self {
             some,
             _p: PhantomData,
@@ -164,13 +170,13 @@ where
 {
     type Value = Value<VF>;
 
-    fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "Option<{}>", self.some)
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "Option<{}>", self.some)
     }
 
     fn visit_none<E>(self) -> Result<Self::Value, E>
     where
-        E: serde::de::Error,
+        E: de::Error,
     {
         Ok(Value::Option(None))
     }

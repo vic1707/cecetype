@@ -1,5 +1,8 @@
 use crate::{ValueBuilder, flavors::ValueFlavor};
-use ::{core::ops::Deref as _, derive_where::derive_where};
+use ::{
+    core::{fmt, ops::Deref as _},
+    derive_where::derive_where,
+};
 
 #[derive_where(Debug;)] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
@@ -73,105 +76,104 @@ pub enum Value<F: ValueFlavor> {
     Option(Option<F::Ptr<Self>>),
 }
 
-impl<F> core::fmt::Display for Value<F>
+impl<F> fmt::Display for Value<F>
 where
     F: ValueFlavor,
 {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Unit => write!(f, "()"),
-            Value::Bool(v) => write!(f, "{v}"),
-            Value::Str(v) => write!(f, "\"{}\"", v.deref()),
-            Value::Char(v) => write!(f, "'{v}'"),
+            Self::Unit => write!(f, "()"),
+            Self::Bool(val) => write!(f, "{val}"),
+            Self::Str(val) => write!(f, "\"{}\"", &**val),
+            Self::Char(val) => write!(f, "'{val}'"),
 
-            Value::U8(v) => write!(f, "{v}"),
-            Value::U16(v) => write!(f, "{v}"),
-            Value::U32(v) => write!(f, "{v}"),
-            Value::U64(v) => write!(f, "{v}"),
-            Value::I8(v) => write!(f, "{v}"),
-            Value::I16(v) => write!(f, "{v}"),
-            Value::I32(v) => write!(f, "{v}"),
-            Value::I64(v) => write!(f, "{v}"),
+            Self::U8(val) => write!(f, "{val}"),
+            Self::U16(val) => write!(f, "{val}"),
+            Self::U32(val) => write!(f, "{val}"),
+            Self::U64(val) => write!(f, "{val}"),
+            Self::I8(val) => write!(f, "{val}"),
+            Self::I16(val) => write!(f, "{val}"),
+            Self::I32(val) => write!(f, "{val}"),
+            Self::I64(val) => write!(f, "{val}"),
 
-            Value::F32(v) => write!(f, "{v}"),
-            Value::F64(v) => write!(f, "{v}"),
+            Self::F32(val) => write!(f, "{val}"),
+            Self::F64(val) => write!(f, "{val}"),
 
-            Value::Array(values) | Value::Slice(values) => {
+            Self::Array(values) | Self::Slice(values) => {
                 write!(f, "[")?;
-                for (i, v) in values.iter().enumerate() {
+                for (i, val) in values.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{v}")?;
+                    write!(f, "{val}")?;
                 }
                 write!(f, "]")
             }
 
-            Value::Tuple(values) => {
+            Self::Tuple(values) => {
                 write!(f, "(")?;
-                for (i, v) in values.iter().enumerate() {
+                for (i, val) in values.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{v}")?;
+                    write!(f, "{val}")?;
                 }
                 write!(f, ")")
             }
 
-            Value::UnitStruct { name } => write!(f, "{}", name.deref()),
-            Value::NewTypeStruct { name, field } => {
-                write!(f, "{}({})", name.deref(), field.deref())
+            Self::UnitStruct { name } => write!(f, "{}", &**name),
+            Self::NewTypeStruct { name, field } => {
+                write!(f, "{}({})", &**name, &**field)
             }
-            Value::TupleStruct { name, fields } => {
-                write!(f, "{} (", name.deref())?;
-                for (i, v) in fields.iter().enumerate() {
+            Self::TupleStruct { name, fields } => {
+                write!(f, "{} (", &**name)?;
+                for (i, val) in fields.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{v}")?;
+                    write!(f, "{val}")?;
                 }
                 write!(f, ")")
             }
-            Value::Struct { name, fields } => {
-                write!(f, "{} {{ ", name.deref())?;
-                for (i, (k, v)) in fields.iter().enumerate() {
+            Self::Struct { name, fields } => {
+                write!(f, "{} {{ ", &**name)?;
+                for (i, (key, val)) in fields.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", k.deref(), v)?;
+                    write!(f, "{}: {}", &**key, val)?;
                 }
                 write!(f, " }}")
             }
 
-            Value::EnumUnit {
-                name,
-                discriminant: _, // TODO: do we print that?
-                variant_name,
+            Self::EnumUnit {
+                name, variant_name, ..
             } => {
-                write!(f, "{}::{}", name.deref(), variant_name.deref())
+                write!(f, "{}::{}", &**name, &**variant_name)
             }
-            Value::EnumStruct {
+            Self::EnumStruct {
                 name,
-                discriminant: _, // TODO: do we print that?
                 variant_name,
                 fields,
+                ..
             } => {
-                write!(f, "{}::{}({{ ", name.deref(), variant_name.deref())?;
+                write!(f, "{}::{}({{ ", &**name, &**variant_name)?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", field.0.deref(), field.1)?;
+                    write!(f, "{}: {}", &*field.0, field.1)?;
                 }
                 write!(f, " }})")
             }
-            Value::EnumTuple {
+            Self::EnumTuple {
                 name,
-                discriminant: _, // TODO: do we print that?
                 variant_name,
                 fields,
+                ..
             } => {
-                write!(f, "{}::{}(", name.deref(), variant_name.deref())?;
+                write!(f, "{}::{}(", &**name, &**variant_name)?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
@@ -180,23 +182,17 @@ where
                 }
                 write!(f, ")")
             }
-            Value::EnumNewType {
+            Self::EnumNewType {
                 name,
-                discriminant: _, // TODO: do we print that?
                 variant_name,
                 field,
+                ..
             } => {
-                write!(
-                    f,
-                    "{}::{}({})",
-                    name.deref(),
-                    variant_name.deref(),
-                    field.deref()
-                )
+                write!(f, "{}::{}({})", &**name, &**variant_name, &**field)
             }
 
-            Value::Option(value) => match value {
-                Some(value) => write!(f, "Some({})", value.deref()),
+            Self::Option(opt) => match opt {
+                Some(value) => write!(f, "Some({})", &**value),
                 None => write!(f, "None"),
             },
         }
@@ -208,70 +204,69 @@ where
     F: ValueFlavor + ValueBuilder,
     F::Str: ::serde::Serialize,
 {
+    #[inline]
     fn serialize<S: ::serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
-            Value::Unit => serializer.serialize_unit(),
+            Self::Unit => serializer.serialize_unit(),
 
-            Value::Bool(v) => v.serialize(serializer),
+            Self::Bool(val) => val.serialize(serializer),
 
-            Value::Str(v) => v.serialize(serializer),
-            Value::Char(v) => v.serialize(serializer),
+            Self::Str(val) => val.serialize(serializer),
+            Self::Char(val) => val.serialize(serializer),
 
-            Value::U8(v) => v.serialize(serializer),
-            Value::U16(v) => v.serialize(serializer),
-            Value::U32(v) => v.serialize(serializer),
-            Value::U64(v) => v.serialize(serializer),
+            Self::U8(val) => val.serialize(serializer),
+            Self::U16(val) => val.serialize(serializer),
+            Self::U32(val) => val.serialize(serializer),
+            Self::U64(val) => val.serialize(serializer),
 
-            Value::I8(v) => v.serialize(serializer),
-            Value::I16(v) => v.serialize(serializer),
-            Value::I32(v) => v.serialize(serializer),
-            Value::I64(v) => v.serialize(serializer),
+            Self::I8(val) => val.serialize(serializer),
+            Self::I16(val) => val.serialize(serializer),
+            Self::I32(val) => val.serialize(serializer),
+            Self::I64(val) => val.serialize(serializer),
 
-            Value::F32(v) => v.serialize(serializer),
-            Value::F64(v) => v.serialize(serializer),
+            Self::F32(val) => val.serialize(serializer),
+            Self::F64(val) => val.serialize(serializer),
 
-            Value::Slice(v) => v.serialize(serializer),
+            Self::Slice(val) => val.serialize(serializer),
 
-            Value::Array(values) | Value::Tuple(values) => {
-                use serde::ser::SerializeTuple as _;
+            Self::Array(values) | Self::Tuple(values) => {
+                use ::serde::ser::SerializeTuple as _;
 
                 let mut tup = serializer.serialize_tuple(values.len())?;
-                for v in values.deref() {
-                    tup.serialize_element(v)?;
+                for val in &**values {
+                    tup.serialize_element(val)?;
                 }
                 tup.end()
             }
 
-            Value::UnitStruct { name } => {
-                serializer.serialize_unit_struct(F::make_static_str(name))
+            Self::UnitStruct { name } => serializer.serialize_unit_struct(F::make_static_str(name)),
+
+            Self::NewTypeStruct { name, field } => {
+                serializer.serialize_newtype_struct(F::make_static_str(name), &**field)
             }
 
-            Value::NewTypeStruct { name, field } => {
-                serializer.serialize_newtype_struct(F::make_static_str(name), field.deref())
-            }
-
-            Value::TupleStruct { name, fields } => {
-                use serde::ser::SerializeTupleStruct as _;
+            Self::TupleStruct { name, fields } => {
+                use ::serde::ser::SerializeTupleStruct as _;
 
                 let mut ts =
                     serializer.serialize_tuple_struct(F::make_static_str(name), fields.len())?;
-                for f in fields.deref() {
-                    ts.serialize_field(f)?;
+                for field in &**fields {
+                    ts.serialize_field(field)?;
                 }
                 ts.end()
             }
 
-            Value::Struct { name, fields } => {
-                use serde::ser::SerializeStruct as _;
+            Self::Struct { name, fields } => {
+                use ::serde::ser::SerializeStruct as _;
 
                 let mut st = serializer.serialize_struct(F::make_static_str(name), fields.len())?;
-                for (k, v) in fields.deref() {
-                    st.serialize_field(F::make_static_str(k), v)?;
+                for (key, val) in &**fields {
+                    st.serialize_field(F::make_static_str(key), val)?;
                 }
                 st.end()
             }
 
-            Value::EnumUnit {
+            Self::EnumUnit {
                 name,
                 discriminant,
                 variant_name,
@@ -281,7 +276,7 @@ where
                 F::make_static_str(variant_name),
             ),
 
-            Value::EnumNewType {
+            Self::EnumNewType {
                 name,
                 discriminant,
                 variant_name,
@@ -290,10 +285,10 @@ where
                 F::make_static_str(name),
                 *discriminant,
                 F::make_static_str(variant_name),
-                field.deref(),
+                &**field,
             ),
 
-            Value::EnumTuple {
+            Self::EnumTuple {
                 name,
                 discriminant,
                 variant_name,
@@ -307,13 +302,13 @@ where
                     F::make_static_str(variant_name),
                     fields.len(),
                 )?;
-                for f in fields.deref() {
-                    tv.serialize_field(f)?;
+                for field in &**fields {
+                    tv.serialize_field(field)?;
                 }
                 tv.end()
             }
 
-            Value::EnumStruct {
+            Self::EnumStruct {
                 name,
                 discriminant,
                 variant_name,
@@ -327,14 +322,14 @@ where
                     F::make_static_str(variant_name),
                     fields.len(),
                 )?;
-                for (k, v) in fields.deref() {
-                    sv.serialize_field(F::make_static_str(k), v)?;
+                for (key, val) in &**fields {
+                    sv.serialize_field(F::make_static_str(key), val)?;
                 }
                 sv.end()
             }
 
-            Value::Option(opt) => match opt {
-                Some(v) => serializer.serialize_some(v.deref()),
+            Self::Option(opt) => match opt {
+                Some(val) => serializer.serialize_some(&**val),
                 None => serializer.serialize_none(),
             },
         }

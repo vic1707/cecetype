@@ -1,8 +1,20 @@
+#![allow(
+    clippy::min_ident_chars,
+    clippy::unseparated_literal_suffix,
+    clippy::as_conversions,
+    clippy::unwrap_used,
+    clippy::used_underscore_binding,
+    clippy::tests_outside_test_module,
+    clippy::panic,
+    clippy::wildcard_enum_match_arm,
+    clippy::non_ascii_literal,
+    reason = "test file"
+)]
 use ::{
     core::{error, fmt},
     serde::{Deserialize, Serialize, de::DeserializeOwned},
 };
-use schema::*;
+use ::schema::*;
 
 #[derive(Serialize, Deserialize, Schema, PartialEq, Debug)]
 struct MyStruct {
@@ -64,7 +76,7 @@ enum GenericEnum<T> {
 #[case::i64_max((i64::MAX, Value::I64(i64::MAX)))]
 #[case::f32_inf((12.5f32, Value::F32(12.5)))]
 #[case::bool((true, Value::Bool(true)))]
-#[case::empty_string(("", Value::Str("".to_owned())))]
+#[case::empty_string(("", Value::Str(String::new())))]
 #[case::unicode(("é🚀", Value::Str("é🚀".to_owned())))]
 #[case::string(("hello", Value::Str("hello".to_owned())))]
 #[case::char(('x', Value::Char('x')))]
@@ -114,7 +126,7 @@ fn value_decoding<F: Format, D: Serialize + Schema>(
 #[case::i64_max(i64::MAX)]
 #[case::f32_inf(12.5f32)]
 #[case::bool(true)]
-#[case::empty_string("".to_owned())]
+#[case::empty_string(String::new())]
 #[case::unicode("é🚀".to_owned())]
 #[case::string("hello".to_owned())]
 #[case::char('x')]
@@ -187,7 +199,7 @@ fn struct_duplicate_field() {
 
 #[test]
 fn tuple_too_short() {
-    let json = r#"[1]"#;
+    let json = "[1]";
 
     let mut de = serde_json::Deserializer::from_str(json);
     let err = <(u32, bool)>::SCHEMA
@@ -202,7 +214,7 @@ fn tuple_too_short() {
 
 #[test]
 fn tuple_too_long() {
-    let json = r#"[1, true, false]"#;
+    let json = "[1, true, false]";
 
     let mut de = serde_json::Deserializer::from_str(json);
     let err = <(u32, bool)>::SCHEMA
@@ -244,7 +256,7 @@ fn enum_unknown_variant_name() {
 
 #[test]
 fn enum_unknown_variant_index() {
-    let json = r#"{ 99: {} }"#;
+    let json = "{ 99: {} }";
 
     let mut de = serde_json::Deserializer::from_str(json);
     let err = MyEnum::SCHEMA

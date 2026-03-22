@@ -1,15 +1,17 @@
 mod borrowed;
 mod owned;
 
+use ::core::{fmt, ops::{Deref, DerefMut}};
+
 pub use self::{borrowed::*, owned::*};
 
 pub trait SchemaFlavor<'s>
 where
     Self: 's,
 {
-    type Ptr<T: 's>: ::core::ops::Deref<Target = T>;
-    type List<T: 's>: ::core::ops::Deref<Target = [Self::Ptr<T>]>;
-    type Str: ::core::ops::Deref<Target = str>;
+    type Ptr<T: 's>: Deref<Target = T>;
+    type List<T: 's>: Deref<Target = [Self::Ptr<T>]>;
+    type Str: Deref<Target = str>;
 }
 
 pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
@@ -25,47 +27,45 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
 }
 
 pub trait ValueFlavor {
-    type Ptr<T: PartialEq + ::core::fmt::Debug>: ::core::ops::Deref<Target = T>
+    type Ptr<T: PartialEq + fmt::Debug>: Deref<Target = T> + PartialEq + fmt::Debug;
+    type List<T: PartialEq + fmt::Debug>: DerefMut<Target = [T]>
         + PartialEq
-        + ::core::fmt::Debug;
-    type List<T: PartialEq + ::core::fmt::Debug>: ::core::ops::DerefMut<Target = [T]>
-        + PartialEq
-        + ::core::fmt::Debug;
-    type Str: ::core::ops::Deref<Target = str> + PartialEq + ::core::fmt::Debug;
+        + fmt::Debug;
+    type Str: Deref<Target = str> + PartialEq + fmt::Debug;
 }
 
 pub trait ValueBuilder: ValueFlavor {
-    fn make_ptr<T: PartialEq + ::core::fmt::Debug>(value: T) -> Self::Ptr<T>;
+    fn make_ptr<T: PartialEq + fmt::Debug>(value: T) -> Self::Ptr<T>;
 
     fn make_str(str: &str) -> Self::Str;
     fn make_static_str(str: &Self::Str) -> &'static str;
 
-    fn list<T: PartialEq + ::core::fmt::Debug>() -> Self::List<T>;
-    fn list_from_iter<T: PartialEq + ::core::fmt::Debug>(
-        iter: impl Iterator<Item = T>,
-    ) -> Self::List<T>;
-    fn list_with_capacity<T: PartialEq + ::core::fmt::Debug>(capacity: usize) -> Self::List<T>;
-    fn list_push<T: PartialEq + ::core::fmt::Debug>(builder: &mut Self::List<T>, value: T);
+    fn list<T: PartialEq + fmt::Debug>() -> Self::List<T>;
+    fn list_from_iter<T: PartialEq + fmt::Debug>(iter: impl Iterator<Item = T>) -> Self::List<T>;
+    fn list_with_capacity<T: PartialEq + fmt::Debug>(capacity: usize) -> Self::List<T>;
+    fn list_push<T: PartialEq + fmt::Debug>(builder: &mut Self::List<T>, value: T);
 }
 
-pub(crate) mod ser {
+pub mod ser {
     use ::{
         core::ops::Deref,
         serde::{Serialize, Serializer, ser::SerializeSeq as _},
     };
 
+    #[inline]
     pub fn serialize_list_ptr<S: Serializer, T: Serialize>(
         list: &impl Deref<Target = [impl Deref<Target = T>]>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let slice = list.deref();
+        let slice = &**list;
         let mut seq = serializer.serialize_seq(Some(slice.len()))?;
-        for p in slice {
-            seq.serialize_element(p.deref())?;
+        for el in slice {
+            seq.serialize_element(&**el)?;
         }
         seq.end()
     }
 
+    #[inline]
     pub fn serialize_ptr<S: Serializer, T: Serialize>(
         ptr: &impl Deref<Target = T>,
         serializer: S,

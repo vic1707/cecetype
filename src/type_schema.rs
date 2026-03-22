@@ -1,9 +1,9 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, flavors::ser};
+use crate::{OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder, flavors::ser};
 use ::{
-    core::ops::Deref as _,
+    core::{fmt, ops::Deref as _},
     serde::{Deserialize, Serialize},
 };
 
@@ -153,7 +153,7 @@ impl<'s, F: SchemaFlavor<'s>> VariantSchema<'s, F> {
             | Self::NewType { name, .. } => name,
         }
     }
-    fn discriminant(&self) -> &u32 {
+    const fn discriminant(&self) -> &u32 {
         match self {
             Self::Struct { discriminant, .. }
             | Self::Unit { discriminant, .. }
@@ -163,11 +163,12 @@ impl<'s, F: SchemaFlavor<'s>> VariantSchema<'s, F> {
     }
 }
 
-impl<'s, F> core::fmt::Display for TypeSchema<'s, F>
+impl<'s, F> fmt::Display for TypeSchema<'s, F>
 where
     F: SchemaFlavor<'s>,
 {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TypeSchema::Unit => write!(f, "()"),
             TypeSchema::Bool => write!(f, "bool"),
@@ -188,77 +189,74 @@ where
             TypeSchema::F64 => write!(f, "f64"),
 
             TypeSchema::Array { element, len } => {
-                write!(f, "[{}; {}]", element.deref(), len)
+                write!(f, "[{}; {}]", &**element, len)
             }
 
             TypeSchema::Slice { element } => {
-                write!(f, "[{}]", element.deref())
+                write!(f, "[{}]", &**element)
             }
 
             TypeSchema::Tuple { elements } => {
                 write!(f, "(")?;
-
                 for (i, elem) in elements.deref().iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", elem.deref())?;
+                    write!(f, "{}", &**elem)?;
                 }
-
                 write!(f, ")")
             }
 
-            TypeSchema::UnitStruct { name } => write!(f, "{}", name.deref()),
+            TypeSchema::UnitStruct { name } => write!(f, "{}", &**name),
             TypeSchema::NewTypeStruct { name, field } => {
-                write!(f, "{} ({})", name.deref(), field.deref())
+                write!(f, "{} ({})", &**name, &**field)
             }
             TypeSchema::TupleStruct { name, fields } => {
-                write!(f, "{} (", name.deref())?;
-
+                write!(f, "{} (", &**name)?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", field.deref())?;
+                    write!(f, "{}", &**field)?;
                 }
-
                 write!(f, ")")
             }
             TypeSchema::Struct { name, fields } => {
-                write!(f, "{} {{ ", name.deref())?;
-
+                write!(f, "{} {{ ", &**name)?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", field.name.deref(), field.ty.deref())?;
+                    write!(f, "{}: {}", &*field.name, &*field.ty)?;
                 }
-
                 write!(f, " }}")
             }
 
-            TypeSchema::Enum { name, variants } => {
-                write!(f, "{} {{ ", name.deref())?;
+            TypeSchema::Enum {
+                name: enum_name,
+                variants,
+            } => {
+                write!(f, "{} {{ ", &**enum_name)?;
 
                 for (idx, variant) in variants.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, " | ")?;
                     }
-                    match variant.deref() {
+                    match &**variant {
                         VariantSchema::Unit { name, discriminant } => {
-                            write!(f, "{} = {}", name.deref(), discriminant)?
+                            write!(f, "{} = {}", &**name, discriminant)?;
                         }
                         VariantSchema::Struct {
                             name,
                             discriminant,
                             fields,
                         } => {
-                            write!(f, "{} = {}({{ ", name.deref(), discriminant)?;
-                            for (idx, field) in fields.deref().iter().enumerate() {
-                                if idx != 0 {
+                            write!(f, "{} = {}({{ ", &**name, discriminant)?;
+                            for (fidx, field) in fields.deref().iter().enumerate() {
+                                if fidx != 0 {
                                     write!(f, ", ")?;
                                 }
-                                write!(f, "{}: {}", field.name.deref(), field.ty.deref())?;
+                                write!(f, "{}: {}", &*field.name, &*field.ty)?;
                             }
                             write!(f, " }})")?;
                         }
@@ -267,12 +265,12 @@ where
                             discriminant,
                             fields,
                         } => {
-                            write!(f, "{} = {}(", name.deref(), discriminant)?;
-                            for (idx, field) in fields.deref().iter().enumerate() {
-                                if idx != 0 {
+                            write!(f, "{} = {}(", &**name, discriminant)?;
+                            for (fidx, field) in fields.deref().iter().enumerate() {
+                                if fidx != 0 {
                                     write!(f, ", ")?;
                                 }
-                                write!(f, "{}", field.deref())?;
+                                write!(f, "{}", &**field)?;
                             }
                             write!(f, ")")?;
                         }
@@ -281,7 +279,7 @@ where
                             discriminant,
                             field,
                         } => {
-                            write!(f, "{} = {}({})", name.deref(), discriminant, field.deref())?;
+                            write!(f, "{} = {}({})", &**name, discriminant, &**field)?;
                         }
                     }
                 }
@@ -289,16 +287,16 @@ where
                 write!(f, " }}")
             }
 
-            TypeSchema::Option(schema) => write!(f, "Option<{}>", schema.deref()),
+            TypeSchema::Option(schema) => write!(f, "Option<{}>", &**schema),
         }
     }
 }
 
-use crate::Value;
 impl<'s, SF> TypeSchema<'s, SF>
 where
     SF: SchemaFlavor<'s>,
 {
+    #[inline]
     pub fn decode_value<'de, D, VF>(&'s self, deserializer: D) -> Result<Value<VF>, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -350,14 +348,18 @@ where
                 visitors::TupleStructVisitor::<SF, VF>::new(name, fields),
             ),
             TypeSchema::Struct { name, fields } => deserializer.deserialize_struct(
-                "",                         // dunno
+                "", // dunno
+                // Cannot send ampty list as postcard uses the lenght to encode
+                #[expect(clippy::indexing_slicing, reason = "serde expects static strs")]
                 visitors::_S[fields.len()], // dirty ass hack
                 visitors::StructVisitor::<SF, VF>::new(name, fields),
             ),
 
             TypeSchema::Enum { name, variants } => {
                 deserializer.deserialize_enum(
-                    "",                           // dunno
+                    "", // dunno
+                    // Cannot send ampty list as postcard uses the lenght to encode
+                    #[expect(clippy::indexing_slicing, reason = "serde expects static strs")]
                     visitors::_S[variants.len()], // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(name, variants),
                 )
