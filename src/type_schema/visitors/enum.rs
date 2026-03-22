@@ -84,6 +84,7 @@ where
 
                 Value::Enum {
                     name: VF::make_str(self.name),
+                    discriminant: *variant_schema.discriminant(),
                     variant: VariantValue::Unit {
                         name: VF::make_str(variant_schema.name()),
                     },
@@ -99,6 +100,7 @@ where
 
                 Value::Enum {
                     name: VF::make_str(self.name),
+                    discriminant: *variant_schema.discriminant(),
                     variant: VariantValue::Tuple {
                         name: VF::make_str(variant_schema.name()),
                         fields,
@@ -114,6 +116,7 @@ where
 
                 Value::Enum {
                     name: VF::make_str(self.name),
+                    discriminant: *variant_schema.discriminant(),
                     variant: VariantValue::NewType {
                         name: VF::make_str(variant_schema.name()),
                         field,
@@ -133,6 +136,7 @@ where
 
                 Value::Enum {
                     name: VF::make_str(self.name),
+                    discriminant: *variant_schema.discriminant(),
                     variant: VariantValue::Struct {
                         name: VF::make_str(variant_schema.name()),
                         fields,

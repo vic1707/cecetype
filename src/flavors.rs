@@ -38,6 +38,7 @@ pub trait ValueBuilder: ValueFlavor {
     fn make_ptr<T: PartialEq + ::core::fmt::Debug>(value: T) -> Self::Ptr<T>;
 
     fn make_str(str: &str) -> Self::Str;
+    fn make_static_str(str: &Self::Str) -> &'static str;
 
     fn list<T: PartialEq + ::core::fmt::Debug>() -> Self::List<T>;
     fn list_from_iter<T: PartialEq + ::core::fmt::Debug>(

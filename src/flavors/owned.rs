@@ -46,6 +46,9 @@ impl super::ValueBuilder for Owned {
     fn make_str(str: &str) -> Self::Str {
         ::std::string::String::from(str)
     }
+    fn make_static_str(str: &Self::Str) -> &'static str {
+        ::std::boxed::Box::leak(str.clone().into_boxed_str()) // TODO: no!!!!
+    }
 
     fn list<T: PartialEq + ::core::fmt::Debug>() -> Self::List<T> {
         Self::List::new()

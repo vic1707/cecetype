@@ -1,8 +1,6 @@
-use crate::flavors::{ValueFlavor, ser};
-use ::{core::ops::Deref as _, derive_where::derive_where, serde::Serialize};
+use crate::{ValueBuilder, flavors::ValueFlavor};
+use ::{core::ops::Deref as _, derive_where::derive_where};
 
-#[derive(Serialize)]
-#[serde(bound(serialize = "F::Str: Serialize"))]
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
 pub enum Value<F: ValueFlavor> {
@@ -24,12 +22,9 @@ pub enum Value<F: ValueFlavor> {
     F32(f32),
     F64(f64),
 
-    #[serde(serialize_with = "ser::serialize_list")]
     Array(F::List<Self>),
-    #[serde(serialize_with = "ser::serialize_list")]
     Slice(F::List<Self>),
 
-    #[serde(serialize_with = "ser::serialize_list")]
     Tuple(F::List<Self>),
 
     UnitStruct {
@@ -37,31 +32,26 @@ pub enum Value<F: ValueFlavor> {
     },
     NewTypeStruct {
         name: F::Str,
-        #[serde(serialize_with = "ser::serialize_ptr")]
         field: F::Ptr<Self>,
     },
     TupleStruct {
         name: F::Str,
-        #[serde(serialize_with = "ser::serialize_list")]
         fields: F::List<Self>,
     },
     Struct {
         name: F::Str,
-        #[serde(serialize_with = "ser::serialize_list")]
         fields: F::List<(F::Str, Self)>,
     },
 
     Enum {
         name: F::Str,
+        discriminant: u32,
         variant: VariantValue<F>,
     },
 
-    #[serde(serialize_with = "ser::serialize_opt_ptr")]
     Option(Option<F::Ptr<Value<F>>>),
 }
 
-#[derive(Serialize)]
-#[serde(bound(serialize = "F::Str: Serialize"))]
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq; )] // prevents compiler bounds check overflow & `F: PartialEq` bound
 pub enum VariantValue<F: ValueFlavor> {
@@ -71,19 +61,16 @@ pub enum VariantValue<F: ValueFlavor> {
 
     Tuple {
         name: F::Str,
-        #[serde(serialize_with = "ser::serialize_list")]
         fields: F::List<Value<F>>,
     },
 
     NewType {
         name: F::Str,
-        #[serde(serialize_with = "ser::serialize_ptr")]
         field: F::Ptr<Value<F>>,
     },
 
     Struct {
         name: F::Str,
-        #[serde(serialize_with = "ser::serialize_list")]
         fields: F::List<(F::Str, Value<F>)>,
     },
 }
@@ -158,8 +145,12 @@ where
                 write!(f, " }}")
             }
 
-            Value::Enum { name, variant } => {
-                write!(f, "{}::{}", name.deref(), variant)
+            Value::Enum {
+                name,
+                discriminant,
+                variant,
+            } => {
+                write!(f, "{}::{}", name.deref(), variant) // TODO: discriminant
             }
 
             Value::Option(value) => match value {
@@ -200,6 +191,145 @@ where
             VariantValue::NewType { name, field } => {
                 write!(f, "{}({})", name.deref(), field.deref())
             }
+        }
+    }
+}
+
+impl<F> ::serde::Serialize for Value<F>
+where
+    F: ValueFlavor + ValueBuilder,
+    F::Str: ::serde::Serialize,
+{
+    fn serialize<S: ::serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Value::Unit => serializer.serialize_unit(),
+
+            Value::Bool(v) => v.serialize(serializer),
+
+            Value::Str(v) => v.serialize(serializer),
+            Value::Char(v) => v.serialize(serializer),
+
+            Value::U8(v) => v.serialize(serializer),
+            Value::U16(v) => v.serialize(serializer),
+            Value::U32(v) => v.serialize(serializer),
+            Value::U64(v) => v.serialize(serializer),
+
+            Value::I8(v) => v.serialize(serializer),
+            Value::I16(v) => v.serialize(serializer),
+            Value::I32(v) => v.serialize(serializer),
+            Value::I64(v) => v.serialize(serializer),
+
+            Value::F32(v) => v.serialize(serializer),
+            Value::F64(v) => v.serialize(serializer),
+
+            Value::Slice(v) => v.serialize(serializer),
+
+            Value::Array(values) | Value::Tuple(values) => {
+                use serde::ser::SerializeTuple as _;
+
+                let mut tup = serializer.serialize_tuple(values.len())?;
+                for v in values.deref() {
+                    tup.serialize_element(v)?;
+                }
+                tup.end()
+            }
+
+            Value::UnitStruct { name } => {
+                serializer.serialize_unit_struct(F::make_static_str(name))
+            }
+
+            Value::NewTypeStruct { name, field } => {
+                serializer.serialize_newtype_struct(F::make_static_str(name), field.deref())
+            }
+
+            Value::TupleStruct { name, fields } => {
+                use serde::ser::SerializeTupleStruct as _;
+
+                let mut ts =
+                    serializer.serialize_tuple_struct(F::make_static_str(name), fields.len())?;
+                for f in fields.deref() {
+                    ts.serialize_field(f)?;
+                }
+                ts.end()
+            }
+
+            Value::Struct { name, fields } => {
+                use serde::ser::SerializeStruct as _;
+
+                let mut st = serializer.serialize_struct(F::make_static_str(name), fields.len())?;
+                for (k, v) in fields.deref() {
+                    st.serialize_field(F::make_static_str(k), v)?;
+                }
+                st.end()
+            }
+
+            Value::Enum {
+                name,
+                discriminant,
+                variant,
+            } => serialize_enum(name, *discriminant, variant, serializer),
+
+            Value::Option(opt) => match opt {
+                Some(v) => serializer.serialize_some(v.deref()),
+                None => serializer.serialize_none(),
+            },
+        }
+    }
+}
+
+fn serialize_enum<F, S>(
+    enum_name: &F::Str,
+    discriminant: u32,
+    variant: &VariantValue<F>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    F: ValueFlavor + ValueBuilder,
+    S: ::serde::Serializer,
+    F::Str: ::serde::Serialize,
+{
+    match variant {
+        VariantValue::Unit { name } => serializer.serialize_unit_variant(
+            F::make_static_str(enum_name),
+            discriminant,
+            F::make_static_str(name),
+        ),
+
+        VariantValue::NewType { name, field } => serializer.serialize_newtype_variant(
+            F::make_static_str(enum_name),
+            discriminant,
+            F::make_static_str(name),
+            field.deref(),
+        ),
+
+        VariantValue::Tuple { name, fields } => {
+            use ::serde::ser::SerializeTupleVariant as _;
+
+            let mut tv = serializer.serialize_tuple_variant(
+                F::make_static_str(enum_name),
+                discriminant,
+                F::make_static_str(name),
+                fields.len(),
+            )?;
+            for f in fields.deref() {
+                tv.serialize_field(f)?;
+            }
+            tv.end()
+        }
+
+        VariantValue::Struct { name, fields } => {
+            use ::serde::ser::SerializeStructVariant as _;
+
+            let mut sv = serializer.serialize_struct_variant(
+                F::make_static_str(enum_name),
+                discriminant,
+                F::make_static_str(name),
+                fields.len(),
+            )?;
+            for (k, v) in fields.deref() {
+                sv.serialize_field(F::make_static_str(k), v)?;
+            }
+            sv.end()
         }
     }
 }
