@@ -62,7 +62,7 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
                 discriminant: 1, // TODO: generate
                 field: E::SCHEMA,
             },
-        ] as &[&_],
+        ],
     };
 }
 

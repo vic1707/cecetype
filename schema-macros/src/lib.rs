@@ -69,7 +69,9 @@ fn struct_schema(
             quote! {
                 schema::TypeSchema::Struct {
                     name: #name,
-                    fields: &[#(#field_defs),*] as &[&_],
+                    fields: &[
+                        #( #field_defs ),*
+                    ],
                 }
             }
         }
@@ -92,8 +94,8 @@ fn struct_schema(
                 schema::TypeSchema::TupleStruct {
                     name: #name,
                     fields: &[
-                        #(<#field_tys as schema::Schema>::SCHEMA),*
-                    ] as &[&_],
+                        #( <#field_tys as schema::Schema>::SCHEMA ),*
+                    ],
                 }
             }
         }
@@ -145,8 +147,8 @@ fn enum_schema(name: &::proc_macro2::Ident, data: &::syn::DataEnum) -> ::proc_ma
                         name: #vname,
                         discriminant: #discriminant,
                         fields: &[
-                            #(<#field_tys as schema::Schema>::SCHEMA),*
-                        ] as &[&_],
+                            #( <#field_tys as schema::Schema>::SCHEMA ),*
+                        ],
                     }
                 }
             }
@@ -168,7 +170,9 @@ fn enum_schema(name: &::proc_macro2::Ident, data: &::syn::DataEnum) -> ::proc_ma
                     &schema::VariantSchema::Struct {
                         name: #vname,
                         discriminant: #discriminant,
-                        fields: &[#(#field_defs),*] as &[&_],
+                        fields: &[
+                            #( #field_defs ),*
+                        ],
                     }
                 }
             }
@@ -178,7 +182,9 @@ fn enum_schema(name: &::proc_macro2::Ident, data: &::syn::DataEnum) -> ::proc_ma
     quote! {
         schema::TypeSchema::Enum {
             name: #name,
-            variants: &[#(#variants),*] as &[&_],
+            variants: &[
+                #( #variants ),*
+            ],
         }
     }
 }
