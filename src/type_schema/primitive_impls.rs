@@ -54,12 +54,20 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
         variants: &[
             &VariantSchema::NewType {
                 name: "Ok",
-                discriminant: 0, // TODO: generate
+                discriminant: {
+                    let desc = unsafe { *(&Result::Ok(()) as *const Result<(), ()> as *const u8) };
+                    assert!(desc == 0, "Not the expected value");
+                    desc as u32
+                },
                 field: T::SCHEMA,
             },
             &VariantSchema::NewType {
                 name: "Err",
-                discriminant: 1, // TODO: generate
+                discriminant: {
+                    let desc = unsafe { *(&Result::Err(()) as *const Result<(), ()> as *const u8) };
+                    assert!(desc == 1, "Not the expected value");
+                    desc as u32
+                },
                 field: E::SCHEMA,
             },
         ],
