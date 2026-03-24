@@ -4,10 +4,13 @@ mod visitors;
 use crate::{OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder, flavors::ser};
 use ::{
     core::{fmt, ops::Deref as _},
+    derive_where::derive_where,
     serde::{Deserialize, Serialize},
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
@@ -84,7 +87,9 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Option(F::Ptr<Self>),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
@@ -97,7 +102,9 @@ pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     pub ty: F::Ptr<TypeSchema<'s, F>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
@@ -111,7 +118,9 @@ pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
     pub variants: F::List<VariantSchema<'s, F>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"

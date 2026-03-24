@@ -9,21 +9,21 @@ pub trait SchemaFlavor<'s>
 where
     Self: 's,
 {
-    type Ptr<T: 's>: Deref<Target = T>;
-    type List<T: 's>: Deref<Target = [Self::Ptr<T>]>;
-    type Str: Deref<Target = str>;
+    type Ptr<T: 's + PartialEq + fmt::Debug>: Deref<Target = T> + PartialEq + fmt::Debug;
+    type List<T: 's + PartialEq + fmt::Debug>: Deref<Target = [Self::Ptr<T>]> + PartialEq + fmt::Debug;
+    type Str: Deref<Target = str> + PartialEq + fmt::Debug;
 }
 
 pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
     fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de>;
+        T: ::serde::Deserialize<'de> + PartialEq + fmt::Debug;
 
     fn deserialize_list<'de, D, T>(deserializer: D) -> Result<Self::List<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de>;
+        T: ::serde::Deserialize<'de> + PartialEq + fmt::Debug;
 }
 
 pub trait ValueFlavor {

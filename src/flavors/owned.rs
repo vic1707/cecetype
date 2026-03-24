@@ -8,8 +8,8 @@ pub struct Owned;
 
 #[cfg(feature = "alloc")]
 impl<'s> super::SchemaFlavor<'s> for Owned {
-    type Ptr<T: 's> = Box<T>;
-    type List<T: 's> = Vec<Box<T>>;
+    type Ptr<T: 's + PartialEq + fmt::Debug> = Box<T>;
+    type List<T: 's + PartialEq + fmt::Debug> = Vec<Box<T>>;
     type Str = String;
 }
 
@@ -26,7 +26,7 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
     fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de> + 's,
+        T: ::serde::Deserialize<'de> + 's + PartialEq + fmt::Debug,
     {
         let value = T::deserialize(deserializer)?;
         Ok(Box::new(value))
@@ -36,7 +36,7 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
     fn deserialize_list<'de, D, T>(deserializer: D) -> Result<Self::List<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de> + 's,
+        T: ::serde::Deserialize<'de> + 's + PartialEq + fmt::Debug,
     {
         use ::serde::Deserialize as _;
 
