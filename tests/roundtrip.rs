@@ -161,6 +161,31 @@ fn roundtrip<F: Format, D: Serialize + Schema + DeserializeOwned + PartialEq + f
     assert_eq!(decoded_data, data);
 }
 
+#[derive(Schema)]
+#[serde(rename = "TOTO")]
+struct Renamed;
+
+#[derive(Schema)]
+enum RenamedVariant {
+    #[serde(rename = "FOO")]
+    Foo,
+}
+
+#[derive(Schema)]
+#[serde(rename = "TOTO")]
+struct RenamedField {
+    #[serde(rename = "FOO")]
+    _foo: u8,
+}
+
+#[rstest::rstest]
+#[case::renamed_struct((Renamed, TypeSchema::UnitStruct { name: "TOTO" }))]
+#[case::renamed_variant((RenamedVariant::Foo, TypeSchema::Enum { name: "RenamedVariant", variants: &[&VariantSchema::Unit { name: "FOO", discriminant: 0 }] as &[&_] }))]
+#[case::renamed_field((RenamedField { _foo: 0 }, TypeSchema::Struct { name: "TOTO", fields: &[&FieldSchema { name: "FOO", ty: &TypeSchema::U8}] as &[&_] }))]
+fn schemas<T: Schema>(#[case] (_ty, expected_schema): (T, StaticSchema)) {
+    assert_eq!(&expected_schema, T::SCHEMA);
+}
+
 #[test]
 fn struct_missing_field() {
     let json = r#"{ "a": 42 }"#;

@@ -27,9 +27,14 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
 
     let container_attrs = ContainerAttrs::parse(&attrs)?;
 
+    let name = container_attrs
+        .rename
+        .as_ref()
+        .map_or_else(|| ident.to_string(), ::syn::LitStr::value);
+
     let schema = match &data {
-        ::syn::Data::Struct(data_struct) => struct_schema(&ident, data_struct, container_attrs)?,
-        ::syn::Data::Enum(data_enum) => enum_schema(&ident, data_enum, container_attrs)?,
+        ::syn::Data::Struct(data_struct) => struct_schema(&name, data_struct, container_attrs)?,
+        ::syn::Data::Enum(data_enum) => enum_schema(&name, data_enum, container_attrs)?,
         ::syn::Data::Union(_) => {
             return Err(::syn::Error::new_spanned(
                 ident,
@@ -60,12 +65,10 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
 }
 
 fn struct_schema(
-    name: &::proc_macro2::Ident,
+    struct_name: &str,
     data: &::syn::DataStruct,
     _container_attrs: ContainerAttrs,
 ) -> ::syn::Result<::syn::ExprStruct> {
-    let struct_name = name.to_string();
-
     let field_defs = data
         .fields
         .iter()
@@ -117,12 +120,10 @@ fn struct_schema(
 }
 
 fn enum_schema(
-    name: &::proc_macro2::Ident,
+    enum_name: &str,
     data: &::syn::DataEnum,
     _container_attrs: ContainerAttrs,
 ) -> ::syn::Result<::syn::ExprStruct> {
-    let enum_name = name.to_string();
-
     let variants = data
         .variants
         .iter()
@@ -137,8 +138,13 @@ fn enum_schema(
                     ..
                 },
             )| {
-                let _serde_attr = VariantAttrs::parse(vattrs)?;
-                let vname = vident.to_string();
+                let variant_attrs = VariantAttrs::parse(vattrs)?;
+
+                let vname = variant_attrs
+                    .rename
+                    .as_ref()
+                    .map_or_else(|| vident.to_string(), ::syn::LitStr::value);
+
                 let discriminant = u32::try_from(i).unwrap();
 
                 let field_defs = vfields
@@ -212,14 +218,20 @@ fn field_schema(
         ident, ty, attrs, ..
     }: &::syn::Field,
 ) -> ::syn::Result<::syn::Expr> {
-    let _serde_field_attr = FieldAttrs::parse(attrs)?;
+    let field_attrs = FieldAttrs::parse(attrs)?;
 
-    Ok(ident.as_ref().map(ToString::to_string).map_or_else(
+    let fname = field_attrs
+        .rename
+        .as_ref()
+        .map(::syn::LitStr::value)
+        .or_else(|| ident.as_ref().map(ToString::to_string));
+
+    Ok(fname.map_or_else(
         || ::syn::parse_quote! { <#ty as schema::Schema>::SCHEMA },
-        |fname| {
+        |name| {
             ::syn::parse_quote! {
                 &schema::FieldSchema {
-                    name: #fname,
+                    name: #name,
                     ty: <#ty as schema::Schema>::SCHEMA,
                 }
             }
