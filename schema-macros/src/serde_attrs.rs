@@ -7,7 +7,8 @@ use ::syn::token;
 pub struct ContainerAttrs {
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::TypePath>, // `into` + `from`/`try_from`
-} // rename_all, rename_all_fields, tag, content, untagged, transparent
+    pub transparent: bool,
+} // rename_all, rename_all_fields, tag, content, untagged
 
 // Won't support
 // - `rename(...)` / `rename_all(...)` variations
@@ -87,6 +88,11 @@ impl ContainerAttrs {
                     let value = meta.value()?;
                     let ty = value.parse::<::syn::LitStr>()?.parse::<::syn::TypePath>()?;
                     into_ty = Some(ty);
+                    return Ok(());
+                }
+
+                if meta.path.is_ident("transparent") {
+                    out.transparent = true;
                     return Ok(());
                 }
 

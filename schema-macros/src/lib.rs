@@ -70,17 +70,23 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
 fn struct_schema(
     struct_name: &str,
     data: &::syn::DataStruct,
-    _container_attrs: &ContainerAttrs,
+    container_attrs: &ContainerAttrs,
 ) -> ::syn::Result<::syn::Expr> {
-    let field_defs = data
+    let fields = data
         .fields
         .iter()
         .map(|field| Ok((field, FieldAttrs::parse(&field.attrs)?)))
-        .collect::<::syn::Result<Vec<_>>>()?
-        .into_iter()
-        .filter(|(_, attrs)| !attrs.skip)
-        .map(field_schema)
-        .collect::<Vec<::syn::Expr>>();
+        .filter(|res| res.as_ref().is_ok_and(|(_, attrs)| !attrs.skip))
+        .collect::<::syn::Result<Vec<_>>>()?;
+
+    if container_attrs.transparent {
+        let ty = &fields.first().unwrap().0.ty;
+        return Ok(::syn::parse_quote! {
+            <#ty as schema::Schema>::SCHEMA
+        });
+    }
+
+    let mut field_defs = fields.into_iter().map(field_schema);
 
     let schema = match &data.fields {
         Fields::Named(_) => {
@@ -95,7 +101,7 @@ fn struct_schema(
         }
 
         Fields::Unnamed(_) if field_defs.len() == 1 => {
-            let field = field_defs.first().unwrap();
+            let field = field_defs.next().unwrap();
             ::syn::parse_quote! {
                 schema::TypeSchema::NewTypeStruct {
                     name: #struct_name,
@@ -123,6 +129,7 @@ fn struct_schema(
             }
         }
     };
+
     Ok(schema)
 }
 
