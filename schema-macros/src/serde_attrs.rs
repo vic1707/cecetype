@@ -1,10 +1,12 @@
+use ::syn::token;
+
 // Won't support
 // - `rename(...)` / `rename_all(...)` / `rename_all_fields(...)` variations
 // - `default` as we can't (won't) send the default value
 #[derive(Default)]
 pub struct ContainerAttrs {
     pub rename: Option<::syn::LitStr>,
-    pub other_repr: Option<::syn::TypePath>, // `into` + `from`/`try_from`
+    pub repr_via: Option<::syn::TypePath>, // `into` + `from`/`try_from`
 } // rename_all, rename_all_fields, tag, content, untagged, transparent
 
 // Won't support
@@ -56,6 +58,12 @@ impl ContainerAttrs {
                 }
 
                 if meta.path.is_ident("rename") {
+                    if meta.input.peek(token::Paren) {
+                        return Err(::syn::Error::new_spanned(
+                            &meta.path,
+                            "Schema: `rename(...)` not supported, use `rename = \"...\"`",
+                        ));
+                    }
                     let value = meta.value()?;
                     let ty = value.parse::<::syn::LitStr>()?;
                     out.rename = Some(ty);
@@ -98,7 +106,7 @@ impl ContainerAttrs {
                         "Schema: `into` and `from`/`try_from` must use the same type",
                     ));
                 }
-                out.other_repr = Some(ity);
+                out.repr_via = Some(ity);
             }
             _ => {
                 return Err(::syn::Error::new(
@@ -127,6 +135,12 @@ impl VariantAttrs {
                 }
 
                 if meta.path.is_ident("rename") {
+                    if meta.input.peek(token::Paren) {
+                        return Err(::syn::Error::new_spanned(
+                            &meta.path,
+                            "Schema: `rename(...)` not supported, use `rename = \"...\"`",
+                        ));
+                    }
                     let value = meta.value()?;
                     let ty = value.parse::<::syn::LitStr>()?;
                     out.rename = Some(ty);

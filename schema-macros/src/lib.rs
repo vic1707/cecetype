@@ -32,7 +32,7 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
         .as_ref()
         .map_or_else(|| ident.to_string(), ::syn::LitStr::value);
 
-    let schema = container_attrs.other_repr.as_ref().map_or(
+    let schema = container_attrs.repr_via.as_ref().map_or(
         match &data {
             ::syn::Data::Struct(data_struct) => struct_schema(&name, data_struct, &container_attrs),
             ::syn::Data::Enum(data_enum) => enum_schema(&name, data_enum, &container_attrs),
