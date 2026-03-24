@@ -16,7 +16,8 @@ pub struct ContainerAttrs {
 #[derive(Default)]
 pub struct VariantAttrs {
     pub rename: Option<::syn::LitStr>,
-} // rename_all, skip, untagged
+    pub skip: bool,
+} // rename_all, untagged
 
 // Won't support
 // - `rename(...)` variations
@@ -29,7 +30,8 @@ pub struct VariantAttrs {
 #[derive(Default)]
 pub struct FieldAttrs {
     pub rename: Option<::syn::LitStr>,
-} // skip
+    pub skip: bool,
+}
 
 impl ContainerAttrs {
     pub fn parse(attrs: &[::syn::Attribute]) -> ::syn::Result<Self> {
@@ -89,6 +91,11 @@ impl VariantAttrs {
                     return Ok(());
                 }
 
+                if meta.path.is_ident("skip") {
+                    out.skip = true;
+                    return Ok(());
+                }
+
                 Err(::syn::Error::new_spanned(
                     &meta.path,
                     "Schema: unsupported serde attribute",
@@ -124,6 +131,10 @@ impl FieldAttrs {
                     return Ok(());
                 }
 
+                if meta.path.is_ident("skip") {
+                    out.skip = true;
+                    return Ok(());
+                }
 
                 Err(::syn::Error::new_spanned(
                     &meta.path,

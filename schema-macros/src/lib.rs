@@ -72,8 +72,12 @@ fn struct_schema(
     let field_defs = data
         .fields
         .iter()
+        .map(|field| Ok((field, FieldAttrs::parse(&field.attrs)?)))
+        .collect::<::syn::Result<Vec<_>>>()?
+        .into_iter()
+        .filter(|(_, attrs)| !attrs.skip)
         .map(field_schema)
-        .collect::<::syn::Result<Vec<::syn::Expr>>>()?;
+        .collect::<Vec<::syn::Expr>>();
 
     let schema = match &data.fields {
         Fields::Named(_) => {
@@ -87,7 +91,7 @@ fn struct_schema(
             }
         }
 
-        Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+        Fields::Unnamed(_) if field_defs.len() == 1 => {
             let field = field_defs.first().unwrap();
             ::syn::parse_quote! {
                 schema::TypeSchema::NewTypeStruct {
@@ -127,19 +131,23 @@ fn enum_schema(
     let variants = data
         .variants
         .iter()
-        .enumerate()
+        .map(|variant| Ok((variant, VariantAttrs::parse(&variant.attrs)?)))
+        .collect::<::syn::Result<Vec<_>>>()?
+        .iter()
+        .enumerate() // serde keeps original discriminants
+        .filter(|(_, (_, attrs))| !attrs.skip)
         .map(
             |(
                 i,
-                ::syn::Variant {
-                    ident: vident,
-                    fields: vfields,
-                    attrs: vattrs,
-                    ..
-                },
+                (
+                    ::syn::Variant {
+                        ident: vident,
+                        fields: vfields,
+                        ..
+                    },
+                    variant_attrs,
+                ),
             )| {
-                let variant_attrs = VariantAttrs::parse(vattrs)?;
-
                 let vname = variant_attrs
                     .rename
                     .as_ref()
@@ -149,8 +157,12 @@ fn enum_schema(
 
                 let field_defs = vfields
                     .iter()
+                    .map(|field| Ok((field, FieldAttrs::parse(&field.attrs)?)))
+                    .collect::<::syn::Result<Vec<_>>>()?
+                    .into_iter()
+                    .filter(|(_, attrs)| !attrs.skip)
                     .map(field_schema)
-                    .collect::<::syn::Result<Vec<::syn::Expr>>>()?;
+                    .collect::<Vec<::syn::Expr>>();
 
                 let schema = match vfields {
                     Fields::Unit => {
@@ -162,7 +174,7 @@ fn enum_schema(
                         }
                     }
 
-                    Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                    Fields::Unnamed(_) if field_defs.len() == 1 => {
                         let fschema = field_defs.first().unwrap();
 
                         quote! {
@@ -214,19 +226,15 @@ fn enum_schema(
 }
 
 fn field_schema(
-    ::syn::Field {
-        ident, ty, attrs, ..
-    }: &::syn::Field,
-) -> ::syn::Result<::syn::Expr> {
-    let field_attrs = FieldAttrs::parse(attrs)?;
-
+    (::syn::Field { ident, ty, .. }, field_attrs): (&::syn::Field, FieldAttrs),
+) -> ::syn::Expr {
     let fname = field_attrs
         .rename
         .as_ref()
         .map(::syn::LitStr::value)
         .or_else(|| ident.as_ref().map(ToString::to_string));
 
-    Ok(fname.map_or_else(
+    fname.map_or_else(
         || ::syn::parse_quote! { <#ty as schema::Schema>::SCHEMA },
         |name| {
             ::syn::parse_quote! {
@@ -236,5 +244,5 @@ fn field_schema(
                 }
             }
         },
-    ))
+    )
 }
