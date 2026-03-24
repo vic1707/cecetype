@@ -211,7 +211,7 @@ where
 
             Self::Bool(val) => val.serialize(serializer),
 
-            Self::Str(val) => val.serialize(serializer),
+            Self::Str(val) => serializer.serialize_str(val),
             Self::Char(val) => val.serialize(serializer),
 
             Self::U8(val) => val.serialize(serializer),
