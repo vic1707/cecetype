@@ -100,6 +100,7 @@ enum GenericEnum<T> {
 #[case::nested((Nested { inner: MyStruct { a: 1, b: false }, flag: true }, Value::Struct { name: "Nested".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(1)), ("b".to_owned(), Value::Bool(false))] }), ("flag".to_owned(), Value::Bool(true))] }))]
 #[case::complex((Complex { tuple: (7, true), array: [1, 2, 3] }, Value::Struct { name: "Complex".to_owned(), fields: vec![("tuple".to_owned(), Value::Tuple(vec![Value::U32(7), Value::Bool(true)])), ("array".to_owned(), Value::Array(vec![Value::U8(1),Value::U8(2),Value::U8(3)]))] }))]
 #[case::deep_enum((DeepEnum::B { nested: Nested { inner: MyStruct { a: 9, b: true }, flag: false } }, Value::EnumStruct { name: "DeepEnum".to_owned(), discriminant: 1, variant_name: "B".to_owned(), fields: vec![("nested".to_owned(), Value::Struct { name: "Nested".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "MyStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(9)), ("b".to_owned(), Value::Bool(true))] }), ("flag".to_owned(), Value::Bool(false))] })]}))]
+#[case::serde_from((FromIntoU8{ inner: 0 }, Value::U8(0)))]
 fn value_decoding<F: Format, D: Serialize + Schema>(
     #[values(Json, Postcard, Yaml)] _protocol: F,
     #[case] (data, expected): (D, OwnedValue),
@@ -148,6 +149,7 @@ fn value_decoding<F: Format, D: Serialize + Schema>(
 #[case::nested(Nested { inner: MyStruct { a: 1, b: false }, flag: true })]
 #[case::complex(Complex { tuple: (7, true), array: [1, 2, 3] })]
 #[case::deep_enum(DeepEnum::B { nested: Nested { inner: MyStruct { a: 9, b: true }, flag: false } })]
+#[case::serde_from(FromIntoU8{ inner: 0 })]
 fn roundtrip<F: Format, D: Serialize + Schema + DeserializeOwned + PartialEq + fmt::Debug>(
     #[values(Json, Postcard, Yaml)] _protocol: F,
     #[case] data: D,
@@ -187,7 +189,7 @@ enum SkippedVariant {
     Baz,
 }
 
-#[derive(Schema)]
+#[derive(Schema, Serialize, Deserialize)]
 struct SkippedField {
     foo: u8,
     #[serde(skip)]
@@ -195,11 +197,31 @@ struct SkippedField {
     baz: u8,
 }
 
-#[derive(Schema)]
+#[derive(Schema, Serialize, Deserialize)]
 struct SkippedTupleFieldMeansNewType(u8, #[serde(skip)] u16);
-#[derive(Schema)]
+
+#[derive(Schema, Serialize, Deserialize)]
 enum EnumSkippedTupleFieldMeansNewType {
     Toto(u8, #[serde(skip)] u16),
+}
+
+#[derive(Schema, Serialize, Clone, Deserialize, Debug, PartialEq)]
+#[serde(from = "u8", into = "u8")]
+struct FromIntoU8 {
+    inner: u8,
+}
+
+impl From<u8> for FromIntoU8 {
+    fn from(value: u8) -> Self {
+        Self { inner: value }
+    }
+}
+
+impl From<FromIntoU8> for u8 {
+    #[inline]
+    fn from(val: FromIntoU8) -> Self {
+        val.inner
+    }
 }
 
 #[rstest::rstest]
@@ -210,6 +232,7 @@ enum EnumSkippedTupleFieldMeansNewType {
 #[case::skipped_field((SkippedField { foo: 0, bar: 0, baz: 0}, TypeSchema::Struct { name: "SkippedField", fields: &[&FieldSchema{ name: "foo", ty: &TypeSchema::U8}, &FieldSchema {name: "baz", ty: &TypeSchema::U8}] as &[&_] }))]
 #[case::skipped_tuple_field_newtype((SkippedTupleFieldMeansNewType(0, 1), TypeSchema::NewTypeStruct { name: "SkippedTupleFieldMeansNewType", field: &TypeSchema::U8 }))]
 #[case::skipped_enum_tuple_field_newtype((EnumSkippedTupleFieldMeansNewType::Toto(0, 1), TypeSchema::Enum { name: "EnumSkippedTupleFieldMeansNewType", variants : &[&VariantSchema::NewType { name: "Toto", discriminant: 0, field: &TypeSchema::U8 }] as &[&_] }))]
+#[case::from((FromIntoU8{ inner: 0}, TypeSchema::U8))]
 fn schemas<T: Schema>(#[case] (_ty, expected_schema): (T, StaticSchema)) {
     assert_eq!(&expected_schema, T::SCHEMA);
 }

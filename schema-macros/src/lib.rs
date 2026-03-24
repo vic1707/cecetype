@@ -32,16 +32,19 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
         .as_ref()
         .map_or_else(|| ident.to_string(), ::syn::LitStr::value);
 
-    let schema = match &data {
-        ::syn::Data::Struct(data_struct) => struct_schema(&name, data_struct, container_attrs)?,
-        ::syn::Data::Enum(data_enum) => enum_schema(&name, data_enum, container_attrs)?,
-        ::syn::Data::Union(_) => {
-            return Err(::syn::Error::new_spanned(
-                ident,
-                "Schema derive only supports struct and enum",
-            ));
-        }
-    };
+    let schema = container_attrs.other_repr.as_ref().map_or(
+        match &data {
+            ::syn::Data::Struct(data_struct) => struct_schema(&name, data_struct, &container_attrs),
+            ::syn::Data::Enum(data_enum) => enum_schema(&name, data_enum, &container_attrs),
+            ::syn::Data::Union(_) => {
+                return Err(::syn::Error::new_spanned(
+                    ident,
+                    "Schema derive only supports struct and enum",
+                ));
+            }
+        },
+        |ty| Ok(::syn::parse_quote! { <#ty as schema::Schema>::SCHEMA }),
+    )?;
 
     let generics_ident = generics
         .type_params()
@@ -67,8 +70,8 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
 fn struct_schema(
     struct_name: &str,
     data: &::syn::DataStruct,
-    _container_attrs: ContainerAttrs,
-) -> ::syn::Result<::syn::ExprStruct> {
+    _container_attrs: &ContainerAttrs,
+) -> ::syn::Result<::syn::Expr> {
     let field_defs = data
         .fields
         .iter()
@@ -126,8 +129,8 @@ fn struct_schema(
 fn enum_schema(
     enum_name: &str,
     data: &::syn::DataEnum,
-    _container_attrs: ContainerAttrs,
-) -> ::syn::Result<::syn::ExprStruct> {
+    _container_attrs: &ContainerAttrs,
+) -> ::syn::Result<::syn::Expr> {
     let variants = data
         .variants
         .iter()
