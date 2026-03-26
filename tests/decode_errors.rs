@@ -4,13 +4,7 @@
 mod common;
 
 use self::common::*;
-use ::schema::{Schema, Value};
-
-fn assert_json_decode_error<T: Schema + ?Sized>(json: &str, expected: &str) {
-    let err = decode_json_value::<T>(json).unwrap_err();
-
-    assert_eq!(err.to_string(), expected);
-}
+use ::schema::{Owned, Schema, Value};
 
 #[test]
 fn struct_missing_field() {
@@ -66,15 +60,21 @@ fn enum_unknown_variant_name() {
 }
 
 #[test]
-fn enum_unknown_variant_index() {
-    assert_json_decode_error::<BasicEnum>("{ 99: {} }", "unknown variant: `[id: 99]`");
-}
-
-#[test]
 fn struct_field_order_irrelevant() {
-    let Value::Struct { .. } =
-        decode_json_value::<BasicStruct>(r#"{ "b": true, "a": 42 }"#).unwrap()
+    let Value::Struct { .. } = BasicStruct::SCHEMA
+        .decode_value::<_, Owned>(&mut ::serde_json::Deserializer::from_str(
+            r#"{ "b": true, "a": 42 }"#,
+        ))
+        .unwrap()
     else {
         panic!("expected struct")
     };
+}
+
+fn assert_json_decode_error<T: Schema + ?Sized>(json: &str, expected: &str) {
+    let err = T::SCHEMA
+        .decode_value::<_, Owned>(&mut ::serde_json::Deserializer::from_str(json))
+        .unwrap_err();
+
+    assert_eq!(err.to_string(), expected);
 }

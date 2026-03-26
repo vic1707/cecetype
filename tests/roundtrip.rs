@@ -53,7 +53,15 @@ fn roundtrip<
     F: protocols::Format,
     D: Serialize + ::schema::Schema + DeserializeOwned + PartialEq + fmt::Debug,
 >(
-    #[values(protocols::Json, protocols::Postcard, protocols::Yaml, protocols::SerdeCbor, protocols::MessagePack)] _protocol: F,
+    #[values(
+        protocols::Json,
+        protocols::Postcard,
+        protocols::Yaml,
+        protocols::Ron,
+        protocols::SerdeCbor,
+        protocols::MessagePack,
+    )]
+    _protocol: F,
     #[case] data: D,
 ) {
     let wire = F::encode(&data).unwrap();

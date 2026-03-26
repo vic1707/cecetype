@@ -76,6 +76,27 @@ impl Format for Yaml {
     }
 }
 
+pub struct Ron;
+
+impl Format for Ron {
+    type Error = ::ron::Error;
+    type Wire = String;
+
+    fn encode<T: Serialize>(value: &T) -> Result<Self::Wire, Self::Error> {
+        ::ron::to_string(value)
+    }
+
+    fn decode<'de, T: Deserialize<'de>>(wire: &'de Self::Wire) -> Result<T, Self::Error> {
+        Ok(::ron::from_str(wire)?)
+    }
+
+    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+        let mut de = ::ron::de::Deserializer::from_str(data)?;
+
+        T::SCHEMA.decode_value(&mut de)
+    }
+}
+
 pub struct SerdeCbor;
 
 impl Format for SerdeCbor {

@@ -109,11 +109,3 @@ pub struct Transparent {
     #[serde(skip)]
     pub bar: u16,
 }
-
-pub fn decode_json_value<T: Schema + ?Sized>(
-    json: &str,
-) -> Result<OwnedValue<'_>, serde_json::Error> {
-    let mut de = serde_json::Deserializer::from_str(json);
-
-    T::SCHEMA.decode_value::<_, Owned>(&mut de)
-}

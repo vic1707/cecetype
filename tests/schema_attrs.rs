@@ -1,7 +1,4 @@
-#![expect(
-    clippy::as_conversions,
-    reason = "test file"
-)]
+#![expect(clippy::as_conversions, reason = "test file")]
 
 mod common;
 
