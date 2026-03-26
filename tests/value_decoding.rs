@@ -52,7 +52,7 @@ use ::{
 #[case::serde_from_into((FromIntoU8 { inner: 0 }, Value::U8(0)))]
 #[case::transparent((Transparent { foo: 12, bar: 2 }, Value::U8(12)))]
 fn value_decoding<F: protocols::Format, D: Serialize + Schema>(
-    #[values(protocols::Json, protocols::Postcard, protocols::Yaml)] _protocol: F,
+    #[values(protocols::Json, protocols::Postcard, protocols::Yaml, protocols::SerdeCbor, protocols::MessagePack)] _protocol: F,
     #[case] (data, expected): (D, OwnedValue),
 ) {
     let encoded_schema = F::encode(D::SCHEMA).unwrap();

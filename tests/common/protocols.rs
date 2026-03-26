@@ -75,3 +75,61 @@ impl Format for Yaml {
         T::SCHEMA.decode_value(de)
     }
 }
+
+pub struct SerdeCbor;
+
+impl Format for SerdeCbor {
+    type Error = ::serde_cbor::Error;
+    type Wire = Vec<u8>;
+
+    fn encode<T: Serialize>(value: &T) -> Result<Self::Wire, Self::Error> {
+        ::serde_cbor::to_vec(value)
+    }
+
+    fn decode<'de, T: Deserialize<'de>>(wire: &'de Self::Wire) -> Result<T, Self::Error> {
+        ::serde_cbor::from_slice(wire)
+    }
+
+    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+        let mut de = ::serde_cbor::Deserializer::from_slice(data);
+
+        T::SCHEMA.decode_value(&mut de)
+    }
+}
+
+pub struct MessagePack;
+
+impl Format for MessagePack {
+    type Error = ProtocolError;
+    type Wire = Vec<u8>;
+
+    fn encode<T: Serialize>(value: &T) -> Result<Self::Wire, Self::Error> {
+        ::rmp_serde::to_vec(value).map_err(ProtocolError::new)
+    }
+
+    fn decode<'de, T: Deserialize<'de>>(wire: &'de Self::Wire) -> Result<T, Self::Error> {
+        ::rmp_serde::from_slice(wire).map_err(ProtocolError::new)
+    }
+
+    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+        let mut de = ::rmp_serde::Deserializer::new(&**data);
+
+        T::SCHEMA.decode_value(&mut de).map_err(ProtocolError::new)
+    }
+}
+
+#[derive(Debug)]
+pub struct ProtocolError(String);
+
+impl ProtocolError {
+    fn new(err: impl fmt::Display) -> Self {
+        Self(err.to_string())
+    }
+}
+
+impl fmt::Display for ProtocolError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+impl error::Error for ProtocolError {}
