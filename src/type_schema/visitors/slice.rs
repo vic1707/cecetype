@@ -1,10 +1,10 @@
 use super::Seed;
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
-    core::{marker::PhantomData, fmt},
+    core::{fmt, marker::PhantomData},
     serde::{
-        Deserialize,
         de::{SeqAccess, Visitor},
+        Deserialize,
     },
 };
 

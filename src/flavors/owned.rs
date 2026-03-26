@@ -1,7 +1,7 @@
 #[cfg(feature = "alloc")]
 use ::{
-    core::fmt,
     alloc::{boxed::Box, string::String, vec::Vec},
+    core::fmt,
 };
 
 pub struct Owned;

@@ -1,13 +1,13 @@
 use super::{StructVisitor, TupleVisitor};
 use crate::{
-    SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor, VariantSchema,
-    type_schema::visitors::Seed,
+    type_schema::visitors::Seed, SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor,
+    VariantSchema,
 };
 use ::{
     core::{fmt, marker::PhantomData, ops::Deref as _},
     serde::{
-        Deserialize,
         de::{self, EnumAccess, VariantAccess as _, Visitor},
+        Deserialize,
     },
 };
 

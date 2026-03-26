@@ -59,7 +59,7 @@ fn roundtrip<
         protocols::Yaml,
         protocols::Ron,
         protocols::SerdeCbor,
-        protocols::MessagePack,
+        protocols::MessagePack
     )]
     _protocol: F,
     #[case] data: D,

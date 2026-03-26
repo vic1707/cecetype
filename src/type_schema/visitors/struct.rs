@@ -1,10 +1,10 @@
 use super::Seed;
 use crate::{FieldSchema, SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
-    core::{marker::PhantomData, fmt, iter},
+    core::{fmt, iter, marker::PhantomData},
     serde::{
-        Deserialize,
         de::{self, MapAccess, SeqAccess, Visitor},
+        Deserialize,
     },
 };
 
@@ -86,9 +86,7 @@ where
                 .iter()
                 .zip(slots.iter_mut())
                 .find(|(field, _)| *field.name == *key)
-                .ok_or_else(|| {
-                    de::Error::custom(format_args!("unknown field `{}`", &*key))
-                })?
+                .ok_or_else(|| de::Error::custom(format_args!("unknown field `{}`", &*key)))?
             else {
                 return Err(de::Error::custom(format_args!(
                     "duplicate field `{}`",

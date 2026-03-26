@@ -58,7 +58,7 @@ fn value_decoding<F: protocols::Format, D: Serialize + Schema>(
         protocols::Yaml,
         protocols::Ron,
         protocols::SerdeCbor,
-        protocols::MessagePack,
+        protocols::MessagePack
     )]
     _protocol: F,
     #[case] (data, expected): (D, OwnedValue),

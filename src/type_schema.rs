@@ -1,7 +1,7 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder, flavors::ser};
+use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder};
 use ::{
     core::{fmt, ops::Deref as _},
     derive_where::derive_where,

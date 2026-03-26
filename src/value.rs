@@ -1,4 +1,4 @@
-use crate::{ValueBuilder, flavors::ValueFlavor};
+use crate::{flavors::ValueFlavor, ValueBuilder};
 use ::{
     core::{fmt, ops::Deref as _},
     derive_where::derive_where,

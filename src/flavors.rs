@@ -1,7 +1,10 @@
 mod borrowed;
 mod owned;
 
-use ::core::{fmt, ops::{Deref, DerefMut}};
+use ::core::{
+    fmt,
+    ops::{Deref, DerefMut},
+};
 
 pub use self::{borrowed::*, owned::*};
 
@@ -10,7 +13,9 @@ where
     Self: 's,
 {
     type Ptr<T: 's + PartialEq + fmt::Debug>: Deref<Target = T> + PartialEq + fmt::Debug;
-    type List<T: 's + PartialEq + fmt::Debug>: Deref<Target = [Self::Ptr<T>]> + PartialEq + fmt::Debug;
+    type List<T: 's + PartialEq + fmt::Debug>: Deref<Target = [Self::Ptr<T>]>
+        + PartialEq
+        + fmt::Debug;
     type Str: Deref<Target = str> + PartialEq + fmt::Debug;
 }
 
@@ -28,9 +33,7 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
 
 pub trait ValueFlavor {
     type Ptr<T: PartialEq + fmt::Debug>: Deref<Target = T> + PartialEq + fmt::Debug;
-    type List<T: PartialEq + fmt::Debug>: DerefMut<Target = [T]>
-        + PartialEq
-        + fmt::Debug;
+    type List<T: PartialEq + fmt::Debug>: DerefMut<Target = [T]> + PartialEq + fmt::Debug;
     type Str: Deref<Target = str> + PartialEq + fmt::Debug;
 }
 
@@ -49,7 +52,7 @@ pub trait ValueBuilder: ValueFlavor {
 pub mod ser {
     use ::{
         core::ops::Deref,
-        serde::{Serialize, Serializer, ser::SerializeSeq as _},
+        serde::{ser::SerializeSeq as _, Serialize, Serializer},
     };
 
     #[inline]
