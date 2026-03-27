@@ -8,6 +8,7 @@ use ::{
     serde::{Deserialize, Serialize},
 };
 
+#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
 #[derive(Serialize, Deserialize)]
@@ -87,6 +88,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Option(F::Ptr<Self>),
 }
 
+#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
 #[derive(Serialize, Deserialize)]
@@ -102,6 +104,7 @@ pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     pub ty: F::Ptr<TypeSchema<'s, F>>,
 }
 
+#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
 #[derive(Serialize, Deserialize)]
@@ -118,6 +121,7 @@ pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
     pub variants: F::List<VariantSchema<'s, F>>,
 }
 
+#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
 #[derive(Serialize, Deserialize)]

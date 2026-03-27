@@ -12,23 +12,27 @@ pub trait SchemaFlavor<'s>
 where
     Self: 's,
 {
-    type Ptr<T: 's + PartialEq + fmt::Debug>: Deref<Target = T> + PartialEq + fmt::Debug;
-    type List<T: 's + PartialEq + fmt::Debug>: Deref<Target = [Self::Ptr<T>]>
+    type Ptr<T: 's + Clone + PartialEq + fmt::Debug>: Deref<Target = T>
+        + Clone
         + PartialEq
         + fmt::Debug;
-    type Str: Deref<Target = str> + PartialEq + fmt::Debug;
+    type List<T: 's + Clone + PartialEq + fmt::Debug>: Deref<Target = [Self::Ptr<T>]>
+        + Clone
+        + PartialEq
+        + fmt::Debug;
+    type Str: Deref<Target = str> + Clone + PartialEq + fmt::Debug;
 }
 
 pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
     fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de> + PartialEq + fmt::Debug;
+        T: ::serde::Deserialize<'de> + Clone + PartialEq + fmt::Debug;
 
     fn deserialize_list<'de, D, T>(deserializer: D) -> Result<Self::List<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de> + PartialEq + fmt::Debug;
+        T: ::serde::Deserialize<'de> + Clone + PartialEq + fmt::Debug;
 }
 
 pub trait ValueFlavor {

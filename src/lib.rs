@@ -46,12 +46,12 @@ mod tests {
     }
 
     implements! {
-        StaticSchema: (fmt::Display + fmt::Debug + PartialEq + Serialize);
+        StaticSchema: (Clone + fmt::Display + fmt::Debug + PartialEq + Serialize);
 
-        BorrowedSchema: (fmt::Display + fmt::Debug + PartialEq + Serialize);
+        BorrowedSchema: (Clone + fmt::Display + fmt::Debug + PartialEq + Serialize);
 
         #[cfg(feature = "alloc")]
-        OwnedSchema: (fmt::Display + fmt::Debug + PartialEq + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
+        OwnedSchema: (Clone + fmt::Display + fmt::Debug + PartialEq + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
         #[cfg(feature = "alloc")]
         OwnedValue: (fmt::Display + fmt::Debug + PartialEq + Serialize);
     }
