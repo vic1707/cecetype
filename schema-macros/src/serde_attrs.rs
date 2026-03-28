@@ -1,4 +1,4 @@
-use ::syn::token;
+use ::syn::punctuated;
 
 // Won't support
 // - `rename(...)` / `rename_all(...)` / `rename_all_fields(...)` variations
@@ -6,7 +6,7 @@ use ::syn::token;
 #[derive(Default)]
 pub struct ContainerAttrs {
     pub rename: Option<::syn::LitStr>,
-    pub repr_via: Option<::syn::TypePath>, // `into` + `from`/`try_from`
+    pub repr_via: Option<::syn::ExprPath>, // `into` + `from`/`try_from`
     pub transparent: bool,
 } // rename_all, rename_all_fields, tag, content, untagged
 
@@ -48,59 +48,81 @@ impl ContainerAttrs {
                 continue;
             }
 
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("bound")
-                    || meta.path.is_ident("remote")
-                    || meta.path.is_ident("crate")
-                    || meta.path.is_ident("expecting")
-                    || meta.path.is_ident("deny_unknown_fields")
-                {
-                    return Ok(());
-                }
+            let nested = attr.parse_args_with(
+                punctuated::Punctuated::<::syn::Meta, ::syn::Token![,]>::parse_terminated,
+            )?;
 
-                if meta.path.is_ident("rename") {
-                    if meta.input.peek(token::Paren) {
+            for meta in nested {
+                match meta {
+                    ::syn::Meta::NameValue(::syn::MetaNameValue {
+                        path,
+                        value:
+                            ::syn::Expr::Lit(::syn::ExprLit {
+                                lit: ::syn::Lit::Str(rename),
+                                ..
+                            }),
+                        ..
+                    }) if path.is_ident("rename") => out.rename = Some(rename),
+
+                    ::syn::Meta::NameValue(::syn::MetaNameValue {
+                        path,
+                        value:
+                            ::syn::Expr::Lit(::syn::ExprLit {
+                                lit: ::syn::Lit::Str(ty),
+                                ..
+                            }),
+                        ..
+                    }) if path.is_ident("from") || path.is_ident("try_from") => {
+                        if from_ty.is_some() {
+                            return Err(::syn::Error::new_spanned(
+                                &ty,
+                                "Schema: only one of `from` / `try_from` can be used at a time",
+                            ));
+                        }
+
+                        from_ty = Some(ty);
+                    }
+
+                    ::syn::Meta::NameValue(::syn::MetaNameValue {
+                        path,
+                        value:
+                            ::syn::Expr::Lit(::syn::ExprLit {
+                                lit: ::syn::Lit::Str(ty),
+                                ..
+                            }),
+                        ..
+                    }) if path.is_ident("into") => {
+                        into_ty = Some(ty);
+                    }
+
+                    ::syn::Meta::Path(path) if path.is_ident("transparent") => {
+                        out.transparent = true;
+                    }
+
+                    // -------- explicitly reject rename(...)
+                    ::syn::Meta::List(list) if list.path.is_ident("rename") => {
                         return Err(::syn::Error::new_spanned(
-                            &meta.path,
+                            &list.path,
                             "Schema: `rename(...)` not supported, use `rename = \"...\"`",
                         ));
                     }
-                    let value = meta.value()?;
-                    let ty = value.parse::<::syn::LitStr>()?;
-                    out.rename = Some(ty);
-                    return Ok(());
-                }
 
-                if meta.path.is_ident("from") || meta.path.is_ident("try_from") {
-                    let value = meta.value()?;
-                    let ty = value.parse::<::syn::LitStr>()?.parse::<::syn::TypePath>()?;
-                    if from_ty.is_some() {
+                    _ if meta.path().is_ident("bound")
+                        || meta.path().is_ident("remote")
+                        || meta.path().is_ident("crate")
+                        || meta.path().is_ident("expecting")
+                        || meta.path().is_ident("deny_unknown_fields") => {}
+
+                    other @ (::syn::Meta::Path(_)
+                    | ::syn::Meta::List(_)
+                    | ::syn::Meta::NameValue(_)) => {
                         return Err(::syn::Error::new_spanned(
-                            &meta.path,
-                            "Schema: only one of `from` / `try_from` can be used at a time",
+                            other,
+                            "Schema: unsupported serde attribute",
                         ));
                     }
-                    from_ty = Some(ty);
-                    return Ok(());
                 }
-
-                if meta.path.is_ident("into") {
-                    let value = meta.value()?;
-                    let ty = value.parse::<::syn::LitStr>()?.parse::<::syn::TypePath>()?;
-                    into_ty = Some(ty);
-                    return Ok(());
-                }
-
-                if meta.path.is_ident("transparent") {
-                    out.transparent = true;
-                    return Ok(());
-                }
-
-                Err(::syn::Error::new_spanned(
-                    &meta.path,
-                    "Schema: unsupported serde attribute",
-                ))
-            })?;
+            }
         }
 
         match (into_ty, from_ty) {
@@ -112,7 +134,7 @@ impl ContainerAttrs {
                         "Schema: `into` and `from`/`try_from` must use the same type",
                     ));
                 }
-                out.repr_via = Some(ity);
+                out.repr_via = Some(ity.parse()?);
             }
             _ => {
                 return Err(::syn::Error::new(
@@ -135,39 +157,56 @@ impl VariantAttrs {
                 continue;
             }
 
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("bound") || meta.path.is_ident("borrow") {
-                    return Ok(());
-                }
+            let nested = attr.parse_args_with(
+                punctuated::Punctuated::<::syn::Meta, ::syn::Token![,]>::parse_terminated,
+            )?;
 
-                if meta.path.is_ident("rename") {
-                    if meta.input.peek(token::Paren) {
+            for meta in nested {
+                match meta {
+                    ::syn::Meta::NameValue(::syn::MetaNameValue {
+                        path,
+                        value:
+                            ::syn::Expr::Lit(::syn::ExprLit {
+                                lit: ::syn::Lit::Str(rename),
+                                ..
+                            }),
+                        ..
+                    }) if path.is_ident("rename") => {
+                        out.rename = Some(rename);
+                    }
+
+                    ::syn::Meta::Path(path) if path.is_ident("skip") => {
+                        out.skip = true;
+                    }
+
+                    ::syn::Meta::List(list) if list.path.is_ident("rename") => {
                         return Err(::syn::Error::new_spanned(
-                            &meta.path,
+                            &list.path,
                             "Schema: `rename(...)` not supported, use `rename = \"...\"`",
                         ));
                     }
-                    let value = meta.value()?;
-                    let ty = value.parse::<::syn::LitStr>()?;
-                    out.rename = Some(ty);
-                    return Ok(());
-                }
 
-                if meta.path.is_ident("skip") {
-                    out.skip = true;
-                    return Ok(());
-                }
+                    _ if meta.path().is_ident("bound") || meta.path().is_ident("borrow") => {}
 
-                Err(::syn::Error::new_spanned(
-                    &meta.path,
-                    "Schema: unsupported serde attribute",
-                ))
-            })?;
+                    other @ (::syn::Meta::Path(_)
+                    | ::syn::Meta::List(_)
+                    | ::syn::Meta::NameValue(_)) => {
+                        return Err(::syn::Error::new_spanned(
+                            other,
+                            "Schema: unsupported serde attribute",
+                        ));
+                    }
+                }
+            }
         }
 
         Ok(out)
     }
 }
+
+// ----------------------------
+// Field
+// ----------------------------
 
 impl FieldAttrs {
     pub fn parse(attrs: &[::syn::Attribute]) -> ::syn::Result<Self> {
@@ -178,31 +217,53 @@ impl FieldAttrs {
                 continue;
             }
 
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("borrow")
-                    || meta.path.is_ident("bound")
-                    || meta.path.is_ident("getter")
-                {
-                    return Ok(());
-                }
+            let nested = attr.parse_args_with(
+                punctuated::Punctuated::<::syn::Meta, ::syn::Token![,]>::parse_terminated,
+            )?;
 
-                if meta.path.is_ident("rename") {
-                    let value = meta.value()?;
-                    let ty = value.parse::<::syn::LitStr>()?;
-                    out.rename = Some(ty);
-                    return Ok(());
-                }
+            for meta in nested {
+                match meta {
+                    ::syn::Meta::NameValue(::syn::MetaNameValue {
+                        path,
+                        value:
+                            ::syn::Expr::Lit(::syn::ExprLit {
+                                lit: ::syn::Lit::Str(rename),
+                                ..
+                            }),
+                        ..
+                    }) if path.is_ident("rename") => {
+                        out.rename = Some(rename);
+                    }
 
-                if meta.path.is_ident("skip") {
-                    out.skip = true;
-                    return Ok(());
-                }
+                    ::syn::Meta::Path(path) if path.is_ident("skip") => {
+                        out.skip = true;
+                    }
 
-                Err(::syn::Error::new_spanned(
-                    &meta.path,
-                    "Schema: unsupported serde attribute",
-                ))
-            })?;
+                    ::syn::Meta::Path(path)
+                        if path.is_ident("borrow")
+                            || path.is_ident("bound")
+                            || path.is_ident("getter") => {}
+
+                    ::syn::Meta::List(list)
+                        if list.path.is_ident("borrow")
+                            || list.path.is_ident("bound")
+                            || list.path.is_ident("getter") => {}
+
+                    ::syn::Meta::NameValue(nv)
+                        if nv.path.is_ident("borrow")
+                            || nv.path.is_ident("bound")
+                            || nv.path.is_ident("getter") => {}
+
+                    other @ (::syn::Meta::Path(_)
+                    | ::syn::Meta::List(_)
+                    | ::syn::Meta::NameValue(_)) => {
+                        return Err(::syn::Error::new_spanned(
+                            other,
+                            "Schema: unsupported serde attribute",
+                        ));
+                    }
+                }
+            }
         }
 
         Ok(out)
