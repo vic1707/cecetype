@@ -1,13 +1,13 @@
 #![expect(clippy::unwrap_used, reason = "wip")]
 
-mod serde_attrs;
-use self::serde_attrs::{ContainerAttrs, FieldAttrs, VariantAttrs};
+mod attrs;
+use self::attrs::{ContainerAttrs, FieldAttrs, VariantAttrs};
 use ::{
     quote::quote,
     syn::{self, Fields},
 };
 
-#[proc_macro_derive(Schema, attributes(serde))]
+#[proc_macro_derive(Schema, attributes(serde, schema))]
 #[inline]
 pub fn derive_schema(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream {
     expand(input)
@@ -46,17 +46,21 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
         |ty| Ok(::syn::parse_quote! { <#ty as schema::Schema>::SCHEMA }),
     )?;
 
-    let generics_ident = generics
-        .type_params()
-        .map(|syn::TypeParam { ident: i, .. }| i)
-        .cloned()
-        .collect::<Vec<_>>();
+    let schema_bounds = container_attrs.bounds.map_or_else(
+        || {
+            generics
+                .type_params()
+                .map(
+                    |syn::TypeParam { ident: ident2, .. }| ::syn::parse_quote! { #ident2: ::schema::Schema },
+                )
+                .collect::<Vec<::syn::WherePredicate>>()
+        },
+        |bounds| bounds.into_iter().collect::<Vec<_>>(),
+    );
 
     let where_clause_ref = generics.make_where_clause();
-    for ty in generics_ident {
-        where_clause_ref
-            .predicates
-            .push(::syn::parse_quote! { #ty: ::schema::Schema });
+    for bound in schema_bounds {
+        where_clause_ref.predicates.push(bound);
     }
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -80,10 +84,9 @@ fn struct_schema(
         .collect::<::syn::Result<Vec<_>>>()?;
 
     if container_attrs.transparent {
-        let ty = &fields.first().unwrap().0.ty;
-        return Ok(::syn::parse_quote! {
-            <#ty as schema::Schema>::SCHEMA
-        });
+        let (field, field_attrs) = fields.first().unwrap();
+        let ty = field_attrs.repr_via.as_ref().unwrap_or(&field.ty);
+        return Ok(::syn::parse_quote! { <#ty as schema::Schema>::SCHEMA });
     }
 
     let mut field_defs = fields.into_iter().map(field_schema);
@@ -165,6 +168,16 @@ fn enum_schema(
 
                 let discriminant = u32::try_from(i).unwrap();
 
+                if let Some(ty) = &variant_attrs.repr_via {
+                    return Ok(quote! {
+                        &schema::VariantSchema::NewType {
+                            name: #vname,
+                            discriminant: #discriminant,
+                            field: <#ty as ::schema::Schema>::SCHEMA,
+                        }
+                    });
+                }
+
                 let field_defs = vfields
                     .iter()
                     .map(|field| Ok((field, FieldAttrs::parse(&field.attrs)?)))
@@ -238,21 +251,21 @@ fn enum_schema(
 fn field_schema(
     (::syn::Field { ident, ty, .. }, field_attrs): (&::syn::Field, FieldAttrs),
 ) -> ::syn::Expr {
-    let fname = field_attrs
+    let ty_schema = field_attrs.repr_via.as_ref().unwrap_or(ty);
+    field_attrs
         .rename
         .as_ref()
         .map(::syn::LitStr::value)
-        .or_else(|| ident.as_ref().map(ToString::to_string));
-
-    fname.map_or_else(
-        || ::syn::parse_quote! { <#ty as schema::Schema>::SCHEMA },
-        |name| {
-            ::syn::parse_quote! {
-                &schema::FieldSchema {
-                    name: #name,
-                    ty: <#ty as schema::Schema>::SCHEMA,
+        .or_else(|| ident.as_ref().map(ToString::to_string))
+        .map_or_else(
+            || ::syn::parse_quote! { <#ty_schema as ::schema::Schema>::SCHEMA },
+            |name| {
+                ::syn::parse_quote! {
+                    &schema::FieldSchema {
+                        name: #name,
+                        ty: <#ty_schema as ::schema::Schema>::SCHEMA,
+                    }
                 }
-            }
-        },
-    )
+            },
+        )
 }

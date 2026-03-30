@@ -1,16 +1,17 @@
 use ::syn::punctuated;
 
-// Won't support
+// Won't support serde's
 // - `rename(...)` / `rename_all(...)` / `rename_all_fields(...)` variations
 // - `default` as we can't (won't) send the default value
 #[derive(Default)]
 pub struct ContainerAttrs {
     pub rename: Option<::syn::LitStr>,
-    pub repr_via: Option<::syn::ExprPath>, // `into` + `from`/`try_from`
+    pub repr_via: Option<::syn::Type>, // `schema(...)` or serde's `into` + `from`/`try_from`
+    pub bounds: Option<punctuated::Punctuated<::syn::WherePredicate, ::syn::Token![,]>>,
     pub transparent: bool,
-} // rename_all, rename_all_fields, tag, content, untagged
+} // serde's missing: rename_all, rename_all_fields, tag, content, untagged
 
-// Won't support
+// Won't support serde's
 // - `rename(...)` / `rename_all(...)` variations
 // - `alias`
 // - `with` / `serialize_with` / `deserialize_with` as we can't send the functions used for serialization
@@ -19,10 +20,11 @@ pub struct ContainerAttrs {
 #[derive(Default)]
 pub struct VariantAttrs {
     pub rename: Option<::syn::LitStr>,
+    pub repr_via: Option<::syn::Type>,
     pub skip: bool,
-} // rename_all, untagged
+} // serde's missing: rename_all, untagged
 
-// Won't support
+// Won't support serde's
 // - `rename(...)` variations
 // - `alias`
 // - `with` / `serialize_with` / `deserialize_with` as we can't send the functions used for serialization
@@ -33,6 +35,7 @@ pub struct VariantAttrs {
 #[derive(Default)]
 pub struct FieldAttrs {
     pub rename: Option<::syn::LitStr>,
+    pub repr_via: Option<::syn::Type>,
     pub skip: bool,
 }
 
@@ -42,12 +45,34 @@ impl ContainerAttrs {
 
         let mut from_ty = None;
         let mut into_ty = None;
+        let mut custom_schema = false;
 
-        for attr in attrs {
-            if !attr.path().is_ident("serde") {
-                continue;
-            }
+        for attr in attrs.iter().filter(|attr| attr.path().is_ident("schema")) {
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("as") {
+                    let content;
+                    let _paren = ::syn::parenthesized!(content in meta.input);
+                    out.repr_via = Some(content.parse()?);
+                    custom_schema = true;
+                } else if meta.path.is_ident("bounds") {
+                    let content;
+                    let _paren = ::syn::parenthesized!(content in meta.input);
+                    out.bounds = Some(punctuated::Punctuated::<
+                        ::syn::WherePredicate,
+                        ::syn::Token![,],
+                    >::parse_terminated(&content)?);
+                } else {
+                    return Err(::syn::Error::new_spanned(
+                        meta.path,
+                        "Schema: unsupported serde attribute",
+                    ));
+                }
 
+                Ok(())
+            })?;
+        }
+
+        for attr in attrs.iter().filter(|attr| attr.path().is_ident("serde")) {
             let nested = attr.parse_args_with(
                 punctuated::Punctuated::<::syn::Meta, ::syn::Token![,]>::parse_terminated,
             )?;
@@ -64,6 +89,18 @@ impl ContainerAttrs {
                         ..
                     }) if path.is_ident("rename") => out.rename = Some(rename),
 
+                    f_tf_i_w_s @ ::syn::Meta::NameValue(_)
+                        if out.repr_via.is_some()
+                            && (f_tf_i_w_s.path().is_ident("from")
+                                || f_tf_i_w_s.path().is_ident("try_from")
+                                || f_tf_i_w_s.path().is_ident("into")) =>
+                    {
+                        return Err(::syn::Error::new_spanned(
+                            f_tf_i_w_s,
+                            "Schema: `from`/`try_from`/`into` incompatible with #[schema = ty]",
+                        ))
+                    }
+
                     ::syn::Meta::NameValue(::syn::MetaNameValue {
                         path,
                         value:
@@ -72,14 +109,9 @@ impl ContainerAttrs {
                                 ..
                             }),
                         ..
-                    }) if path.is_ident("from") || path.is_ident("try_from") => {
-                        if from_ty.is_some() {
-                            return Err(::syn::Error::new_spanned(
-                                &ty,
-                                "Schema: only one of `from` / `try_from` can be used at a time",
-                            ));
-                        }
-
+                    }) if out.repr_via.is_none()
+                        && (path.is_ident("from") || path.is_ident("try_from")) =>
+                    {
                         from_ty = Some(ty);
                     }
 
@@ -91,7 +123,7 @@ impl ContainerAttrs {
                                 ..
                             }),
                         ..
-                    }) if path.is_ident("into") => {
+                    }) if out.repr_via.is_none() && path.is_ident("into") => {
                         into_ty = Some(ty);
                     }
 
@@ -111,7 +143,9 @@ impl ContainerAttrs {
                         || meta.path().is_ident("remote")
                         || meta.path().is_ident("crate")
                         || meta.path().is_ident("expecting")
-                        || meta.path().is_ident("deny_unknown_fields") => {}
+                        || meta.path().is_ident("deny_unknown_fields")
+                        || (custom_schema && meta.path().is_ident("serialize_with"))
+                        || (custom_schema && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)
@@ -152,11 +186,26 @@ impl VariantAttrs {
     pub fn parse(attrs: &[::syn::Attribute]) -> ::syn::Result<Self> {
         let mut out = Self::default();
 
-        for attr in attrs {
-            if !attr.path().is_ident("serde") {
-                continue;
-            }
+        let mut custom_schema = false;
 
+        for attr in attrs.iter().filter(|attr| attr.path().is_ident("schema")) {
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("as") {
+                    let content;
+                    let _paren = ::syn::parenthesized!(content in meta.input);
+                    out.repr_via = Some(content.parse()?);
+                    custom_schema = true;
+                } else {
+                    return Err(::syn::Error::new_spanned(
+                        meta.path,
+                        "Schema: unsupported serde attribute",
+                    ));
+                }
+                Ok(())
+            })?;
+        }
+
+        for attr in attrs.iter().filter(|attr| attr.path().is_ident("serde")) {
             let nested = attr.parse_args_with(
                 punctuated::Punctuated::<::syn::Meta, ::syn::Token![,]>::parse_terminated,
             )?;
@@ -186,7 +235,10 @@ impl VariantAttrs {
                         ));
                     }
 
-                    _ if meta.path().is_ident("bound") || meta.path().is_ident("borrow") => {}
+                    _ if meta.path().is_ident("bound")
+                        || meta.path().is_ident("borrow")
+                        || (custom_schema && meta.path().is_ident("serialize_with"))
+                        || (custom_schema && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)
@@ -212,11 +264,27 @@ impl FieldAttrs {
     pub fn parse(attrs: &[::syn::Attribute]) -> ::syn::Result<Self> {
         let mut out = Self::default();
 
-        for attr in attrs {
-            if !attr.path().is_ident("serde") {
-                continue;
-            }
+        let mut custom_schema = false;
 
+        for attr in attrs.iter().filter(|attr| attr.path().is_ident("schema")) {
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("as") {
+                    let content;
+                    let _paren = ::syn::parenthesized!(content in meta.input);
+                    out.repr_via = Some(content.parse()?);
+                    custom_schema = true;
+                } else {
+                    return Err(::syn::Error::new_spanned(
+                        meta.path,
+                        "Schema: unsupported serde attribute",
+                    ));
+                }
+
+                Ok(())
+            })?;
+        }
+
+        for attr in attrs.iter().filter(|attr| attr.path().is_ident("serde")) {
             let nested = attr.parse_args_with(
                 punctuated::Punctuated::<::syn::Meta, ::syn::Token![,]>::parse_terminated,
             )?;
@@ -239,20 +307,11 @@ impl FieldAttrs {
                         out.skip = true;
                     }
 
-                    ::syn::Meta::Path(path)
-                        if path.is_ident("borrow")
-                            || path.is_ident("bound")
-                            || path.is_ident("getter") => {}
-
-                    ::syn::Meta::List(list)
-                        if list.path.is_ident("borrow")
-                            || list.path.is_ident("bound")
-                            || list.path.is_ident("getter") => {}
-
-                    ::syn::Meta::NameValue(nv)
-                        if nv.path.is_ident("borrow")
-                            || nv.path.is_ident("bound")
-                            || nv.path.is_ident("getter") => {}
+                    _ if meta.path().is_ident("borrow")
+                        || meta.path().is_ident("bound")
+                        || meta.path().is_ident("getter")
+                        || (custom_schema && meta.path().is_ident("serialize_with"))
+                        || (custom_schema && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)
