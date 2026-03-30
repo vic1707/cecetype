@@ -8,6 +8,8 @@ use ::{
     serde::{Deserialize, Serialize},
 };
 
+#[derive(crate::Schema)]
+#[schema(bounds(F::Str: crate::Schema))]
 #[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
@@ -36,6 +38,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     F64,
 
     Array {
+        #[schema(as(Self))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         element: F::Ptr<Self>,
@@ -43,12 +46,14 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     },
 
     Slice {
+        #[schema(as(Self))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         element: F::Ptr<Self>,
     },
 
     Tuple {
+        #[schema(as([Self]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         elements: F::List<Self>,
@@ -59,18 +64,21 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     },
     NewTypeStruct {
         name: F::Str,
+        #[schema(as(Self))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         field: F::Ptr<Self>,
     },
     TupleStruct {
         name: F::Str,
+        #[schema(as([Self]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<Self>,
     },
     Struct {
         name: F::Str,
+        #[schema(as([FieldSchema<'s, F>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<FieldSchema<'s, F>>,
@@ -78,16 +86,20 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
 
     Enum {
         name: F::Str,
+        #[schema(as([VariantSchema<'s, F>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         variants: F::List<VariantSchema<'s, F>>,
     },
 
+    #[schema(as(Self))]
     #[serde(serialize_with = "ser::serialize_ptr")]
     #[serde(deserialize_with = "F::deserialize_ptr")]
     Option(F::Ptr<Self>),
 }
 
+#[derive(crate::Schema)]
+#[schema(bounds(F::Str: crate::Schema))]
 #[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
@@ -99,11 +111,14 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
 pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
     // pub key: u32, // Maybe for future protocols
+    #[schema(as(TypeSchema<'s, F>))]
     #[serde(serialize_with = "ser::serialize_ptr")]
     #[serde(deserialize_with = "F::deserialize_ptr")]
     pub ty: F::Ptr<TypeSchema<'s, F>>,
 }
 
+#[derive(crate::Schema)]
+#[schema(bounds(F::Str: crate::Schema))]
 #[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
@@ -116,11 +131,14 @@ pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
 // Currently we assume externally tagged
 pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
+    #[schema(as([VariantSchema<'s, F>]))]
     #[serde(serialize_with = "ser::serialize_list_ptr")]
     #[serde(deserialize_with = "F::deserialize_list")]
     pub variants: F::List<VariantSchema<'s, F>>,
 }
 
+#[derive(crate::Schema)]
+#[schema(bounds(F::Str: crate::Schema))]
 #[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
@@ -137,6 +155,7 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     NewType {
         name: F::Str,
         discriminant: u32,
+        #[schema(as(TypeSchema<'s, F>))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         field: F::Ptr<TypeSchema<'s, F>>,
@@ -144,6 +163,7 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Tuple {
         name: F::Str,
         discriminant: u32,
+        #[schema(as([TypeSchema<'s, F>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<TypeSchema<'s, F>>,
@@ -151,6 +171,7 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Struct {
         name: F::Str,
         discriminant: u32,
+        #[schema(as([FieldSchema<'s, F>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<FieldSchema<'s, F>>,

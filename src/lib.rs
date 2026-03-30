@@ -1,5 +1,7 @@
 #![no_std]
 
+extern crate self as schema;
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
@@ -7,10 +9,8 @@ mod flavors;
 mod type_schema;
 mod value;
 
-#[cfg(feature = "macros")]
-pub use ::schema_macros::Schema;
-
 pub use self::{flavors::*, type_schema::*, value::*};
+pub use ::schema_macros::Schema;
 
 pub trait Schema {
     const SCHEMA: &'static StaticSchema;
@@ -54,5 +54,15 @@ mod tests {
     implements! {
         OwnedSchema: (Clone + fmt::Display + fmt::Debug + PartialEq + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
         OwnedValue: (fmt::Display + fmt::Debug + PartialEq + Serialize);
+    }
+
+    implements! {
+        StaticSchema: (Schema);
+        BorrowedSchema: (Schema);
+    }
+
+    #[cfg(feature = "alloc")]
+    implements! {
+        OwnedSchema: (Schema);
     }
 }
