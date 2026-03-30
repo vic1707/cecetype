@@ -41,7 +41,7 @@ impl<T: Schema> Schema for [T] {
 }
 
 impl<T: Schema> Schema for &[T] {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Slice { element: T::SCHEMA };
+    const SCHEMA: &'static StaticSchema = <[T] as Schema>::SCHEMA;
 }
 
 impl<T: Schema> Schema for &T {
