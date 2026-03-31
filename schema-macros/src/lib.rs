@@ -64,6 +64,15 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
     }
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    if let Some(ref_name) = container_attrs.references {
+        return Ok(quote! {
+            impl #impl_generics ::schema::Schema for #ident #ty_generics #where_clause {
+                const SCHEMA: &'static ::schema::StaticSchema = &::schema::TypeSchema::Ref(#ref_name);
+            }
+        });
+    }
+
     Ok(quote! {
         impl #impl_generics ::schema::Schema for #ident #ty_generics #where_clause {
             const SCHEMA: &'static ::schema::StaticSchema = &#schema;
@@ -94,7 +103,7 @@ fn struct_schema(
     let schema = match &data.fields {
         Fields::Named(_) => {
             ::syn::parse_quote! {
-                schema::TypeSchema::Struct {
+                ::schema::TypeSchema::Struct {
                     name: #struct_name,
                     fields: &[
                         #( #field_defs ),*
@@ -106,7 +115,7 @@ fn struct_schema(
         Fields::Unnamed(_) if field_defs.len() == 1 => {
             let field = field_defs.next().unwrap();
             ::syn::parse_quote! {
-                schema::TypeSchema::NewTypeStruct {
+                ::schema::TypeSchema::NewTypeStruct {
                     name: #struct_name,
                     field: #field,
                 }
@@ -115,7 +124,7 @@ fn struct_schema(
 
         Fields::Unnamed(_) => {
             ::syn::parse_quote! {
-                schema::TypeSchema::TupleStruct {
+                ::schema::TypeSchema::TupleStruct {
                     name: #struct_name,
                     fields: &[
                         #( #field_defs ),*
@@ -126,7 +135,7 @@ fn struct_schema(
 
         Fields::Unit => {
             ::syn::parse_quote! {
-                schema::TypeSchema::UnitStruct {
+                ::schema::TypeSchema::UnitStruct {
                     name: #struct_name,
                 }
             }
@@ -168,12 +177,18 @@ fn enum_schema(
 
                 let discriminant = u32::try_from(i).unwrap();
 
-                if let Some(ty) = &variant_attrs.repr_via {
+                if let Some(schema) = variant_attrs
+                    .references
+                    .as_ref()
+                    .map::<::syn::Expr, _>(|ref_name| ::syn::parse_quote! { &::schema::TypeSchema::Ref(#ref_name) })
+                    .or_else(|| variant_attrs.repr_via.as_ref().map(|repr_ty| ::syn::parse_quote! { <#repr_ty as ::schema::Schema>::SCHEMA })
+                    )
+                {
                     return Ok(quote! {
-                        &schema::VariantSchema::NewType {
+                        &::schema::VariantSchema::NewType {
                             name: #vname,
                             discriminant: #discriminant,
-                            field: <#ty as ::schema::Schema>::SCHEMA,
+                            field: #schema,
                         }
                     });
                 }
@@ -190,7 +205,7 @@ fn enum_schema(
                 let schema = match vfields {
                     Fields::Unit => {
                         quote! {
-                            &schema::VariantSchema::Unit {
+                            &::schema::VariantSchema::Unit {
                                 name: #vname,
                                 discriminant: #discriminant,
                             }
@@ -201,7 +216,7 @@ fn enum_schema(
                         let fschema = field_defs.first().unwrap();
 
                         quote! {
-                            &schema::VariantSchema::NewType {
+                            &::schema::VariantSchema::NewType {
                                 name: #vname,
                                 discriminant: #discriminant,
                                 field: #fschema,
@@ -211,7 +226,7 @@ fn enum_schema(
 
                     Fields::Unnamed(_) => {
                         quote! {
-                            &schema::VariantSchema::Tuple {
+                            &::schema::VariantSchema::Tuple {
                                 name: #vname,
                                 discriminant: #discriminant,
                                 fields: &[
@@ -223,7 +238,7 @@ fn enum_schema(
 
                     Fields::Named(_) => {
                         quote! {
-                            &schema::VariantSchema::Struct {
+                            &::schema::VariantSchema::Struct {
                                 name: #vname,
                                 discriminant: #discriminant,
                                 fields: &[
@@ -239,7 +254,7 @@ fn enum_schema(
         .collect::<::syn::Result<Vec<_>>>()?;
 
     Ok(::syn::parse_quote! {
-        schema::TypeSchema::Enum {
+        ::schema::TypeSchema::Enum {
             name: #enum_name,
             variants: &[
                 #( #variants ),*
@@ -251,19 +266,25 @@ fn enum_schema(
 fn field_schema(
     (::syn::Field { ident, ty, .. }, field_attrs): (&::syn::Field, FieldAttrs),
 ) -> ::syn::Expr {
-    let ty_schema = field_attrs.repr_via.as_ref().unwrap_or(ty);
+    let ty_schema: ::syn::Expr = field_attrs.references.map_or_else(
+        || {
+            let repr_ty = field_attrs.repr_via.as_ref().unwrap_or(ty);
+            ::syn::parse_quote! { <#repr_ty as ::schema::Schema>::SCHEMA }
+        },
+        |ref_name| ::syn::parse_quote! { &::schema::TypeSchema::Ref(#ref_name) },
+    );
     field_attrs
         .rename
         .as_ref()
         .map(::syn::LitStr::value)
         .or_else(|| ident.as_ref().map(ToString::to_string))
         .map_or_else(
-            || ::syn::parse_quote! { <#ty_schema as ::schema::Schema>::SCHEMA },
+            || ::syn::parse_quote! { #ty_schema },
             |name| {
                 ::syn::parse_quote! {
-                    &schema::FieldSchema {
+                    &::schema::FieldSchema {
                         name: #name,
-                        ty: <#ty_schema as ::schema::Schema>::SCHEMA,
+                        ty: #ty_schema,
                     }
                 }
             },

@@ -5,6 +5,7 @@ use ::syn::punctuated;
 // - `default` as we can't (won't) send the default value
 #[derive(Default)]
 pub struct ContainerAttrs {
+    pub references: Option<::syn::LitStr>,
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::Type>, // `schema(...)` or serde's `into` + `from`/`try_from`
     pub bounds: Option<punctuated::Punctuated<::syn::WherePredicate, ::syn::Token![,]>>,
@@ -19,6 +20,7 @@ pub struct ContainerAttrs {
 // - `skip_serializing` / `skip_deserializing` as it would cause a desync
 #[derive(Default)]
 pub struct VariantAttrs {
+    pub references: Option<::syn::LitStr>,
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::Type>,
     pub skip: bool,
@@ -34,6 +36,7 @@ pub struct VariantAttrs {
 // - `flatten` is probably too hard
 #[derive(Default)]
 pub struct FieldAttrs {
+    pub references: Option<::syn::LitStr>,
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::Type>,
     pub skip: bool,
@@ -45,7 +48,6 @@ impl ContainerAttrs {
 
         let mut from_ty = None;
         let mut into_ty = None;
-        let mut custom_schema = false;
 
         for attr in attrs.iter().filter(|attr| attr.path().is_ident("schema")) {
             attr.parse_nested_meta(|meta| {
@@ -53,7 +55,10 @@ impl ContainerAttrs {
                     let content;
                     let _paren = ::syn::parenthesized!(content in meta.input);
                     out.repr_via = Some(content.parse()?);
-                    custom_schema = true;
+                } else if meta.path.is_ident("ref") {
+                    let content;
+                    let _paren = ::syn::parenthesized!(content in meta.input);
+                    out.references = Some(content.parse()?);
                 } else if meta.path.is_ident("bounds") {
                     let content;
                     let _paren = ::syn::parenthesized!(content in meta.input);
@@ -90,7 +95,7 @@ impl ContainerAttrs {
                     }) if path.is_ident("rename") => out.rename = Some(rename),
 
                     f_tf_i_w_s @ ::syn::Meta::NameValue(_)
-                        if out.repr_via.is_some()
+                        if (out.repr_via.is_some() || out.references.is_some())
                             && (f_tf_i_w_s.path().is_ident("from")
                                 || f_tf_i_w_s.path().is_ident("try_from")
                                 || f_tf_i_w_s.path().is_ident("into")) =>
@@ -144,8 +149,8 @@ impl ContainerAttrs {
                         || meta.path().is_ident("crate")
                         || meta.path().is_ident("expecting")
                         || meta.path().is_ident("deny_unknown_fields")
-                        || (custom_schema && meta.path().is_ident("serialize_with"))
-                        || (custom_schema && meta.path().is_ident("deserialize_with")) => {}
+                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("serialize_with"))
+                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)
@@ -186,15 +191,16 @@ impl VariantAttrs {
     pub fn parse(attrs: &[::syn::Attribute]) -> ::syn::Result<Self> {
         let mut out = Self::default();
 
-        let mut custom_schema = false;
-
         for attr in attrs.iter().filter(|attr| attr.path().is_ident("schema")) {
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("as") {
                     let content;
                     let _paren = ::syn::parenthesized!(content in meta.input);
                     out.repr_via = Some(content.parse()?);
-                    custom_schema = true;
+                } else if meta.path.is_ident("ref") {
+                    let content;
+                    let _paren = ::syn::parenthesized!(content in meta.input);
+                    out.references = Some(content.parse()?);
                 } else {
                     return Err(::syn::Error::new_spanned(
                         meta.path,
@@ -237,8 +243,8 @@ impl VariantAttrs {
 
                     _ if meta.path().is_ident("bound")
                         || meta.path().is_ident("borrow")
-                        || (custom_schema && meta.path().is_ident("serialize_with"))
-                        || (custom_schema && meta.path().is_ident("deserialize_with")) => {}
+                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("serialize_with"))
+                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)
@@ -264,15 +270,16 @@ impl FieldAttrs {
     pub fn parse(attrs: &[::syn::Attribute]) -> ::syn::Result<Self> {
         let mut out = Self::default();
 
-        let mut custom_schema = false;
-
         for attr in attrs.iter().filter(|attr| attr.path().is_ident("schema")) {
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("as") {
                     let content;
                     let _paren = ::syn::parenthesized!(content in meta.input);
                     out.repr_via = Some(content.parse()?);
-                    custom_schema = true;
+                } else if meta.path.is_ident("ref") {
+                    let content;
+                    let _paren = ::syn::parenthesized!(content in meta.input);
+                    out.references = Some(content.parse()?);
                 } else {
                     return Err(::syn::Error::new_spanned(
                         meta.path,
@@ -310,8 +317,8 @@ impl FieldAttrs {
                     _ if meta.path().is_ident("borrow")
                         || meta.path().is_ident("bound")
                         || meta.path().is_ident("getter")
-                        || (custom_schema && meta.path().is_ident("serialize_with"))
-                        || (custom_schema && meta.path().is_ident("deserialize_with")) => {}
+                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("serialize_with"))
+                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)
