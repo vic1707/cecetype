@@ -394,8 +394,7 @@ where
             TypeSchema::Struct { name, fields } => deserializer.deserialize_struct(
                 "", // dunno
                 // Cannot send ampty list as postcard uses the lenght to encode
-                #[expect(clippy::indexing_slicing, reason = "serde expects static strs")]
-                &visitors::_S[..fields.len()], // dirty ass hack
+                visitors::names(fields.len()), // dirty ass hack
                 visitors::StructVisitor::<SF, VF>::new(name, fields),
             ),
 
@@ -403,8 +402,7 @@ where
                 deserializer.deserialize_enum(
                     "", // dunno
                     // Cannot send ampty list as postcard uses the lenght to encode
-                    #[expect(clippy::indexing_slicing, reason = "serde expects static strs")]
-                    &visitors::_S[..variants.len()], // dirty ass hack
+                    visitors::names(variants.len()), // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(name, variants),
                 )
             }
