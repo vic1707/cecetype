@@ -10,7 +10,7 @@ use ::schema::{Owned, Schema, Value};
 fn struct_missing_field() {
     assert_json_decode_error::<BasicStruct>(
         r#"{ "a": 42 }"#,
-        "missing field `b` at line 1 column 11",
+        "missing field `b` in struct `BasicStruct` at line 1 column 11",
     );
 }
 
@@ -18,7 +18,7 @@ fn struct_missing_field() {
 fn struct_unknown_field() {
     assert_json_decode_error::<BasicStruct>(
         r#"{ "a": 42, "b": true, "c": 1 }"#,
-        "unknown field `c` at line 1 column 25",
+        "unknown field `c` in struct `BasicStruct` at line 1 column 25",
     );
 }
 
@@ -26,7 +26,7 @@ fn struct_unknown_field() {
 fn struct_duplicate_field() {
     assert_json_decode_error::<BasicStruct>(
         r#"{ "a": 1, "a": 2, "b": true }"#,
-        "duplicate field `a` at line 1 column 13",
+        "duplicate field `a` in struct `BasicStruct` at line 1 column 13",
     );
 }
 

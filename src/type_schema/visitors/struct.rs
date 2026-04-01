@@ -86,11 +86,16 @@ where
                 .iter()
                 .zip(slots.iter_mut())
                 .find(|(field, _)| *field.name == *key)
-                .ok_or_else(|| de::Error::custom(format_args!("unknown field `{}`", &*key)))?
+                .ok_or_else(|| {
+                    de::Error::custom(format_args!(
+                        "unknown field `{}` in struct `{}`",
+                        &*key, &**self.name
+                    ))
+                })?
             else {
                 return Err(de::Error::custom(format_args!(
-                    "duplicate field `{}`",
-                    &*key
+                    "duplicate field `{}` in struct `{}`",
+                    &*key, &**self.name
                 )));
             };
 
@@ -106,7 +111,10 @@ where
 
         for (field, slot) in fields.iter().zip(slots.iter_mut()) {
             let value = slot.take().ok_or_else(|| {
-                de::Error::custom(format_args!("missing field `{}`", &*field.name))
+                de::Error::custom(format_args!(
+                    "missing field `{}` in struct `{}`",
+                    &*field.name, &**self.name
+                ))
             })?;
 
             VF::list_push(&mut values, (VF::make_str(&field.name), value));

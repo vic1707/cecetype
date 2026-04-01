@@ -16,12 +16,14 @@ primitive_schema!(u8, U8);
 primitive_schema!(u16, U16);
 primitive_schema!(u32, U32);
 primitive_schema!(u64, U64);
-primitive_schema!(usize, U64); // dunno if that's good tho
+primitive_schema!(u128, U128);
+primitive_schema!(usize, U64); // serde always encodes usize as u64, with safe try_from overflow checking on decode
 primitive_schema!(i8, I8);
 primitive_schema!(i16, I16);
 primitive_schema!(i32, I32);
 primitive_schema!(i64, I64);
-primitive_schema!(isize, I64); // dunno if that's good tho
+primitive_schema!(i128, I128);
+primitive_schema!(isize, I64); // serde always encodes isize as i64, with safe try_from overflow checking on decode
 primitive_schema!(f32, F32);
 primitive_schema!(f64, F64);
 primitive_schema!(&str, Str);

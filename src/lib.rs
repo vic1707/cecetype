@@ -9,7 +9,13 @@ mod flavors;
 mod type_schema;
 mod value;
 
-pub use self::{flavors::*, type_schema::*, value::*};
+pub use self::{
+    flavors::{
+        ser, Borrowed, Owned, OwnedSchemaFlavor, SchemaFlavor, Static, ValueBuilder, ValueFlavor,
+    },
+    type_schema::{FieldSchema, TypeSchema, VariantSchema},
+    value::Value,
+};
 pub use ::schema_macros::Schema;
 
 pub trait Schema {
@@ -17,7 +23,7 @@ pub trait Schema {
 }
 
 pub type OwnedSchema<'s> = TypeSchema<'s, Owned>;
-pub type OwnedValue<'s> = Value<Owned>;
+pub type OwnedValue = Value<Owned>;
 
 pub type BorrowedSchema<'s> = TypeSchema<'s, Borrowed>;
 pub type StaticSchema = TypeSchema<'static, Static>;

@@ -18,6 +18,7 @@ use ::{
     serialize = "F::Str: Serialize",
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
 ))]
+#[non_exhaustive]
 pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Ref(F::Str), // special case to avoid recursive/cyclic types
 
@@ -38,6 +39,8 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     I64,
     F32,
     F64,
+    U128,
+    I128,
 
     Array {
         #[schema(ref("TypeSchema"))]
@@ -133,24 +136,7 @@ pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
 ))]
 // TODO: add Repr (Tagged(External/Internal/Adjacent), Untagged)
 // Currently we assume externally tagged
-pub struct EnumSchema<'s, F: SchemaFlavor<'s>> {
-    pub name: F::Str,
-    #[schema(as([VariantSchema<'s, F>]))]
-    #[serde(serialize_with = "ser::serialize_list_ptr")]
-    #[serde(deserialize_with = "F::deserialize_list")]
-    pub variants: F::List<VariantSchema<'s, F>>,
-}
-
-#[derive(crate::Schema)]
-#[schema(bounds(F::Str: crate::Schema))]
-#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
-#[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "F::Str: Serialize",
-    deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
-))]
+#[non_exhaustive]
 pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Unit {
         name: F::Str,
@@ -227,6 +213,8 @@ where
 
             TypeSchema::F32 => write!(f, "f32"),
             TypeSchema::F64 => write!(f, "f64"),
+            TypeSchema::U128 => write!(f, "u128"),
+            TypeSchema::I128 => write!(f, "i128"),
 
             TypeSchema::Array { element, len } => {
                 write!(f, "[{}; {}]", &**element, len)
@@ -366,6 +354,8 @@ where
             TypeSchema::I64 => Ok(Value::I64(i64::deserialize(deserializer)?)),
             TypeSchema::F32 => Ok(Value::F32(f32::deserialize(deserializer)?)),
             TypeSchema::F64 => Ok(Value::F64(f64::deserialize(deserializer)?)),
+            TypeSchema::U128 => Ok(Value::U128(u128::deserialize(deserializer)?)),
+            TypeSchema::I128 => Ok(Value::I128(i128::deserialize(deserializer)?)),
 
             TypeSchema::Array { element, len } => {
                 // array is fixed length, not a seq
@@ -393,7 +383,7 @@ where
             ),
             TypeSchema::Struct { name, fields } => deserializer.deserialize_struct(
                 "", // dunno
-                // Cannot send ampty list as postcard uses the lenght to encode
+                // Cannot send empty list as postcard uses the length to encode
                 visitors::names(fields.len()), // dirty ass hack
                 visitors::StructVisitor::<SF, VF>::new(name, fields),
             ),
@@ -401,7 +391,7 @@ where
             TypeSchema::Enum { name, variants } => {
                 deserializer.deserialize_enum(
                     "", // dunno
-                    // Cannot send ampty list as postcard uses the lenght to encode
+                    // Cannot send empty list as postcard uses the length to encode
                     visitors::names(variants.len()), // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(name, variants),
                 )

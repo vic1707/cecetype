@@ -149,8 +149,10 @@ impl ContainerAttrs {
                         || meta.path().is_ident("crate")
                         || meta.path().is_ident("expecting")
                         || meta.path().is_ident("deny_unknown_fields")
-                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("serialize_with"))
-                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("deserialize_with")) => {}
+                        || ((out.repr_via.is_some() || out.references.is_some())
+                            && meta.path().is_ident("serialize_with"))
+                        || ((out.repr_via.is_some() || out.references.is_some())
+                            && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)
@@ -243,8 +245,10 @@ impl VariantAttrs {
 
                     _ if meta.path().is_ident("bound")
                         || meta.path().is_ident("borrow")
-                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("serialize_with"))
-                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("deserialize_with")) => {}
+                        || ((out.repr_via.is_some() || out.references.is_some())
+                            && meta.path().is_ident("serialize_with"))
+                        || ((out.repr_via.is_some() || out.references.is_some())
+                            && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)
@@ -317,8 +321,10 @@ impl FieldAttrs {
                     _ if meta.path().is_ident("borrow")
                         || meta.path().is_ident("bound")
                         || meta.path().is_ident("getter")
-                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("serialize_with"))
-                        || ((out.repr_via.is_some() || out.references.is_some()) && meta.path().is_ident("deserialize_with")) => {}
+                        || ((out.repr_via.is_some() || out.references.is_some())
+                            && meta.path().is_ident("serialize_with"))
+                        || ((out.repr_via.is_some() || out.references.is_some())
+                            && meta.path().is_ident("deserialize_with")) => {}
 
                     other @ (::syn::Meta::Path(_)
                     | ::syn::Meta::List(_)

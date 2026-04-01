@@ -10,7 +10,7 @@ pub trait Format {
 
     fn encode<T: Serialize>(value: &T) -> Result<Self::Wire, Self::Error>;
     fn decode<'de, T: Deserialize<'de>>(wire: &'de Self::Wire) -> Result<T, Self::Error>;
-    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error>;
+    fn decode_value<T: Schema>(data: &Self::Wire) -> Result<OwnedValue, Self::Error>;
 }
 
 pub struct Json;
@@ -27,7 +27,7 @@ impl Format for Json {
         ::serde_json::from_str(wire)
     }
 
-    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+    fn decode_value<T: Schema>(data: &Self::Wire) -> Result<OwnedValue, Self::Error> {
         let mut de = ::serde_json::Deserializer::from_str(data);
 
         T::SCHEMA.decode_value(&mut de)
@@ -48,7 +48,7 @@ impl Format for Postcard {
         ::postcard::from_bytes(wire)
     }
 
-    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+    fn decode_value<T: Schema>(data: &Self::Wire) -> Result<OwnedValue, Self::Error> {
         let mut de = ::postcard::Deserializer::from_bytes(data);
 
         T::SCHEMA.decode_value(&mut de)
@@ -69,7 +69,7 @@ impl Format for Yaml {
         ::yaml_serde::from_str(wire)
     }
 
-    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+    fn decode_value<T: Schema>(data: &Self::Wire) -> Result<OwnedValue, Self::Error> {
         let de = ::yaml_serde::Deserializer::from_str(data);
 
         T::SCHEMA.decode_value(de)
@@ -90,7 +90,7 @@ impl Format for Ron {
         Ok(::ron::from_str(wire)?)
     }
 
-    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+    fn decode_value<T: Schema>(data: &Self::Wire) -> Result<OwnedValue, Self::Error> {
         let mut de = ::ron::de::Deserializer::from_str(data)?;
 
         T::SCHEMA.decode_value(&mut de)
@@ -111,7 +111,7 @@ impl Format for SerdeCbor {
         ::serde_cbor::from_slice(wire)
     }
 
-    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+    fn decode_value<T: Schema>(data: &Self::Wire) -> Result<OwnedValue, Self::Error> {
         let mut de = ::serde_cbor::Deserializer::from_slice(data);
 
         T::SCHEMA.decode_value(&mut de)
@@ -132,7 +132,7 @@ impl Format for MessagePack {
         ::rmp_serde::from_slice(wire).map_err(ProtocolError::new)
     }
 
-    fn decode_value<'de, T: Schema>(data: &Self::Wire) -> Result<OwnedValue<'de>, Self::Error> {
+    fn decode_value<T: Schema>(data: &Self::Wire) -> Result<OwnedValue, Self::Error> {
         let mut de = ::rmp_serde::Deserializer::new(&**data);
 
         T::SCHEMA.decode_value(&mut de).map_err(ProtocolError::new)

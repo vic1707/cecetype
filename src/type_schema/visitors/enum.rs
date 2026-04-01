@@ -114,7 +114,7 @@ where
                     fields: fields_schema,
                     ..
                 } = variant_access.struct_variant(
-                    // Cannot send ampty list as postcard uses the lenght to encode
+                    // Cannot send empty list as postcard uses the length to encode
                     super::names(fields.len()),
                     StructVisitor::<SF, VF>::new(name, fields),
                 )?

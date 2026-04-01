@@ -38,7 +38,9 @@ where
     where
         A: SeqAccess<'de>,
     {
-        let mut values = VF::list();
+        let mut values = seq
+            .size_hint()
+            .map_or_else(VF::list, VF::list_with_capacity);
 
         while let Some(el) = seq.next_element_seed(Seed {
             schema: self.element,

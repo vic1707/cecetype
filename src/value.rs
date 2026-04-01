@@ -1,11 +1,27 @@
-use crate::{flavors::ValueFlavor, ValueBuilder};
-use ::{
-    core::{fmt, ops::Deref as _},
+use crate::flavors::ValueFlavor;
+use {
+    core::{fmt, mem, ops::Deref},
     derive_where::derive_where,
 };
 
+/// Extends the lifetime of a `&str` to `'static`.
+///
+/// # Safety
+/// The caller must ensure the returned `&'static str` is not used after the
+/// original string data is dropped. This is sound within serde serialization
+/// because the serializer only uses the reference during the `serialize` call,
+/// and the `Value` (which owns the string) is borrowed for the entire duration.
+#[inline]
+fn as_static_str(val: &(impl Deref<Target = str> + ?Sized)) -> &'static str {
+    // SAFETY: serde's Serializer trait requires `&'static str` for names, but
+    // only uses the reference during the serialize method call. The string data
+    // lives inside the `Value` which is borrowed by `&self` for the entire call.
+    unsafe { mem::transmute::<&str, &'static str>(&**val) }
+}
+
 #[derive_where(Debug;)] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[non_exhaustive]
 pub enum Value<F: ValueFlavor> {
     Unit,
 
@@ -24,6 +40,8 @@ pub enum Value<F: ValueFlavor> {
     I64(i64),
     F32(f32),
     F64(f64),
+    U128(u128),
+    I128(i128),
 
     Array(F::List<Self>),
     Slice(F::List<Self>),
@@ -99,6 +117,8 @@ where
 
             Self::F32(val) => write!(f, "{val}"),
             Self::F64(val) => write!(f, "{val}"),
+            Self::U128(val) => write!(f, "{val}"),
+            Self::I128(val) => write!(f, "{val}"),
 
             Self::Array(values) | Self::Slice(values) => {
                 write!(f, "[")?;
@@ -201,7 +221,7 @@ where
 
 impl<F> ::serde::Serialize for Value<F>
 where
-    F: ValueFlavor + ValueBuilder,
+    F: ValueFlavor,
     F::Str: ::serde::Serialize,
 {
     #[inline]
@@ -227,6 +247,9 @@ where
             Self::F32(val) => val.serialize(serializer),
             Self::F64(val) => val.serialize(serializer),
 
+            Self::U128(val) => val.serialize(serializer),
+            Self::I128(val) => val.serialize(serializer),
+
             Self::Slice(val) => val.serialize(serializer),
 
             Self::Array(values) | Self::Tuple(values) => {
@@ -239,17 +262,17 @@ where
                 tup.end()
             }
 
-            Self::UnitStruct { name } => serializer.serialize_unit_struct(F::make_static_str(name)),
+            Self::UnitStruct { name } => serializer.serialize_unit_struct(as_static_str(name)),
 
             Self::NewTypeStruct { name, field } => {
-                serializer.serialize_newtype_struct(F::make_static_str(name), &**field)
+                serializer.serialize_newtype_struct(as_static_str(name), &**field)
             }
 
             Self::TupleStruct { name, fields } => {
                 use ::serde::ser::SerializeTupleStruct as _;
 
                 let mut ts =
-                    serializer.serialize_tuple_struct(F::make_static_str(name), fields.len())?;
+                    serializer.serialize_tuple_struct(as_static_str(name), fields.len())?;
                 for field in &**fields {
                     ts.serialize_field(field)?;
                 }
@@ -259,9 +282,9 @@ where
             Self::Struct { name, fields } => {
                 use ::serde::ser::SerializeStruct as _;
 
-                let mut st = serializer.serialize_struct(F::make_static_str(name), fields.len())?;
+                let mut st = serializer.serialize_struct(as_static_str(name), fields.len())?;
                 for (key, val) in &**fields {
-                    st.serialize_field(F::make_static_str(key), val)?;
+                    st.serialize_field(as_static_str(key), val)?;
                 }
                 st.end()
             }
@@ -271,9 +294,9 @@ where
                 discriminant,
                 variant_name,
             } => serializer.serialize_unit_variant(
-                F::make_static_str(name),
+                as_static_str(name),
                 *discriminant,
-                F::make_static_str(variant_name),
+                as_static_str(variant_name),
             ),
 
             Self::EnumNewType {
@@ -282,9 +305,9 @@ where
                 variant_name,
                 field,
             } => serializer.serialize_newtype_variant(
-                F::make_static_str(name),
+                as_static_str(name),
                 *discriminant,
-                F::make_static_str(variant_name),
+                as_static_str(variant_name),
                 &**field,
             ),
 
@@ -297,9 +320,9 @@ where
                 use ::serde::ser::SerializeTupleVariant as _;
 
                 let mut tv = serializer.serialize_tuple_variant(
-                    F::make_static_str(name),
+                    as_static_str(name),
                     *discriminant,
-                    F::make_static_str(variant_name),
+                    as_static_str(variant_name),
                     fields.len(),
                 )?;
                 for field in &**fields {
@@ -317,13 +340,13 @@ where
                 use ::serde::ser::SerializeStructVariant as _;
 
                 let mut sv = serializer.serialize_struct_variant(
-                    F::make_static_str(name),
+                    as_static_str(name),
                     *discriminant,
-                    F::make_static_str(variant_name),
+                    as_static_str(variant_name),
                     fields.len(),
                 )?;
                 for (key, val) in &**fields {
-                    sv.serialize_field(F::make_static_str(key), val)?;
+                    sv.serialize_field(as_static_str(key), val)?;
                 }
                 sv.end()
             }

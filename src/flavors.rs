@@ -6,7 +6,10 @@ use ::core::{
     ops::{Deref, DerefMut},
 };
 
-pub use self::{borrowed::*, owned::*};
+pub use self::{
+    borrowed::{Borrowed, Static},
+    owned::Owned,
+};
 
 pub trait SchemaFlavor<'s>
 where
@@ -45,7 +48,6 @@ pub trait ValueBuilder: ValueFlavor {
     fn make_ptr<T: PartialEq + fmt::Debug>(value: T) -> Self::Ptr<T>;
 
     fn make_str(str: &str) -> Self::Str;
-    fn make_static_str(str: &Self::Str) -> &'static str;
 
     fn list<T: PartialEq + fmt::Debug>() -> Self::List<T>;
     fn list_from_iter<T: PartialEq + fmt::Debug>(iter: impl Iterator<Item = T>) -> Self::List<T>;
