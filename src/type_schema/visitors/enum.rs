@@ -116,7 +116,7 @@ where
                 } = variant_access.struct_variant(
                     // Cannot send ampty list as postcard uses the lenght to encode
                     #[expect(clippy::indexing_slicing, reason = "serde expects static strs")]
-                    super::_S[fields.len()],
+                    &super::_S[..fields.len()],
                     StructVisitor::<SF, VF>::new(name, fields),
                 )?
                 else {

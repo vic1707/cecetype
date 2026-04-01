@@ -395,7 +395,7 @@ where
                 "", // dunno
                 // Cannot send ampty list as postcard uses the lenght to encode
                 #[expect(clippy::indexing_slicing, reason = "serde expects static strs")]
-                visitors::_S[fields.len()], // dirty ass hack
+                &visitors::_S[..fields.len()], // dirty ass hack
                 visitors::StructVisitor::<SF, VF>::new(name, fields),
             ),
 
@@ -404,7 +404,7 @@ where
                     "", // dunno
                     // Cannot send ampty list as postcard uses the lenght to encode
                     #[expect(clippy::indexing_slicing, reason = "serde expects static strs")]
-                    visitors::_S[variants.len()], // dirty ass hack
+                    &visitors::_S[..variants.len()], // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(name, variants),
                 )
             }
