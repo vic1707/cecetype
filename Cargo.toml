@@ -9,6 +9,7 @@ members = ["schema-macros"]
 [features]
 default = ["alloc"]
 alloc = ["serde/alloc"]
+std = ["alloc", "serde/std"]
 
 [dependencies]
 schema-macros = { path = "schema-macros" }

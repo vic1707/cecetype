@@ -1,16 +1,18 @@
 mod array;
 mod r#enum;
+mod map;
 mod slice;
 mod r#struct;
 mod tuple;
+
 pub use self::{
     array::ArrayVisitor,
+    map::MapVisitor,
     r#enum::{EnumVisitor, OptionVisitor},
     r#struct::{NewTypeStructVisitor, StructVisitor, TupleStructVisitor, UnitStructVisitor},
     slice::SliceVisitor,
     tuple::TupleVisitor,
 };
-
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
     core::marker::PhantomData,

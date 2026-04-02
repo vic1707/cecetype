@@ -7,11 +7,26 @@
     reason = "test file"
 )]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 mod common;
 
 use self::common::*;
+#[cfg(feature = "alloc")]
+use ::alloc::collections::{BTreeSet, LinkedList, VecDeque};
+#[cfg(feature = "std")]
+use ::std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 use ::{
-    core::fmt,
+    core::{
+        cell::{Cell, RefCell},
+        fmt,
+        num::{NonZeroI64, NonZeroU32, Saturating, Wrapping},
+        time::Duration,
+    },
     serde::{de::DeserializeOwned, Serialize},
 };
 
@@ -49,6 +64,19 @@ use ::{
 #[case::enum_nested(BasicEnum::Nested { payload: NestedStruct { inner: BasicStruct { a: 9, b: true }, tuple: (3, false), array: [4, 5, 6] } })]
 #[case::serde_from_into(FromIntoU8 { inner: 0 })]
 #[case::transparent(Transparent { foo: 12, bar: 0 })]
+#[case::nonzero_u32(NonZeroU32::new(42).unwrap())]
+#[case::nonzero_i64(NonZeroI64::new(-100).unwrap())]
+#[case::wrapping_u32(Wrapping(255_u32))]
+#[case::saturating_i16(Saturating(-32000_i16))]
+#[case::cell_u8(Cell::new(7_u8))]
+#[case::refcell_bool(RefCell::new(true))]
+#[case::duration(Duration::new(120, 500_000_000))]
+#[cfg_attr(feature = "alloc", case::btreeset(BTreeSet::from([1_u32, 2, 3])))]
+#[cfg_attr(feature = "alloc", case::vecdeque(VecDeque::from([10_i32, 20_i32, 30_i32])))]
+#[cfg_attr(feature = "alloc", case::linkedlist([1_u8, 2, 3].into_iter().collect::<LinkedList<_>>()))]
+#[cfg_attr(feature = "std", case::pathbuf(PathBuf::from("/usr/local/bin")))]
+#[cfg_attr(feature = "std", case::hashmap(HashMap::from([("key".to_owned(), 42_u32)])))]
+#[cfg_attr(feature = "std", case::hashset(HashSet::from([99_u32])))]
 fn roundtrip<
     F: protocols::Format,
     D: Serialize + ::schema::Schema + DeserializeOwned + PartialEq + fmt::Debug,

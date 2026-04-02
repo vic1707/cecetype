@@ -7,10 +7,26 @@
     reason = "test file"
 )]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 mod common;
 
 use self::common::*;
+#[cfg(feature = "alloc")]
+use ::alloc::collections::{BTreeSet, BinaryHeap, LinkedList, VecDeque};
+#[cfg(feature = "std")]
+use ::std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::{Mutex, RwLock},
+};
 use ::{
+    core::{
+        cell::{Cell, RefCell},
+        num::{NonZeroI64, NonZeroU32, Saturating, Wrapping},
+        time::Duration,
+    },
     schema::{OwnedSchema, OwnedValue, Schema, Value},
     serde::Serialize,
 };
@@ -51,6 +67,22 @@ use ::{
 #[case::enum_nested((BasicEnum::Nested { payload: NestedStruct { inner: BasicStruct { a: 9, b: true }, tuple: (3, false), array: [4, 5, 6] } }, Value::EnumStruct { name: "BasicEnum".to_owned(), discriminant: 3, variant_name: "Nested".to_owned(), fields: vec![("payload".to_owned(), Value::Struct { name: "NestedStruct".to_owned(), fields: vec![("inner".to_owned(), Value::Struct { name: "BasicStruct".to_owned(), fields: vec![("a".to_owned(), Value::U32(9)), ("b".to_owned(), Value::Bool(true))] }), ("tuple".to_owned(), Value::Tuple(vec![Value::U32(3), Value::Bool(false)])), ("array".to_owned(), Value::Array(vec![Value::U8(4), Value::U8(5), Value::U8(6)]))] })] }))]
 #[case::serde_from_into((FromIntoU8 { inner: 0 }, Value::U8(0)))]
 #[case::transparent((Transparent { foo: 12, bar: 2 }, Value::U8(12)))]
+#[case::nonzero_u32((NonZeroU32::new(42).unwrap(), Value::U32(42)))]
+#[case::nonzero_i64((NonZeroI64::new(-100).unwrap(), Value::I64(-100)))]
+#[case::wrapping_u32((Wrapping(255_u32), Value::U32(255)))]
+#[case::saturating_i16((Saturating(-32000_i16), Value::I16(-32000)))]
+#[case::cell_u8((Cell::new(7_u8), Value::U8(7)))]
+#[case::refcell_bool((RefCell::new(true), Value::Bool(true)))]
+#[case::duration((Duration::new(120, 500_000_000), Value::Struct { name: "Duration".to_owned(), fields: vec![("secs".to_owned(), Value::U64(120)), ("nanos".to_owned(), Value::U32(500_000_000))] }))]
+#[cfg_attr(feature = "alloc", case::btreeset((BTreeSet::from([1_u32, 2, 3]), Value::Slice(vec![Value::U32(1), Value::U32(2), Value::U32(3)]))))]
+#[cfg_attr(feature = "alloc", case::vecdeque((VecDeque::from([10_i32, 20_i32, 30_i32]), Value::Slice(vec![Value::I32(10), Value::I32(20), Value::I32(30)]))))]
+#[cfg_attr(feature = "alloc", case::linkedlist(([1_u8, 2, 3].into_iter().collect::<LinkedList<_>>(), Value::Slice(vec![Value::U8(1), Value::U8(2), Value::U8(3)]))))]
+#[cfg_attr(feature = "alloc", case::binaryheap((BinaryHeap::from(vec![42_u32]), Value::Slice(vec![Value::U32(42)]))))]
+#[cfg_attr(feature = "std", case::pathbuf((PathBuf::from("/usr/local/bin"), Value::Str("/usr/local/bin".to_owned()))))]
+#[cfg_attr(feature = "std", case::hashmap((HashMap::from([("key".to_owned(), 42_u32)]), Value::Map(vec![(Value::Str("key".to_owned()), Value::U32(42))]))))]
+#[cfg_attr(feature = "std", case::hashset((HashSet::from([99_u32]), Value::Slice(vec![Value::U32(99)]))))]
+#[cfg_attr(feature = "std", case::mutex((Mutex::new("hello".to_owned()), Value::Str("hello".to_owned()))))]
+#[cfg_attr(feature = "std", case::rwlock((RwLock::new("hello".to_owned()), Value::Str("hello".to_owned()))))]
 fn value_decoding<F: protocols::Format, D: Serialize + Schema>(
     #[values(
         protocols::Json,
@@ -72,4 +104,22 @@ fn value_decoding<F: protocols::Format, D: Serialize + Schema>(
     let value_decoded = F::decode_value::<D>(&wire).unwrap();
 
     assert_eq!(value_decoded, expected);
+}
+
+/// `PhantomData` cannot roundtrip through `MessagePack` (serializes as empty
+/// sequence instead of unit), so it is tested with JSON only.
+#[cfg(test)]
+mod phantom_data_tests {
+    use core::marker::PhantomData;
+
+    use schema::{Owned, Schema as _, Value};
+
+    #[test]
+    fn phantom_data_json() {
+        let wire = serde_json::to_string(&PhantomData::<String>).unwrap();
+        let value = <PhantomData<String>>::SCHEMA
+            .decode_value::<_, Owned>(&mut serde_json::Deserializer::from_str(&wire))
+            .unwrap();
+        assert_eq!(value, Value::Unit);
+    }
 }

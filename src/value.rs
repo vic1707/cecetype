@@ -1,5 +1,5 @@
 use crate::flavors::ValueFlavor;
-use {
+use ::{
     core::{fmt, mem, ops::Deref},
     derive_where::derive_where,
 };
@@ -45,6 +45,7 @@ pub enum Value<F: ValueFlavor> {
 
     Array(F::List<Self>),
     Slice(F::List<Self>),
+    Map(F::List<(Self, Self)>),
 
     Tuple(F::List<Self>),
 
@@ -129,6 +130,17 @@ where
                     write!(f, "{val}")?;
                 }
                 write!(f, "]")
+            }
+
+            Self::Map(entries) => {
+                write!(f, "{{")?;
+                for (i, (key, val)) in entries.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{key}: {val}")?;
+                }
+                write!(f, "}}")
             }
 
             Self::Tuple(values) => {
@@ -251,6 +263,16 @@ where
             Self::I128(val) => val.serialize(serializer),
 
             Self::Slice(val) => val.serialize(serializer),
+
+            Self::Map(entries) => {
+                use ::serde::ser::SerializeMap as _;
+
+                let mut map = serializer.serialize_map(Some(entries.len()))?;
+                for (key, val) in &**entries {
+                    map.serialize_entry(key, val)?;
+                }
+                map.end()
+            }
 
             Self::Array(values) | Self::Tuple(values) => {
                 use ::serde::ser::SerializeTuple as _;

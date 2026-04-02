@@ -57,6 +57,17 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
         element: F::Ptr<Self>,
     },
 
+    Map {
+        #[schema(ref("TypeSchema"))]
+        #[serde(serialize_with = "ser::serialize_ptr")]
+        #[serde(deserialize_with = "F::deserialize_ptr")]
+        key: F::Ptr<Self>,
+        #[schema(ref("TypeSchema"))]
+        #[serde(serialize_with = "ser::serialize_ptr")]
+        #[serde(deserialize_with = "F::deserialize_ptr")]
+        value: F::Ptr<Self>,
+    },
+
     Tuple {
         #[schema(ref("[TypeSchema]"))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
@@ -224,6 +235,10 @@ where
                 write!(f, "[{}]", &**element)
             }
 
+            TypeSchema::Map { key, value } => {
+                write!(f, "Map<{}, {}>", &**key, &**value)
+            }
+
             TypeSchema::Tuple { elements } => {
                 write!(f, "(")?;
                 for (i, elem) in elements.deref().iter().enumerate() {
@@ -364,6 +379,9 @@ where
             }
             TypeSchema::Slice { element } => {
                 deserializer.deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element))
+            }
+            TypeSchema::Map { key, value } => {
+                deserializer.deserialize_map(visitors::MapVisitor::<SF, VF>::new(key, value))
             }
             TypeSchema::Tuple { elements } => deserializer.deserialize_tuple(
                 elements.len(),

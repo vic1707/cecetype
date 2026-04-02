@@ -1,8 +1,11 @@
 #![expect(clippy::min_ident_chars, dead_code, reason = "shared test fixtures")]
 
 pub mod protocols;
-use ::schema::*;
-use ::serde::{Deserialize, Serialize};
+
+use ::{
+    schema::*,
+    serde::{Deserialize, Serialize},
+};
 
 #[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
 pub struct BasicStruct {

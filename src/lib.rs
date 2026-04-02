@@ -5,6 +5,9 @@ extern crate self as schema;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(feature = "std")]
+extern crate std;
+
 mod flavors;
 mod type_schema;
 mod value;
