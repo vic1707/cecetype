@@ -2,10 +2,10 @@ mod primitive_impls;
 mod visitors;
 
 use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder};
-use {
+use ::{
     core::{fmt, ops::Deref as _},
     derive_where::derive_where,
-    serde::{Deserialize, Serialize},
+    serde::{de, Deserialize, Serialize},
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::Schema)]
@@ -352,19 +352,57 @@ impl<'s, SF> TypeSchema<'s, SF>
 where
     SF: SchemaFlavor<'s>,
 {
+    /// Deserialize a [`Value`] from the given deserializer using this schema.
+    ///
+    /// This is the main entry point for schema-driven deserialization.
+    /// [`TypeSchema::Ref`] nodes are resolved automatically: named nodes
+    /// (`Struct`, `Enum`, `NewTypeStruct`, `TupleStruct`) register themselves
+    /// in an internal resolver as they are entered, so nested `Ref` nodes can
+    /// look them up by name.
     #[inline]
     pub fn decode_value<'de, D, VF>(&'s self, deserializer: D) -> Result<Value<VF>, D::Error>
     where
         D: serde::Deserializer<'de>,
         VF: ValueBuilder,
-        // To check
+        VF::Str: Deserialize<'de>,
+    {
+        self.decode_value_with_resolver::<_, VF>(deserializer, None)
+    }
+
+    /// Deserialize a [`Value`] from the given deserializer, resolving any
+    /// [`TypeSchema::Ref`] nodes against the provided resolver chain.
+    ///
+    /// Named nodes (`Struct`, `Enum`, `UnitStruct`, `NewTypeStruct`,
+    /// `TupleStruct`) push themselves onto the resolver chain so that nested
+    /// `Ref` nodes can find them.
+    pub(crate) fn decode_value_with_resolver<'de, D, VF>(
+        &'s self,
+        deserializer: D,
+        resolver: Option<&visitors::Resolver<'_, 's, SF>>,
+    ) -> Result<Value<VF>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+        VF: ValueBuilder,
         VF::Str: Deserialize<'de>,
     {
         match self {
-            #[expect(clippy::unimplemented, reason = "TODO, maybe")]
-            TypeSchema::Ref { .. } => {
-                unimplemented!("Cannot deserialize a schema Ref, yet.")
+            TypeSchema::Ref { name, kind } => {
+                let target = resolver.and_then(|res| res.resolve(name)).ok_or_else(|| {
+                    de::Error::custom(format_args!("unresolved schema ref `{}`", &**name))
+                })?;
+
+                match kind {
+                    RefKind::Direct => {
+                        target.decode_value_with_resolver::<_, VF>(deserializer, resolver)
+                    }
+                    RefKind::Slice => {
+                        deserializer.deserialize_seq(visitors::RefSliceVisitor::<SF, VF>::new(
+                            target, resolver,
+                        ))
+                    }
+                }
             }
+
             TypeSchema::Unit => {
                 <()>::deserialize(deserializer)?;
                 Ok(Value::Unit)
@@ -385,52 +423,61 @@ where
             TypeSchema::U128 => Ok(Value::U128(u128::deserialize(deserializer)?)),
             TypeSchema::I128 => Ok(Value::I128(i128::deserialize(deserializer)?)),
 
-            TypeSchema::Array { element, len } => {
-                // array is fixed length, not a seq
-                deserializer
-                    .deserialize_tuple(*len, visitors::ArrayVisitor::<SF, VF>::new(element, *len))
-            }
-            TypeSchema::Slice { element } => {
-                deserializer.deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element))
-            }
+            TypeSchema::Array { element, len } => deserializer.deserialize_tuple(
+                *len,
+                visitors::ArrayVisitor::<SF, VF>::new(element, *len, resolver),
+            ),
+            TypeSchema::Slice { element } => deserializer
+                .deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element, resolver)),
             TypeSchema::Map { key, value } => {
-                deserializer.deserialize_map(visitors::MapVisitor::<SF, VF>::new(key, value))
+                deserializer
+                    .deserialize_map(visitors::MapVisitor::<SF, VF>::new(key, value, resolver))
             }
             TypeSchema::Tuple { elements } => deserializer.deserialize_tuple(
                 elements.len(),
-                visitors::TupleVisitor::<SF, VF>::new(elements),
+                visitors::TupleVisitor::<SF, VF>::new(elements, resolver),
             ),
 
             TypeSchema::UnitStruct { name } => deserializer
                 .deserialize_unit_struct("", visitors::UnitStructVisitor::<SF, VF>::new(name)),
-            TypeSchema::NewTypeStruct { name, field } => deserializer.deserialize_newtype_struct(
-                "",
-                visitors::NewTypeStructVisitor::<SF, VF>::new(name, field),
-            ),
-            TypeSchema::TupleStruct { name, fields } => deserializer.deserialize_tuple_struct(
-                "",
-                fields.len(),
-                visitors::TupleStructVisitor::<SF, VF>::new(name, fields),
-            ),
-            TypeSchema::Struct { name, fields } => deserializer.deserialize_struct(
-                "", // dunno
-                // Cannot send empty list as postcard uses the length to encode
-                visitors::names(fields.len()), // dirty ass hack
-                visitors::StructVisitor::<SF, VF>::new(name, fields),
-            ),
+
+            TypeSchema::NewTypeStruct { name, field } => {
+                let entry = visitors::Resolver::new(name, self, resolver);
+                deserializer.deserialize_newtype_struct(
+                    "",
+                    visitors::NewTypeStructVisitor::<SF, VF>::new(name, field, Some(&entry)),
+                )
+            }
+            TypeSchema::TupleStruct { name, fields } => {
+                let entry = visitors::Resolver::new(name, self, resolver);
+                deserializer.deserialize_tuple_struct(
+                    "",
+                    fields.len(),
+                    visitors::TupleStructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
+                )
+            }
+            TypeSchema::Struct { name, fields } => {
+                let entry = visitors::Resolver::new(name, self, resolver);
+                deserializer.deserialize_struct(
+                    "", // dunno
+                    // Cannot send empty list as postcard uses the length to encode
+                    visitors::names(fields.len()), // dirty ass hack
+                    visitors::StructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
+                )
+            }
 
             TypeSchema::Enum { name, variants } => {
+                let entry = visitors::Resolver::new(name, self, resolver);
                 deserializer.deserialize_enum(
                     "", // dunno
                     // Cannot send empty list as postcard uses the length to encode
                     visitors::names(variants.len()), // dirty ass hack
-                    visitors::EnumVisitor::<SF, VF>::new(name, variants),
+                    visitors::EnumVisitor::<SF, VF>::new(name, variants, Some(&entry)),
                 )
             }
 
-            TypeSchema::Option(schema) => {
-                deserializer.deserialize_option(visitors::OptionVisitor::<SF, VF>::new(schema))
-            }
+            TypeSchema::Option(schema) => deserializer
+                .deserialize_option(visitors::OptionVisitor::<SF, VF>::new(schema, resolver)),
         }
     }
 }

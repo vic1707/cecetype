@@ -1,4 +1,4 @@
-use super::{StructVisitor, TupleVisitor};
+use super::{Resolver, StructVisitor, TupleVisitor};
 use crate::{
     type_schema::visitors::Seed, SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor,
     VariantSchema,
@@ -16,24 +16,30 @@ enum VariantId<VF: ValueFlavor> {
     Name(VF::Str),
 }
 
-pub struct EnumVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
     name: &'s SF::Str,
     variants: &'s SF::List<VariantSchema<'s, SF>>,
+    resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> EnumVisitor<'s, SF, VF> {
-    pub const fn new(name: &'s SF::Str, variants: &'s SF::List<VariantSchema<'s, SF>>) -> Self {
+impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> EnumVisitor<'a, 's, SF, VF> {
+    pub const fn new(
+        name: &'s SF::Str,
+        variants: &'s SF::List<VariantSchema<'s, SF>>,
+        resolver: Option<&'a Resolver<'a, 's, SF>>,
+    ) -> Self {
         Self {
             name,
             variants,
+            resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for EnumVisitor<'s, SF, VF>
+impl<'de, 's, SF, VF> Visitor<'de> for EnumVisitor<'_, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
@@ -78,8 +84,10 @@ where
             }
 
             VariantSchema::Tuple { fields, .. } => {
-                let Value::Tuple(fields_schema) = variant_access
-                    .tuple_variant(fields.len(), TupleVisitor::<SF, VF>::new(fields))?
+                let Value::Tuple(fields_schema) = variant_access.tuple_variant(
+                    fields.len(),
+                    TupleVisitor::<SF, VF>::new(fields, self.resolver),
+                )?
                 else {
                     unreachable!()
                 };
@@ -98,6 +106,7 @@ where
             } => {
                 let field = VF::make_ptr(variant_access.newtype_variant_seed(Seed {
                     schema: field_schema,
+                    resolver: self.resolver,
                     _p: PhantomData,
                 })?);
 
@@ -116,7 +125,7 @@ where
                 } = variant_access.struct_variant(
                     // Cannot send empty list as postcard uses the length to encode
                     super::names(fields.len()),
-                    StructVisitor::<SF, VF>::new(name, fields),
+                    StructVisitor::<SF, VF>::new(name, fields, self.resolver),
                 )?
                 else {
                     unreachable!()
@@ -135,22 +144,27 @@ where
     }
 }
 
-pub struct OptionVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+pub struct OptionVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
     some: &'s TypeSchema<'s, SF>,
+    resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>, VF: ValueBuilder> OptionVisitor<'s, SF, VF> {
-    pub const fn new(some: &'s TypeSchema<'s, SF>) -> Self {
+impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> OptionVisitor<'a, 's, SF, VF> {
+    pub const fn new(
+        some: &'s TypeSchema<'s, SF>,
+        resolver: Option<&'a Resolver<'a, 's, SF>>,
+    ) -> Self {
         Self {
             some,
+            resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for OptionVisitor<'s, SF, VF>
+impl<'de, 's, SF, VF> Visitor<'de> for OptionVisitor<'_, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
@@ -173,7 +187,9 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        let value = self.some.decode_value::<_, VF>(deserializer)?;
+        let value = self
+            .some
+            .decode_value_with_resolver::<_, VF>(deserializer, self.resolver)?;
         Ok(Value::Option(Some(VF::make_ptr(value))))
     }
 }

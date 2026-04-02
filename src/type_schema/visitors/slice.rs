@@ -1,4 +1,4 @@
-use super::Seed;
+use super::{Resolver, Seed};
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
     core::{fmt, marker::PhantomData},
@@ -8,21 +8,26 @@ use ::{
     },
 };
 
-pub struct SliceVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
+pub struct SliceVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
     element: &'s SF::Ptr<TypeSchema<'s, SF>>,
+    resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> SliceVisitor<'s, SF, VF> {
-    pub const fn new(element: &'s SF::Ptr<TypeSchema<'s, SF>>) -> Self {
+impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> SliceVisitor<'a, 's, SF, VF> {
+    pub const fn new(
+        element: &'s SF::Ptr<TypeSchema<'s, SF>>,
+        resolver: Option<&'a Resolver<'a, 's, SF>>,
+    ) -> Self {
         Self {
             element,
+            resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for SliceVisitor<'s, SF, VF>
+impl<'de, 's, SF, VF> Visitor<'de> for SliceVisitor<'_, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
@@ -44,6 +49,7 @@ where
 
         while let Some(el) = seq.next_element_seed(Seed {
             schema: self.element,
+            resolver: self.resolver,
             _p: PhantomData,
         })? {
             VF::list_push(&mut values, el);

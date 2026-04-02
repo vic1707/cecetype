@@ -1,4 +1,4 @@
-use super::Seed;
+use super::{Resolver, Seed};
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
     core::{fmt, marker::PhantomData},
@@ -8,23 +8,29 @@ use ::{
     },
 };
 
-pub struct ArrayVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
+pub struct ArrayVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
     element: &'s SF::Ptr<TypeSchema<'s, SF>>,
     len: usize,
+    resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> ArrayVisitor<'s, SF, VF> {
-    pub const fn new(element: &'s SF::Ptr<TypeSchema<'s, SF>>, len: usize) -> Self {
+impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> ArrayVisitor<'a, 's, SF, VF> {
+    pub const fn new(
+        element: &'s SF::Ptr<TypeSchema<'s, SF>>,
+        len: usize,
+        resolver: Option<&'a Resolver<'a, 's, SF>>,
+    ) -> Self {
         Self {
             element,
             len,
+            resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for ArrayVisitor<'s, SF, VF>
+impl<'de, 's, SF, VF> Visitor<'de> for ArrayVisitor<'_, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
@@ -46,6 +52,7 @@ where
             let el = seq
                 .next_element_seed(Seed {
                     schema: self.element,
+                    resolver: self.resolver,
                     _p: PhantomData,
                 })?
                 .ok_or_else(|| de::Error::invalid_length(i, &self))?;

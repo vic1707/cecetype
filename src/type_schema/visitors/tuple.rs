@@ -1,4 +1,4 @@
-use super::Seed;
+use super::{Resolver, Seed};
 use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
 use ::{
     core::{fmt, marker::PhantomData},
@@ -8,21 +8,26 @@ use ::{
     },
 };
 
-pub struct TupleVisitor<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
+pub struct TupleVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
     elements: &'s SF::List<TypeSchema<'s, SF>>,
+    resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>, VF: ValueFlavor> TupleVisitor<'s, SF, VF> {
-    pub const fn new(elements: &'s SF::List<TypeSchema<'s, SF>>) -> Self {
+impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> TupleVisitor<'a, 's, SF, VF> {
+    pub const fn new(
+        elements: &'s SF::List<TypeSchema<'s, SF>>,
+        resolver: Option<&'a Resolver<'a, 's, SF>>,
+    ) -> Self {
         Self {
             elements,
+            resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for TupleVisitor<'s, SF, VF>
+impl<'de, 's, SF, VF> Visitor<'de> for TupleVisitor<'_, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
@@ -44,6 +49,7 @@ where
             let el = seq
                 .next_element_seed(Seed {
                     schema,
+                    resolver: self.resolver,
                     _p: PhantomData,
                 })?
                 .ok_or_else(|| de::Error::invalid_length(values.len(), &self))?;

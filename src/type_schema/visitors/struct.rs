@@ -1,4 +1,4 @@
-use super::Seed;
+use super::{Resolver, Seed};
 use crate::{FieldSchema, SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
     core::{fmt, iter, marker::PhantomData},
@@ -8,32 +8,38 @@ use ::{
     },
 };
 
-pub struct StructVisitor<'s, SF, VF>
+pub struct StructVisitor<'a, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
 {
     name: &'s SF::Str,
     fields: &'s SF::List<FieldSchema<'s, SF>>,
+    resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF, VF> StructVisitor<'s, SF, VF>
+impl<'a, 's, SF, VF> StructVisitor<'a, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
 {
-    pub const fn new(name: &'s SF::Str, fields: &'s SF::List<FieldSchema<'s, SF>>) -> Self {
+    pub const fn new(
+        name: &'s SF::Str,
+        fields: &'s SF::List<FieldSchema<'s, SF>>,
+        resolver: Option<&'a Resolver<'a, 's, SF>>,
+    ) -> Self {
         Self {
             name,
             fields,
+            resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for StructVisitor<'s, SF, VF>
+impl<'de, 's, SF, VF> Visitor<'de> for StructVisitor<'_, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
@@ -56,6 +62,7 @@ where
             let value = seq
                 .next_element_seed(Seed {
                     schema: &field.ty,
+                    resolver: self.resolver,
                     _p: PhantomData,
                 })?
                 .ok_or_else(|| de::Error::invalid_length(i, &self))?;
@@ -101,6 +108,7 @@ where
 
             let value = map.next_value_seed(Seed {
                 schema: &field.ty,
+                resolver: self.resolver,
                 _p: PhantomData,
             })?;
 
@@ -172,32 +180,38 @@ where
     }
 }
 
-pub struct TupleStructVisitor<'s, SF, VF>
+pub struct TupleStructVisitor<'a, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
 {
     name: &'s SF::Str,
     fields: &'s SF::List<TypeSchema<'s, SF>>,
+    resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF, VF> TupleStructVisitor<'s, SF, VF>
+impl<'a, 's, SF, VF> TupleStructVisitor<'a, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
 {
-    pub const fn new(name: &'s SF::Str, fields: &'s SF::List<TypeSchema<'s, SF>>) -> Self {
+    pub const fn new(
+        name: &'s SF::Str,
+        fields: &'s SF::List<TypeSchema<'s, SF>>,
+        resolver: Option<&'a Resolver<'a, 's, SF>>,
+    ) -> Self {
         Self {
             name,
             fields,
+            resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for TupleStructVisitor<'s, SF, VF>
+impl<'de, 's, SF, VF> Visitor<'de> for TupleStructVisitor<'_, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
@@ -220,6 +234,7 @@ where
             let value = seq
                 .next_element_seed(Seed {
                     schema,
+                    resolver: self.resolver,
                     _p: PhantomData,
                 })?
                 .ok_or_else(|| de::Error::invalid_length(i, &self))?;
@@ -238,32 +253,38 @@ where
     }
 }
 
-pub struct NewTypeStructVisitor<'s, SF, VF>
+pub struct NewTypeStructVisitor<'a, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
 {
     name: &'s SF::Str,
     field: &'s TypeSchema<'s, SF>,
+    resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VF>,
 }
 
-impl<'s, SF, VF> NewTypeStructVisitor<'s, SF, VF>
+impl<'a, 's, SF, VF> NewTypeStructVisitor<'a, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
 {
-    pub const fn new(name: &'s SF::Str, fields: &'s TypeSchema<'s, SF>) -> Self {
+    pub const fn new(
+        name: &'s SF::Str,
+        fields: &'s TypeSchema<'s, SF>,
+        resolver: Option<&'a Resolver<'a, 's, SF>>,
+    ) -> Self {
         Self {
             name,
             field: fields,
+            resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for NewTypeStructVisitor<'s, SF, VF>
+impl<'de, 's, SF, VF> Visitor<'de> for NewTypeStructVisitor<'_, 's, SF, VF>
 where
     SF: SchemaFlavor<'s>,
     VF: ValueBuilder,
@@ -279,7 +300,9 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        let value = self.field.decode_value::<_, VF>(deserializer)?;
+        let value = self
+            .field
+            .decode_value_with_resolver::<_, VF>(deserializer, self.resolver)?;
 
         Ok(Value::NewTypeStruct {
             name: VF::make_str(self.name),
