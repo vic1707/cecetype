@@ -1,4 +1,4 @@
-use ::schema::{OwnedValue, Schema};
+use schema::{OwnedValue, Schema};
 use ::{
     core::{error, fmt},
     serde::{Deserialize, Serialize},

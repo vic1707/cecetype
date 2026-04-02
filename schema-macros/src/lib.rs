@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "wip")]
 
 mod attrs;
-use self::attrs::{ContainerAttrs, FieldAttrs, VariantAttrs};
+use self::attrs::{ContainerAttrs, FieldAttrs, RefAttrKind, VariantAttrs};
 use ::{
     quote::quote,
     syn::{self, Fields},
@@ -65,10 +65,15 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    if let Some(ref_name) = container_attrs.references {
+    if let Some(ref_attr) = container_attrs.references {
+        let ref_name = ref_attr.name.to_string();
+        let kind = match ref_attr.kind {
+            RefAttrKind::Direct => quote! { ::schema::RefKind::Direct },
+            RefAttrKind::List => quote! { ::schema::RefKind::Slice },
+        };
         return Ok(quote! {
             impl #impl_generics ::schema::Schema for #ident #ty_generics #where_clause {
-                const SCHEMA: &'static ::schema::StaticSchema = &::schema::TypeSchema::Ref(#ref_name);
+                const SCHEMA: &'static ::schema::StaticSchema = &::schema::TypeSchema::Ref { name: #ref_name, kind: #kind };
             }
         });
     }
@@ -180,7 +185,15 @@ fn enum_schema(
                 if let Some(schema) = variant_attrs
                     .references
                     .as_ref()
-                    .map::<::syn::Expr, _>(|ref_name| ::syn::parse_quote! { &::schema::TypeSchema::Ref(#ref_name) })
+                    .map::<::syn::Expr, _>(|ref_attr| {
+                        let ref_name = ref_attr.name.to_string();
+                        let kind = match ref_attr.kind {
+                            RefAttrKind::Direct => quote! { ::schema::RefKind::Direct },
+                            RefAttrKind::List => quote! { ::schema::RefKind::Slice },
+                        };
+
+                        ::syn::parse_quote! { &::schema::TypeSchema::Ref { name: #ref_name, kind: #kind } }
+                    })
                     .or_else(|| variant_attrs.repr_via.as_ref().map(|repr_ty| ::syn::parse_quote! { <#repr_ty as ::schema::Schema>::SCHEMA })
                     )
                 {
@@ -271,7 +284,14 @@ fn field_schema(
             let repr_ty = field_attrs.repr_via.as_ref().unwrap_or(ty);
             ::syn::parse_quote! { <#repr_ty as ::schema::Schema>::SCHEMA }
         },
-        |ref_name| ::syn::parse_quote! { &::schema::TypeSchema::Ref(#ref_name) },
+        |ref_attr| {
+            let ref_name = ref_attr.name.to_string();
+            let kind = match ref_attr.kind {
+                RefAttrKind::Direct => quote! { ::schema::RefKind::Direct },
+                RefAttrKind::List => quote! { ::schema::RefKind::Slice },
+            };
+            ::syn::parse_quote! { &::schema::TypeSchema::Ref { name: #ref_name, kind: #kind } }
+        },
     );
     field_attrs
         .rename

@@ -1,11 +1,21 @@
 use ::syn::punctuated;
 
+pub struct RefAttr {
+    pub name: ::syn::Ident,
+    pub kind: RefAttrKind,
+}
+
+pub enum RefAttrKind {
+    Direct,
+    List,
+}
+
 // Won't support serde's
 // - `rename(...)` / `rename_all(...)` / `rename_all_fields(...)` variations
 // - `default` as we can't (won't) send the default value
 #[derive(Default)]
 pub struct ContainerAttrs {
-    pub references: Option<::syn::LitStr>,
+    pub references: Option<RefAttr>,
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::Type>, // `schema(...)` or serde's `into` + `from`/`try_from`
     pub bounds: Option<punctuated::Punctuated<::syn::WherePredicate, ::syn::Token![,]>>,
@@ -20,7 +30,7 @@ pub struct ContainerAttrs {
 // - `skip_serializing` / `skip_deserializing` as it would cause a desync
 #[derive(Default)]
 pub struct VariantAttrs {
-    pub references: Option<::syn::LitStr>,
+    pub references: Option<RefAttr>,
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::Type>,
     pub skip: bool,
@@ -36,7 +46,7 @@ pub struct VariantAttrs {
 // - `flatten` is probably too hard
 #[derive(Default)]
 pub struct FieldAttrs {
-    pub references: Option<::syn::LitStr>,
+    pub references: Option<RefAttr>,
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::Type>,
     pub skip: bool,
@@ -58,7 +68,7 @@ impl ContainerAttrs {
                 } else if meta.path.is_ident("ref") {
                     let content;
                     let _paren = ::syn::parenthesized!(content in meta.input);
-                    out.references = Some(content.parse()?);
+                    out.references = Some(parse_ref_attr(&content)?);
                 } else if meta.path.is_ident("bounds") {
                     let content;
                     let _paren = ::syn::parenthesized!(content in meta.input);
@@ -202,7 +212,7 @@ impl VariantAttrs {
                 } else if meta.path.is_ident("ref") {
                     let content;
                     let _paren = ::syn::parenthesized!(content in meta.input);
-                    out.references = Some(content.parse()?);
+                    out.references = Some(parse_ref_attr(&content)?);
                 } else {
                     return Err(::syn::Error::new_spanned(
                         meta.path,
@@ -283,7 +293,7 @@ impl FieldAttrs {
                 } else if meta.path.is_ident("ref") {
                     let content;
                     let _paren = ::syn::parenthesized!(content in meta.input);
-                    out.references = Some(content.parse()?);
+                    out.references = Some(parse_ref_attr(&content)?);
                 } else {
                     return Err(::syn::Error::new_spanned(
                         meta.path,
@@ -340,4 +350,23 @@ impl FieldAttrs {
 
         Ok(out)
     }
+}
+
+fn parse_ref_attr(content: &::syn::parse::ParseBuffer) -> ::syn::Result<RefAttr> {
+    let name: ::syn::Ident = content.parse()?;
+    let kind = if content.peek(::syn::Token![,]) {
+        let _comma: ::syn::Token![,] = content.parse()?;
+        let kind_ident: ::syn::Ident = content.parse()?;
+        if kind_ident == "list" {
+            RefAttrKind::List
+        } else {
+            return Err(::syn::Error::new_spanned(
+                kind_ident,
+                "Schema: expected `list`",
+            ));
+        }
+    } else {
+        RefAttrKind::Direct
+    };
+    Ok(RefAttr { name, kind })
 }

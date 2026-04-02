@@ -2,11 +2,18 @@ mod primitive_impls;
 mod visitors;
 
 use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder};
-use ::{
+use {
     core::{fmt, ops::Deref as _},
     derive_where::derive_where,
     serde::{Deserialize, Serialize},
 };
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::Schema)]
+#[non_exhaustive]
+pub enum RefKind {
+    Direct,
+    Slice,
+}
 
 #[derive(crate::Schema)]
 #[schema(bounds(F::Str: crate::Schema))]
@@ -20,7 +27,10 @@ use ::{
 ))]
 #[non_exhaustive]
 pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
-    Ref(F::Str), // special case to avoid recursive/cyclic types
+    Ref {
+        name: F::Str,
+        kind: RefKind,
+    }, // special case to avoid recursive/cyclic types
 
     Unit,
 
@@ -43,7 +53,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     I128,
 
     Array {
-        #[schema(ref("TypeSchema"))]
+        #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         element: F::Ptr<Self>,
@@ -51,25 +61,25 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     },
 
     Slice {
-        #[schema(ref("TypeSchema"))]
+        #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         element: F::Ptr<Self>,
     },
 
     Map {
-        #[schema(ref("TypeSchema"))]
+        #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         key: F::Ptr<Self>,
-        #[schema(ref("TypeSchema"))]
+        #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         value: F::Ptr<Self>,
     },
 
     Tuple {
-        #[schema(ref("[TypeSchema]"))]
+        #[schema(ref(TypeSchema, list))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         elements: F::List<Self>,
@@ -80,14 +90,14 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     },
     NewTypeStruct {
         name: F::Str,
-        #[schema(ref("TypeSchema"))]
+        #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         field: F::Ptr<Self>,
     },
     TupleStruct {
         name: F::Str,
-        #[schema(ref("[TypeSchema]"))]
+        #[schema(ref(TypeSchema, list))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<Self>,
@@ -109,7 +119,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     },
 
     Option(
-        #[schema(ref("TypeSchema"))]
+        #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         F::Ptr<Self>,
@@ -129,7 +139,7 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
 pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     pub name: F::Str,
     // pub key: u32, // Maybe for future protocols
-    #[schema(ref("TypeSchema"))]
+    #[schema(ref(TypeSchema))]
     #[serde(serialize_with = "ser::serialize_ptr")]
     #[serde(deserialize_with = "F::deserialize_ptr")]
     pub ty: F::Ptr<TypeSchema<'s, F>>,
@@ -156,7 +166,7 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     NewType {
         name: F::Str,
         discriminant: u32,
-        #[schema(ref("TypeSchema"))]
+        #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "F::deserialize_ptr")]
         field: F::Ptr<TypeSchema<'s, F>>,
@@ -164,7 +174,7 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Tuple {
         name: F::Str,
         discriminant: u32,
-        #[schema(ref("[TypeSchema]"))]
+        #[schema(ref(TypeSchema, list))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<TypeSchema<'s, F>>,
@@ -172,7 +182,7 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Struct {
         name: F::Str,
         discriminant: u32,
-        #[schema(ref("[FieldSchema]"))]
+        #[schema(ref(FieldSchema, list))]
         // #[schema(as([FieldSchema<'s, F>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
@@ -206,7 +216,10 @@ where
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TypeSchema::Ref(ref_name) => write!(f, "-> {}", &**ref_name),
+            TypeSchema::Ref { name, kind } => match kind {
+                RefKind::Direct => write!(f, "-> {}", &**name),
+                RefKind::Slice => write!(f, "-> [{}]", &**name),
+            },
             TypeSchema::Unit => write!(f, "()"),
             TypeSchema::Bool => write!(f, "bool"),
             TypeSchema::Str => write!(f, "str"),
@@ -349,7 +362,7 @@ where
     {
         match self {
             #[expect(clippy::unimplemented, reason = "TODO, maybe")]
-            TypeSchema::Ref(_ref_name) => {
+            TypeSchema::Ref { .. } => {
                 unimplemented!("Cannot deserialize a schema Ref, yet.")
             }
             TypeSchema::Unit => {
