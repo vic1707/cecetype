@@ -182,8 +182,7 @@ pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
     Struct {
         name: F::Str,
         discriminant: u32,
-        #[schema(ref(FieldSchema, list))]
-        // #[schema(as([FieldSchema<'s, F>]))]
+        #[schema(as([FieldSchema<'s, F>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
         fields: F::List<FieldSchema<'s, F>>,
