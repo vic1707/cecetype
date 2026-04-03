@@ -2,6 +2,8 @@
 mod alloc_impls;
 #[cfg(feature = "std")]
 mod std_impls;
+#[cfg(feature = "heapless")]
+mod heapless_impls;
 
 use crate::{FieldSchema, Schema, StaticSchema, TypeSchema, VariantSchema};
 use ::core::{
