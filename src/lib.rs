@@ -11,6 +11,7 @@ extern crate std;
 mod flavors;
 mod type_schema;
 mod value;
+mod utils;
 
 pub use self::{
     flavors::{

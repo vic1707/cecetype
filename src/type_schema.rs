@@ -1,7 +1,9 @@
 mod primitive_impls;
 mod visitors;
 
-use crate::{flavors::ser, OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder};
+use crate::{
+    flavors::ser, utils::as_static_str, OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder,
+};
 use ::{
     core::{fmt, ops::Deref as _},
     derive_where::derive_where,
@@ -135,7 +137,8 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
         elements: F::List<Self>,
     },
 
-    Struct { // TODO: tuple variant when `yaml_serde` supports nested enums
+    Struct {
+        // TODO: tuple variant when `yaml_serde` supports nested enums
         data: Data<'s, F>,
     },
 
@@ -404,20 +407,22 @@ where
             ),
 
             TypeSchema::Struct { data } => match data {
-                Data::Unit { name } => deserializer
-                    .deserialize_unit_struct("", visitors::UnitStructVisitor::<SF, VF>::new(name)),
+                Data::Unit { name } => deserializer.deserialize_unit_struct(
+                    as_static_str(name),
+                    visitors::UnitStructVisitor::<SF, VF>::new(name),
+                ),
 
                 Data::NewType { name, field } => {
                     let entry = visitors::Resolver::new(name, self, resolver);
                     deserializer.deserialize_newtype_struct(
-                        "",
+                        as_static_str(name),
                         visitors::NewTypeStructVisitor::<SF, VF>::new(name, field, Some(&entry)),
                     )
                 }
                 Data::Tuple { name, fields } => {
                     let entry = visitors::Resolver::new(name, self, resolver);
                     deserializer.deserialize_tuple_struct(
-                        "",
+                        as_static_str(name),
                         fields.len(),
                         visitors::TupleStructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
                     )
@@ -425,7 +430,7 @@ where
                 Data::Struct { name, fields } => {
                     let entry = visitors::Resolver::new(name, self, resolver);
                     deserializer.deserialize_struct(
-                        "", // dunno
+                        as_static_str(name), // dunno
                         // Cannot send empty list as postcard uses the length to encode
                         visitors::names(fields.len()), // dirty ass hack
                         visitors::StructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
@@ -436,7 +441,7 @@ where
             TypeSchema::Enum { name, variants } => {
                 let entry = visitors::Resolver::new(name, self, resolver);
                 deserializer.deserialize_enum(
-                    "", // dunno
+                    as_static_str(name), // dunno
                     // Cannot send empty list as postcard uses the length to encode
                     visitors::names(variants.len()), // dirty ass hack
                     visitors::EnumVisitor::<SF, VF>::new(name, variants, Some(&entry)),

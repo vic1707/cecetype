@@ -1,23 +1,5 @@
-use crate::flavors::ValueFlavor;
-use ::{
-    core::{fmt, mem, ops::Deref},
-    derive_where::derive_where,
-};
-
-/// Extends the lifetime of a `&str` to `'static`.
-///
-/// # Safety
-/// The caller must ensure the returned `&'static str` is not used after the
-/// original string data is dropped. This is sound within serde serialization
-/// because the serializer only uses the reference during the `serialize` call,
-/// and the `Value` (which owns the string) is borrowed for the entire duration.
-#[inline]
-fn as_static_str(val: &(impl Deref<Target = str> + ?Sized)) -> &'static str {
-    // SAFETY: serde's Serializer trait requires `&'static str` for names, but
-    // only uses the reference during the serialize method call. The string data
-    // lives inside the `Value` which is borrowed by `&self` for the entire call.
-    unsafe { mem::transmute::<&str, &'static str>(&**val) }
-}
+use crate::{flavors::ValueFlavor, utils::as_static_str};
+use ::{core::fmt, derive_where::derive_where};
 
 #[derive_where(Debug;)] // prevents compiler bounds check overflow & `F: Debug` bound
 #[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
@@ -82,7 +64,8 @@ pub enum Value<F: ValueFlavor> {
 
     Tuple(F::List<Self>),
 
-    Struct { // TODO: tuple variant when `yaml_serde` supports nested enums
+    Struct {
+        // TODO: tuple variant when `yaml_serde` supports nested enums
         data: Data<F>,
     },
 
