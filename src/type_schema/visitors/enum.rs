@@ -66,7 +66,7 @@ where
                 .variants
                 .deref()
                 .iter()
-                .find(|variant| variant.discriminant() == idx),
+                .find(|variant| variant.discriminant() == *idx),
         }
         .ok_or_else(|| {
             de::Error::custom(format_args!("unknown variant: `{variant_identifier}`"))
@@ -78,7 +78,7 @@ where
 
                 Value::EnumUnit {
                     name: VF::make_str(self.name),
-                    discriminant: *variant_schema.discriminant(),
+                    discriminant: variant_schema.discriminant(),
                     variant_name: VF::make_str(variant_schema.name()),
                 }
             }
@@ -94,7 +94,7 @@ where
 
                 Value::EnumTuple {
                     name: VF::make_str(self.name),
-                    discriminant: *variant_schema.discriminant(),
+                    discriminant: variant_schema.discriminant(),
                     variant_name: VF::make_str(variant_schema.name()),
                     fields: fields_schema,
                 }
@@ -112,7 +112,7 @@ where
 
                 Value::EnumNewType {
                     name: VF::make_str(self.name),
-                    discriminant: *variant_schema.discriminant(),
+                    discriminant: variant_schema.discriminant(),
                     variant_name: VF::make_str(variant_schema.name()),
                     field,
                 }
@@ -133,7 +133,7 @@ where
 
                 Value::EnumStruct {
                     name: VF::make_str(self.name),
-                    discriminant: *variant_schema.discriminant(),
+                    discriminant: variant_schema.discriminant(),
                     variant_name: VF::make_str(variant_schema.name()),
                     fields: fields_schema,
                 }

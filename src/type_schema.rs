@@ -198,12 +198,12 @@ impl<'s, F: SchemaFlavor<'s>> VariantSchema<'s, F> {
             | Self::NewType { name, .. } => name,
         }
     }
-    const fn discriminant(&self) -> &u32 {
+    const fn discriminant(&self) -> u32 {
         match self {
             Self::Struct { discriminant, .. }
             | Self::Unit { discriminant, .. }
             | Self::Tuple { discriminant, .. }
-            | Self::NewType { discriminant, .. } => discriminant,
+            | Self::NewType { discriminant, .. } => *discriminant,
         }
     }
 }
