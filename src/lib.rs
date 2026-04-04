@@ -19,7 +19,7 @@ pub use self::{
     type_schema::{FieldSchema, RefKind, TypeSchema, VariantSchema},
     value::Value,
 };
-pub use schema_macros::Schema;
+pub use ::schema_macros::Schema;
 
 pub trait Schema {
     const SCHEMA: &'static StaticSchema;

@@ -1,7 +1,7 @@
 mod borrowed;
 mod owned;
 
-use core::{
+use ::core::{
     fmt,
     ops::{Deref, DerefMut},
 };

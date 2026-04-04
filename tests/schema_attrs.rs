@@ -34,7 +34,6 @@ enum SchemaAttrOnTupleVariant {
 
 #[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
 enum SchemaAttrOnTupleVariantField {
-    
     Foo(u16, #[schema(as(u8))] bool),
 }
 

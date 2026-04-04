@@ -110,9 +110,8 @@ fn value_decoding<F: protocols::Format, D: Serialize + Schema>(
 /// sequence instead of unit), so it is tested with JSON only.
 #[cfg(test)]
 mod phantom_data_tests {
-    use core::marker::PhantomData;
-
-    use schema::{Owned, Schema as _, Value};
+    use ::core::marker::PhantomData;
+    use ::schema::{Owned, Schema as _, Value};
 
     #[test]
     fn phantom_data_json() {

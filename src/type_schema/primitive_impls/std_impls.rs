@@ -1,5 +1,5 @@
 use crate::{Schema, StaticSchema, TypeSchema};
-use std::{
+use ::std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::{Mutex, RwLock},
