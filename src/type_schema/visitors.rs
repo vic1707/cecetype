@@ -27,8 +27,6 @@ use ::{
 /// Each entry maps a type name to its schema. When entering a named node
 /// (Struct, Enum, etc.), a new `Resolver` is pushed onto the stack. When a
 /// `Ref { name, kind }` is encountered, the chain is walked to find the schema.
-///
-/// Zero heap allocation — lives entirely on the call stack.
 pub struct Resolver<'a, 's, SF: SchemaFlavor<'s>> {
     name: &'s str,
     schema: &'s TypeSchema<'s, SF>,

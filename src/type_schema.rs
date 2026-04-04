@@ -323,11 +323,7 @@ where
 {
     /// Deserialize a [`Value`] from the given deserializer using this schema.
     ///
-    /// This is the main entry point for schema-driven deserialization.
-    /// [`TypeSchema::Ref`] nodes are resolved automatically: named nodes
-    /// (`Struct`, `Enum`, `NewTypeStruct`, `TupleStruct`) register themselves
-    /// in an internal resolver as they are entered, so nested `Ref` nodes can
-    /// look them up by name.
+    /// [`TypeSchema::Ref`] nodes are resolved automatically.
     #[inline]
     pub fn decode_value<'de, D, VF>(&'s self, deserializer: D) -> Result<Value<VF>, D::Error>
     where
@@ -338,11 +334,6 @@ where
         self.decode_value_with_resolver::<_, VF>(deserializer, None)
     }
 
-    /// Deserialize a [`Value`] from the given deserializer, resolving any
-    /// [`TypeSchema::Ref`] nodes against the provided resolver chain.
-    ///
-    /// Named nodes (`Struct`, `Enum`) push themselves onto the resolver chain
-    /// so that nested `Ref` nodes can find them.
     pub(crate) fn decode_value_with_resolver<'de, D, VF>(
         &'s self,
         deserializer: D,
