@@ -1,5 +1,5 @@
 use super::{Resolver, Seed};
-use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
+use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
     core::{fmt, marker::PhantomData},
     serde::{
@@ -8,13 +8,13 @@ use ::{
     },
 };
 
-pub struct SliceVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
+pub struct SliceVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
     element: &'s SF::Ptr<TypeSchema<'s, SF>>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VF>,
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> SliceVisitor<'a, 's, SF, VF> {
+impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> SliceVisitor<'a, 's, SF, VF> {
     pub const fn new(
         element: &'s SF::Ptr<TypeSchema<'s, SF>>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,

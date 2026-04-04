@@ -1,5 +1,5 @@
 use super::{Resolver, Seed};
-use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor};
+use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
     core::{fmt, marker::PhantomData},
     serde::{
@@ -8,14 +8,14 @@ use ::{
     },
 };
 
-pub struct MapVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> {
+pub struct MapVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
     key: &'s SF::Ptr<TypeSchema<'s, SF>>,
     value: &'s SF::Ptr<TypeSchema<'s, SF>>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VF>,
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueFlavor> MapVisitor<'a, 's, SF, VF> {
+impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> MapVisitor<'a, 's, SF, VF> {
     pub const fn new(
         key: &'s SF::Ptr<TypeSchema<'s, SF>>,
         value: &'s SF::Ptr<TypeSchema<'s, SF>>,
