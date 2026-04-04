@@ -16,8 +16,8 @@ pub use self::{
     flavors::{
         ser, Borrowed, Owned, OwnedSchemaFlavor, SchemaFlavor, Static, ValueBuilder, ValueFlavor,
     },
-    type_schema::{FieldSchema, RefKind, TypeSchema, VariantSchema},
-    value::Value,
+    type_schema::{Data, FieldSchema, RefKind, TypeSchema},
+    value::{Data as ValueData, Value},
 };
 pub use ::schema_macros::Schema;
 

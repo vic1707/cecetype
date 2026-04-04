@@ -11,7 +11,7 @@ mod common;
 
 use self::common::protocols;
 use ::{
-    schema::{Owned, Schema, Value},
+    schema::{Owned, Schema, Value, ValueData},
     serde::{Deserialize, Serialize},
 };
 
@@ -39,11 +39,13 @@ fn tree_leaf_json() {
     assert_eq!(
         value,
         Value::Struct {
-            name: "TreeNode".to_owned(),
-            fields: vec![
-                ("label".to_owned(), Value::U32(1)),
-                ("children".to_owned(), Value::Slice(vec![])),
-            ],
+            data: ValueData::Struct {
+                name: "TreeNode".to_owned(),
+                fields: vec![
+                    ("label".to_owned(), Value::U32(1)),
+                    ("children".to_owned(), Value::Slice(vec![])),
+                ],
+            }
         }
     );
 }
@@ -73,33 +75,39 @@ fn tree_nested_json() {
         .unwrap();
 
     let leaf = |label| Value::Struct {
-        name: "TreeNode".to_owned(),
-        fields: vec![
-            ("label".to_owned(), Value::U32(label)),
-            ("children".to_owned(), Value::Slice(vec![])),
-        ],
+        data: ValueData::Struct {
+            name: "TreeNode".to_owned(),
+            fields: vec![
+                ("label".to_owned(), Value::U32(label)),
+                ("children".to_owned(), Value::Slice(vec![])),
+            ],
+        },
     };
 
     assert_eq!(
         value,
         Value::Struct {
-            name: "TreeNode".to_owned(),
-            fields: vec![
-                ("label".to_owned(), Value::U32(10)),
-                (
-                    "children".to_owned(),
-                    Value::Slice(vec![
-                        leaf(20),
-                        Value::Struct {
-                            name: "TreeNode".to_owned(),
-                            fields: vec![
-                                ("label".to_owned(), Value::U32(30)),
-                                ("children".to_owned(), Value::Slice(vec![leaf(40)])),
-                            ],
-                        },
-                    ])
-                ),
-            ],
+            data: ValueData::Struct {
+                name: "TreeNode".to_owned(),
+                fields: vec![
+                    ("label".to_owned(), Value::U32(10)),
+                    (
+                        "children".to_owned(),
+                        Value::Slice(vec![
+                            leaf(20),
+                            Value::Struct {
+                                data: ValueData::Struct {
+                                    name: "TreeNode".to_owned(),
+                                    fields: vec![
+                                        ("label".to_owned(), Value::U32(30)),
+                                        ("children".to_owned(), Value::Slice(vec![leaf(40)])),
+                                    ],
+                                }
+                            },
+                        ])
+                    ),
+                ],
+            }
         }
     );
 }
@@ -127,11 +135,13 @@ fn expr_literal_json() {
 
     assert_eq!(
         value,
-        Value::EnumNewType {
+        Value::Enum {
             name: "Expr".to_owned(),
             discriminant: 0,
-            variant_name: "Lit".to_owned(),
-            field: Box::new(Value::I32(42)),
+            data: ValueData::NewType {
+                name: "Lit".to_owned(),
+                field: Box::new(Value::I32(42)),
+            },
         }
     );
 }
@@ -151,29 +161,37 @@ fn expr_nested_json() {
 
     assert_eq!(
         value,
-        Value::EnumTuple {
+        Value::Enum {
             name: "Expr".to_owned(),
             discriminant: 1,
-            variant_name: "Add".to_owned(),
-            fields: vec![
-                Value::EnumNewType {
-                    name: "Expr".to_owned(),
-                    discriminant: 2,
-                    variant_name: "Neg".to_owned(),
-                    field: Box::new(Value::EnumNewType {
+            data: ValueData::Tuple {
+                name: "Add".to_owned(),
+                fields: vec![
+                    Value::Enum {
+                        name: "Expr".to_owned(),
+                        discriminant: 2,
+                        data: ValueData::NewType {
+                            name: "Neg".to_owned(),
+                            field: Box::new(Value::Enum {
+                                name: "Expr".to_owned(),
+                                discriminant: 0,
+                                data: ValueData::NewType {
+                                    name: "Lit".to_owned(),
+                                    field: Box::new(Value::I32(1)),
+                                },
+                            }),
+                        },
+                    },
+                    Value::Enum {
                         name: "Expr".to_owned(),
                         discriminant: 0,
-                        variant_name: "Lit".to_owned(),
-                        field: Box::new(Value::I32(1)),
-                    }),
-                },
-                Value::EnumNewType {
-                    name: "Expr".to_owned(),
-                    discriminant: 0,
-                    variant_name: "Lit".to_owned(),
-                    field: Box::new(Value::I32(2)),
-                },
-            ],
+                        data: ValueData::NewType {
+                            name: "Lit".to_owned(),
+                            field: Box::new(Value::I32(2)),
+                        },
+                    },
+                ],
+            },
         }
     );
 }
@@ -187,7 +205,7 @@ fn unresolved_ref_error() {
     // If we deserialize against a raw Ref schema with no surrounding named node,
     // the resolver will be None and we should get an error.
 
-    use schema::{RefKind, Static, TypeSchema};
+    use ::schema::{RefKind, Static, TypeSchema};
 
     let ref_schema: &TypeSchema<Static> = &TypeSchema::Ref {
         name: "Nonexistent",
@@ -239,7 +257,10 @@ fn tree_roundtrip_multiprotocol<F: protocols::Format>(
     let value = F::decode_value::<TreeNode>(&wire).unwrap();
 
     // Verify the structure is correct — check the root and first-level children
-    let Value::Struct { name, fields } = &value else {
+    let Value::Struct {
+        data: ValueData::Struct { name, fields },
+    } = &value
+    else {
         panic!("expected struct, got {value:?}");
     };
     assert_eq!(name, "TreeNode");
@@ -275,11 +296,13 @@ fn chain_base_json() {
 
     assert_eq!(
         value,
-        Value::EnumNewType {
+        Value::Enum {
             name: "Chain".to_owned(),
             discriminant: 0,
-            variant_name: "End".to_owned(),
-            field: Box::new(Value::U32(42)),
+            data: ValueData::NewType {
+                name: "End".to_owned(),
+                field: Box::new(Value::U32(42)),
+            },
         }
     );
 }
@@ -295,21 +318,27 @@ fn chain_nested_json() {
 
     assert_eq!(
         value,
-        Value::EnumNewType {
+        Value::Enum {
             name: "Chain".to_owned(),
             discriminant: 1,
-            variant_name: "Link".to_owned(),
-            field: Box::new(Value::EnumNewType {
-                name: "Chain".to_owned(),
-                discriminant: 1,
-                variant_name: "Link".to_owned(),
-                field: Box::new(Value::EnumNewType {
+            data: ValueData::NewType {
+                name: "Link".to_owned(),
+                field: Box::new(Value::Enum {
                     name: "Chain".to_owned(),
-                    discriminant: 0,
-                    variant_name: "End".to_owned(),
-                    field: Box::new(Value::U32(7)),
+                    discriminant: 1,
+                    data: ValueData::NewType {
+                        name: "Link".to_owned(),
+                        field: Box::new(Value::Enum {
+                            name: "Chain".to_owned(),
+                            discriminant: 0,
+                            data: ValueData::NewType {
+                                name: "End".to_owned(),
+                                field: Box::new(Value::U32(7)),
+                            },
+                        }),
+                    },
                 }),
-            }),
+            },
         }
     );
 }
@@ -332,11 +361,13 @@ fn tree_enum_leaf_json() {
 
     assert_eq!(
         value,
-        Value::EnumNewType {
+        Value::Enum {
             name: "TreeEnum".to_owned(),
             discriminant: 0,
-            variant_name: "Leaf".to_owned(),
-            field: Box::new(Value::U32(5)),
+            data: ValueData::NewType {
+                name: "Leaf".to_owned(),
+                field: Box::new(Value::U32(5)),
+            },
         }
     );
 }
@@ -355,37 +386,47 @@ fn tree_enum_nested_json() {
 
     assert_eq!(
         value,
-        Value::EnumNewType {
+        Value::Enum {
             name: "TreeEnum".to_owned(),
             discriminant: 1,
-            variant_name: "Branch".to_owned(),
-            field: Box::new(Value::Slice(vec![
-                Value::EnumNewType {
-                    name: "TreeEnum".to_owned(),
-                    discriminant: 0,
-                    variant_name: "Leaf".to_owned(),
-                    field: Box::new(Value::U32(1)),
-                },
-                Value::EnumNewType {
-                    name: "TreeEnum".to_owned(),
-                    discriminant: 1,
-                    variant_name: "Branch".to_owned(),
-                    field: Box::new(Value::Slice(vec![
-                        Value::EnumNewType {
-                            name: "TreeEnum".to_owned(),
-                            discriminant: 0,
-                            variant_name: "Leaf".to_owned(),
-                            field: Box::new(Value::U32(2)),
+            data: ValueData::NewType {
+                name: "Branch".to_owned(),
+                field: Box::new(Value::Slice(vec![
+                    Value::Enum {
+                        name: "TreeEnum".to_owned(),
+                        discriminant: 0,
+                        data: ValueData::NewType {
+                            name: "Leaf".to_owned(),
+                            field: Box::new(Value::U32(1)),
                         },
-                        Value::EnumNewType {
-                            name: "TreeEnum".to_owned(),
-                            discriminant: 0,
-                            variant_name: "Leaf".to_owned(),
-                            field: Box::new(Value::U32(3)),
+                    },
+                    Value::Enum {
+                        name: "TreeEnum".to_owned(),
+                        discriminant: 1,
+                        data: ValueData::NewType {
+                            name: "Branch".to_owned(),
+                            field: Box::new(Value::Slice(vec![
+                                Value::Enum {
+                                    name: "TreeEnum".to_owned(),
+                                    discriminant: 0,
+                                    data: ValueData::NewType {
+                                        name: "Leaf".to_owned(),
+                                        field: Box::new(Value::U32(2)),
+                                    },
+                                },
+                                Value::Enum {
+                                    name: "TreeEnum".to_owned(),
+                                    discriminant: 0,
+                                    data: ValueData::NewType {
+                                        name: "Leaf".to_owned(),
+                                        field: Box::new(Value::U32(3)),
+                                    },
+                                },
+                            ])),
                         },
-                    ])),
-                },
-            ])),
+                    },
+                ])),
+            },
         }
     );
 }
@@ -407,39 +448,47 @@ fn chain_roundtrip_multiprotocol<F: protocols::Format>(
     let wire = F::encode(&chain).unwrap();
     let value = F::decode_value::<Chain>(&wire).unwrap();
 
-    let Value::EnumNewType {
+    let Value::Enum {
         name,
-        variant_name,
-        field,
+        data: ValueData::NewType {
+            name: variant_name,
+            field,
+        },
         ..
     } = &value
     else {
-        panic!("expected EnumNewType, got {value:?}");
+        panic!("expected Enum NewType, got {value:?}");
     };
     assert_eq!(name, "Chain");
     assert_eq!(variant_name, "Link");
 
     // Second level
-    let Value::EnumNewType {
+    let Value::Enum {
         name: inner_name,
-        variant_name: inner_variant,
-        field: inner_field,
+        data:
+            ValueData::NewType {
+                name: inner_variant,
+                field: inner_field,
+            },
         ..
     } = field.as_ref()
     else {
-        panic!("expected inner EnumNewType, got {field:?}");
+        panic!("expected inner Enum NewType, got {field:?}");
     };
     assert_eq!(inner_name, "Chain");
     assert_eq!(inner_variant, "Link");
 
     // Third level
-    let Value::EnumNewType {
-        variant_name: leaf_variant,
-        field: leaf_field,
+    let Value::Enum {
+        data:
+            ValueData::NewType {
+                name: leaf_variant,
+                field: leaf_field,
+            },
         ..
     } = inner_field.as_ref()
     else {
-        panic!("expected leaf EnumNewType, got {inner_field:?}");
+        panic!("expected leaf Enum NewType, got {inner_field:?}");
     };
     assert_eq!(leaf_variant, "End");
     assert_eq!(**leaf_field, Value::U32(99));
@@ -465,26 +514,31 @@ fn expr_roundtrip_multiprotocol<F: protocols::Format>(
     let wire = F::encode(&expr).unwrap();
     let value = F::decode_value::<Expr>(&wire).unwrap();
 
-    let Value::EnumNewType {
+    let Value::Enum {
         name,
-        variant_name,
-        field,
+        data: ValueData::NewType {
+            name: variant_name,
+            field,
+        },
         ..
     } = &value
     else {
-        panic!("expected EnumNewType, got {value:?}");
+        panic!("expected Enum NewType, got {value:?}");
     };
     assert_eq!(name, "Expr");
     assert_eq!(variant_name, "Neg");
 
-    let Value::EnumNewType {
+    let Value::Enum {
         name: inner_name,
-        variant_name: inner_variant,
-        field: inner_field,
+        data:
+            ValueData::NewType {
+                name: inner_variant,
+                field: inner_field,
+            },
         ..
     } = field.as_ref()
     else {
-        panic!("expected inner EnumNewType, got {field:?}");
+        panic!("expected inner Enum NewType, got {field:?}");
     };
     assert_eq!(inner_name, "Expr");
     assert_eq!(inner_variant, "Lit");

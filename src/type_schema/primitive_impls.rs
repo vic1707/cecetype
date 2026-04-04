@@ -5,7 +5,7 @@ mod heapless_impls;
 #[cfg(feature = "std")]
 mod std_impls;
 
-use crate::{FieldSchema, Schema, StaticSchema, TypeSchema, VariantSchema};
+use crate::{type_schema::Data, FieldSchema, Schema, StaticSchema, TypeSchema};
 use ::core::{
     cell::{Cell, RefCell},
     marker::PhantomData,
@@ -77,17 +77,19 @@ impl<T: ?Sized> Schema for PhantomData<T> {
 
 impl Schema for Duration {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
-        name: "Duration",
-        fields: &[
-            &FieldSchema {
-                name: "secs",
-                ty: &TypeSchema::U64,
-            },
-            &FieldSchema {
-                name: "nanos",
-                ty: &TypeSchema::U32,
-            },
-        ],
+        data: Data::Struct {
+            name: "Duration",
+            fields: &[
+                &FieldSchema {
+                    name: "secs",
+                    ty: &TypeSchema::U64,
+                },
+                &FieldSchema {
+                    name: "nanos",
+                    ty: &TypeSchema::U32,
+                },
+            ],
+        },
     };
 }
 
@@ -120,16 +122,20 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
         name: "Result",
         variants: &[
-            &VariantSchema::NewType {
-                name: "Ok",
-                discriminant: OK_DISCRIMINANT,
-                field: T::SCHEMA,
-            },
-            &VariantSchema::NewType {
-                name: "Err",
-                discriminant: ERR_DISCRIMINANT,
-                field: E::SCHEMA,
-            },
+            &(
+                OK_DISCRIMINANT,
+                Data::NewType {
+                    name: "Ok",
+                    field: T::SCHEMA,
+                },
+            ),
+            &(
+                ERR_DISCRIMINANT,
+                Data::NewType {
+                    name: "Err",
+                    field: E::SCHEMA,
+                },
+            ),
         ],
     };
 }

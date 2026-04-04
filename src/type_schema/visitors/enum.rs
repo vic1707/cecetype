@@ -1,7 +1,8 @@
 use super::{Resolver, StructVisitor, TupleVisitor};
 use crate::{
-    type_schema::visitors::Seed, SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor,
-    VariantSchema,
+    type_schema::{visitors::Seed, Data},
+    value::Data as ValueData,
+    SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor,
 };
 use ::{
     core::{fmt, marker::PhantomData, ops::Deref as _},
@@ -18,7 +19,7 @@ enum VariantId<VF: ValueFlavor> {
 
 pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
     name: &'s SF::Str,
-    variants: &'s SF::List<VariantSchema<'s, SF>>,
+    variants: &'s SF::List<(u32, Data<'s, SF>)>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VF>,
@@ -27,7 +28,7 @@ pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
 impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> EnumVisitor<'a, 's, SF, VF> {
     pub const fn new(
         name: &'s SF::Str,
-        variants: &'s SF::List<VariantSchema<'s, SF>>,
+        variants: &'s SF::List<(u32, Data<'s, SF>)>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {
@@ -57,34 +58,32 @@ where
     {
         let (variant_identifier, variant_access) = data.variant::<VariantId<VF>>()?;
 
-        let variant_schema = match &variant_identifier {
+        let (discriminant, variant_schema) = &**match &variant_identifier {
             VariantId::Name(variant_name) => self
                 .variants
                 .iter()
-                .find(|variant| variant.name() == &**variant_name),
+                .find(|variant| variant.1.name() == &**variant_name),
             VariantId::Index(idx) => self
                 .variants
                 .deref()
                 .iter()
-                .find(|variant| variant.discriminant() == *idx),
+                .find(|variant| variant.0 == *idx),
         }
         .ok_or_else(|| {
             de::Error::custom(format_args!("unknown variant: `{variant_identifier}`"))
         })?;
 
-        let value = match &**variant_schema {
-            VariantSchema::Unit { .. } => {
+        let value_data = match &variant_schema {
+            Data::Unit { .. } => {
                 variant_access.unit_variant()?;
 
-                Value::EnumUnit {
-                    name: VF::make_str(self.name),
-                    discriminant: variant_schema.discriminant(),
-                    variant_name: VF::make_str(variant_schema.name()),
+                ValueData::Unit {
+                    name: VF::make_str(variant_schema.name()),
                 }
             }
 
-            VariantSchema::Tuple { fields, .. } => {
-                let Value::Tuple(fields_schema) = variant_access.tuple_variant(
+            Data::Tuple { fields, .. } => {
+                let Value::Tuple(fields_value) = variant_access.tuple_variant(
                     fields.len(),
                     TupleVisitor::<SF, VF>::new(fields, self.resolver),
                 )?
@@ -92,15 +91,13 @@ where
                     unreachable!()
                 };
 
-                Value::EnumTuple {
-                    name: VF::make_str(self.name),
-                    discriminant: variant_schema.discriminant(),
-                    variant_name: VF::make_str(variant_schema.name()),
-                    fields: fields_schema,
+                ValueData::Tuple {
+                    name: VF::make_str(variant_schema.name()),
+                    fields: fields_value,
                 }
             }
 
-            VariantSchema::NewType {
+            Data::NewType {
                 field: field_schema,
                 ..
             } => {
@@ -110,18 +107,19 @@ where
                     _p: PhantomData,
                 })?);
 
-                Value::EnumNewType {
-                    name: VF::make_str(self.name),
-                    discriminant: variant_schema.discriminant(),
-                    variant_name: VF::make_str(variant_schema.name()),
+                ValueData::NewType {
+                    name: VF::make_str(variant_schema.name()),
                     field,
                 }
             }
 
-            VariantSchema::Struct { name, fields, .. } => {
+            Data::Struct { name, fields, .. } => {
                 let Value::Struct {
-                    fields: fields_schema,
-                    ..
+                    data:
+                        ValueData::Struct {
+                            fields: fields_value,
+                            ..
+                        },
                 } = variant_access.struct_variant(
                     // Cannot send empty list as postcard uses the length to encode
                     super::names(fields.len()),
@@ -131,16 +129,18 @@ where
                     unreachable!()
                 };
 
-                Value::EnumStruct {
-                    name: VF::make_str(self.name),
-                    discriminant: variant_schema.discriminant(),
-                    variant_name: VF::make_str(variant_schema.name()),
-                    fields: fields_schema,
+                ValueData::Struct {
+                    name: VF::make_str(variant_schema.name()),
+                    fields: fields_value,
                 }
             }
         };
 
-        Ok(value)
+        Ok(Value::Enum {
+            name: VF::make_str(self.name),
+            discriminant: *discriminant,
+            data: value_data,
+        })
     }
 }
 

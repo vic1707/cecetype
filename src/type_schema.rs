@@ -26,6 +26,56 @@ pub enum RefKind {
     deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
 ))]
 #[non_exhaustive]
+pub enum Data<'s, F: SchemaFlavor<'s>> {
+    Unit {
+        name: F::Str,
+    },
+    NewType {
+        name: F::Str,
+        #[schema(ref(TypeSchema))]
+        #[serde(serialize_with = "ser::serialize_ptr")]
+        #[serde(deserialize_with = "F::deserialize_ptr")]
+        field: F::Ptr<TypeSchema<'s, F>>,
+    },
+    Tuple {
+        name: F::Str,
+        #[schema(ref(TypeSchema, list))]
+        #[serde(serialize_with = "ser::serialize_list_ptr")]
+        #[serde(deserialize_with = "F::deserialize_list")]
+        fields: F::List<TypeSchema<'s, F>>,
+    },
+    Struct {
+        name: F::Str,
+        #[schema(as([FieldSchema<'s, F>]))]
+        #[serde(serialize_with = "ser::serialize_list_ptr")]
+        #[serde(deserialize_with = "F::deserialize_list")]
+        fields: F::List<FieldSchema<'s, F>>,
+    },
+}
+
+impl<'s, F: SchemaFlavor<'s>> Data<'s, F> {
+    #[inline]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Unit { name }
+            | Self::NewType { name, .. }
+            | Self::Tuple { name, .. }
+            | Self::Struct { name, .. } => name,
+        }
+    }
+}
+
+#[derive(crate::Schema)]
+#[schema(bounds(F::Str: crate::Schema))]
+#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "F::Str: Serialize",
+    deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
+))]
+#[non_exhaustive]
 pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Ref {
         name: F::Str,
@@ -85,37 +135,16 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
         elements: F::List<Self>,
     },
 
-    UnitStruct {
-        name: F::Str,
-    },
-    NewTypeStruct {
-        name: F::Str,
-        #[schema(ref(TypeSchema))]
-        #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        field: F::Ptr<Self>,
-    },
-    TupleStruct {
-        name: F::Str,
-        #[schema(ref(TypeSchema, list))]
-        #[serde(serialize_with = "ser::serialize_list_ptr")]
-        #[serde(deserialize_with = "F::deserialize_list")]
-        fields: F::List<Self>,
-    },
-    Struct {
-        name: F::Str,
-        #[schema(as([FieldSchema<'s, F>]))]
-        #[serde(serialize_with = "ser::serialize_list_ptr")]
-        #[serde(deserialize_with = "F::deserialize_list")]
-        fields: F::List<FieldSchema<'s, F>>,
+    Struct { // TODO: tuple variant when `yaml_serde` supports nested enums
+        data: Data<'s, F>,
     },
 
     Enum {
         name: F::Str,
-        #[schema(as([VariantSchema<'s, F>]))]
+        #[schema(as([(u32, Data<'s, F>)]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "F::deserialize_list")]
-        variants: F::List<VariantSchema<'s, F>>,
+        variants: F::List<(u32, Data<'s, F>)>,
     },
 
     Option(
@@ -145,65 +174,37 @@ pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
     pub ty: F::Ptr<TypeSchema<'s, F>>,
 }
 
-#[derive(crate::Schema)]
-#[schema(bounds(F::Str: crate::Schema))]
-#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
-#[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "F::Str: Serialize",
-    deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
-))]
-// TODO: add Repr (Tagged(External/Internal/Adjacent), Untagged)
-// Currently we assume externally tagged
-#[non_exhaustive]
-pub enum VariantSchema<'s, F: SchemaFlavor<'s>> {
-    Unit {
-        name: F::Str,
-        discriminant: u32,
-    },
-    NewType {
-        name: F::Str,
-        discriminant: u32,
-        #[schema(ref(TypeSchema))]
-        #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        field: F::Ptr<TypeSchema<'s, F>>,
-    },
-    Tuple {
-        name: F::Str,
-        discriminant: u32,
-        #[schema(ref(TypeSchema, list))]
-        #[serde(serialize_with = "ser::serialize_list_ptr")]
-        #[serde(deserialize_with = "F::deserialize_list")]
-        fields: F::List<TypeSchema<'s, F>>,
-    },
-    Struct {
-        name: F::Str,
-        discriminant: u32,
-        #[schema(as([FieldSchema<'s, F>]))]
-        #[serde(serialize_with = "ser::serialize_list_ptr")]
-        #[serde(deserialize_with = "F::deserialize_list")]
-        fields: F::List<FieldSchema<'s, F>>,
-    },
-}
-
-impl<'s, F: SchemaFlavor<'s>> VariantSchema<'s, F> {
-    fn name(&self) -> &str {
+impl<'s, F> fmt::Display for Data<'s, F>
+where
+    F: SchemaFlavor<'s>,
+{
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Struct { name, .. }
-            | Self::Unit { name, .. }
-            | Self::Tuple { name, .. }
-            | Self::NewType { name, .. } => name,
-        }
-    }
-    const fn discriminant(&self) -> u32 {
-        match self {
-            Self::Struct { discriminant, .. }
-            | Self::Unit { discriminant, .. }
-            | Self::Tuple { discriminant, .. }
-            | Self::NewType { discriminant, .. } => *discriminant,
+            Self::Unit { name } => write!(f, "{}", &**name),
+            Self::NewType { name, field } => {
+                write!(f, "{} ({})", &**name, &**field)
+            }
+            Self::Tuple { name, fields } => {
+                write!(f, "{} (", &**name)?;
+                for (idx, field) in fields.deref().iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", &**field)?;
+                }
+                write!(f, ")")
+            }
+            Self::Struct { name, fields } => {
+                write!(f, "{} {{ ", &**name)?;
+                for (idx, field) in fields.deref().iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", &*field.name, &*field.ty)?;
+                }
+                write!(f, " }}")
+            }
         }
     }
 }
@@ -262,30 +263,7 @@ where
                 write!(f, ")")
             }
 
-            TypeSchema::UnitStruct { name } => write!(f, "{}", &**name),
-            TypeSchema::NewTypeStruct { name, field } => {
-                write!(f, "{} ({})", &**name, &**field)
-            }
-            TypeSchema::TupleStruct { name, fields } => {
-                write!(f, "{} (", &**name)?;
-                for (idx, field) in fields.deref().iter().enumerate() {
-                    if idx != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", &**field)?;
-                }
-                write!(f, ")")
-            }
-            TypeSchema::Struct { name, fields } => {
-                write!(f, "{} {{ ", &**name)?;
-                for (idx, field) in fields.deref().iter().enumerate() {
-                    if idx != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}: {}", &*field.name, &*field.ty)?;
-                }
-                write!(f, " }}")
-            }
+            TypeSchema::Struct { data } => write!(f, "{data}"),
 
             TypeSchema::Enum {
                 name: enum_name,
@@ -294,18 +272,15 @@ where
                 write!(f, "{} {{ ", &**enum_name)?;
 
                 for (idx, variant) in variants.deref().iter().enumerate() {
+                    let (discriminant, data) = &**variant;
                     if idx != 0 {
                         write!(f, " | ")?;
                     }
-                    match &**variant {
-                        VariantSchema::Unit { name, discriminant } => {
+                    match &data {
+                        Data::Unit { name } => {
                             write!(f, "{} = {}", &**name, discriminant)?;
                         }
-                        VariantSchema::Struct {
-                            name,
-                            discriminant,
-                            fields,
-                        } => {
+                        Data::Struct { name, fields } => {
                             write!(f, "{} = {}({{ ", &**name, discriminant)?;
                             for (fidx, field) in fields.deref().iter().enumerate() {
                                 if fidx != 0 {
@@ -315,11 +290,7 @@ where
                             }
                             write!(f, " }})")?;
                         }
-                        VariantSchema::Tuple {
-                            name,
-                            discriminant,
-                            fields,
-                        } => {
+                        Data::Tuple { name, fields } => {
                             write!(f, "{} = {}(", &**name, discriminant)?;
                             for (fidx, field) in fields.deref().iter().enumerate() {
                                 if fidx != 0 {
@@ -329,11 +300,7 @@ where
                             }
                             write!(f, ")")?;
                         }
-                        VariantSchema::NewType {
-                            name,
-                            discriminant,
-                            field,
-                        } => {
+                        Data::NewType { name, field } => {
                             write!(f, "{} = {}({})", &**name, discriminant, &**field)?;
                         }
                     }
@@ -371,9 +338,8 @@ where
     /// Deserialize a [`Value`] from the given deserializer, resolving any
     /// [`TypeSchema::Ref`] nodes against the provided resolver chain.
     ///
-    /// Named nodes (`Struct`, `Enum`, `UnitStruct`, `NewTypeStruct`,
-    /// `TupleStruct`) push themselves onto the resolver chain so that nested
-    /// `Ref` nodes can find them.
+    /// Named nodes (`Struct`, `Enum`) push themselves onto the resolver chain
+    /// so that nested `Ref` nodes can find them.
     pub(crate) fn decode_value_with_resolver<'de, D, VF>(
         &'s self,
         deserializer: D,
@@ -437,33 +403,35 @@ where
                 visitors::TupleVisitor::<SF, VF>::new(elements, resolver),
             ),
 
-            TypeSchema::UnitStruct { name } => deserializer
-                .deserialize_unit_struct("", visitors::UnitStructVisitor::<SF, VF>::new(name)),
+            TypeSchema::Struct { data } => match data {
+                Data::Unit { name } => deserializer
+                    .deserialize_unit_struct("", visitors::UnitStructVisitor::<SF, VF>::new(name)),
 
-            TypeSchema::NewTypeStruct { name, field } => {
-                let entry = visitors::Resolver::new(name, self, resolver);
-                deserializer.deserialize_newtype_struct(
-                    "",
-                    visitors::NewTypeStructVisitor::<SF, VF>::new(name, field, Some(&entry)),
-                )
-            }
-            TypeSchema::TupleStruct { name, fields } => {
-                let entry = visitors::Resolver::new(name, self, resolver);
-                deserializer.deserialize_tuple_struct(
-                    "",
-                    fields.len(),
-                    visitors::TupleStructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
-                )
-            }
-            TypeSchema::Struct { name, fields } => {
-                let entry = visitors::Resolver::new(name, self, resolver);
-                deserializer.deserialize_struct(
-                    "", // dunno
-                    // Cannot send empty list as postcard uses the length to encode
-                    visitors::names(fields.len()), // dirty ass hack
-                    visitors::StructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
-                )
-            }
+                Data::NewType { name, field } => {
+                    let entry = visitors::Resolver::new(name, self, resolver);
+                    deserializer.deserialize_newtype_struct(
+                        "",
+                        visitors::NewTypeStructVisitor::<SF, VF>::new(name, field, Some(&entry)),
+                    )
+                }
+                Data::Tuple { name, fields } => {
+                    let entry = visitors::Resolver::new(name, self, resolver);
+                    deserializer.deserialize_tuple_struct(
+                        "",
+                        fields.len(),
+                        visitors::TupleStructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
+                    )
+                }
+                Data::Struct { name, fields } => {
+                    let entry = visitors::Resolver::new(name, self, resolver);
+                    deserializer.deserialize_struct(
+                        "", // dunno
+                        // Cannot send empty list as postcard uses the length to encode
+                        visitors::names(fields.len()), // dirty ass hack
+                        visitors::StructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
+                    )
+                }
+            },
 
             TypeSchema::Enum { name, variants } => {
                 let entry = visitors::Resolver::new(name, self, resolver);

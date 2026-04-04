@@ -108,11 +108,13 @@ fn struct_schema(
     let schema = match &data.fields {
         Fields::Named(_) => {
             ::syn::parse_quote! {
-                ::schema::TypeSchema::Struct {
-                    name: #struct_name,
-                    fields: &[
-                        #( #field_defs ),*
-                    ],
+                ::schema::TypeSchema::Struct{
+                    data: ::schema::Data::Struct {
+                        name: #struct_name,
+                        fields: &[
+                            #( #field_defs ),*
+                        ],
+                    }
                 }
             }
         }
@@ -120,28 +122,34 @@ fn struct_schema(
         Fields::Unnamed(_) if field_defs.len() == 1 => {
             let field = field_defs.next().unwrap();
             ::syn::parse_quote! {
-                ::schema::TypeSchema::NewTypeStruct {
-                    name: #struct_name,
-                    field: #field,
+                ::schema::TypeSchema::Struct{
+                    data: ::schema::Data::NewType {
+                        name: #struct_name,
+                        field: #field,
+                    }
                 }
             }
         }
 
         Fields::Unnamed(_) => {
             ::syn::parse_quote! {
-                ::schema::TypeSchema::TupleStruct {
-                    name: #struct_name,
-                    fields: &[
-                        #( #field_defs ),*
-                    ],
+                ::schema::TypeSchema::Struct {
+                    data: ::schema::Data::Tuple {
+                        name: #struct_name,
+                        fields: &[
+                            #( #field_defs ),*
+                        ],
+                    }
                 }
             }
         }
 
         Fields::Unit => {
             ::syn::parse_quote! {
-                ::schema::TypeSchema::UnitStruct {
-                    name: #struct_name,
+                ::schema::TypeSchema::Struct{
+                    data: ::schema::Data::Unit {
+                        name: #struct_name,
+                    }
                 }
             }
         }
@@ -198,11 +206,13 @@ fn enum_schema(
                     )
                 {
                     return Ok(quote! {
-                        &::schema::VariantSchema::NewType {
-                            name: #vname,
-                            discriminant: #discriminant,
-                            field: #schema,
-                        }
+                        &(
+                            #discriminant,
+                            ::schema::Data::NewType {
+                                name: #vname,
+                                field: #schema,
+                            },
+                        )
                     });
                 }
 
@@ -218,10 +228,12 @@ fn enum_schema(
                 let schema = match vfields {
                     Fields::Unit => {
                         quote! {
-                            &::schema::VariantSchema::Unit {
-                                name: #vname,
-                                discriminant: #discriminant,
-                            }
+                            &(
+                                #discriminant,
+                                ::schema::Data::Unit {
+                                    name: #vname,
+                                },
+                            )
                         }
                     }
 
@@ -229,35 +241,41 @@ fn enum_schema(
                         let fschema = field_defs.first().unwrap();
 
                         quote! {
-                            &::schema::VariantSchema::NewType {
-                                name: #vname,
-                                discriminant: #discriminant,
-                                field: #fschema,
-                            }
+                            &(
+                                #discriminant,
+                                ::schema::Data::NewType {
+                                    name: #vname,
+                                    field: #fschema,
+                                },
+                            )
                         }
                     }
 
                     Fields::Unnamed(_) => {
                         quote! {
-                            &::schema::VariantSchema::Tuple {
-                                name: #vname,
-                                discriminant: #discriminant,
-                                fields: &[
-                                    #( #field_defs ),*
-                                ],
-                            }
+                            &(
+                                #discriminant,
+                                ::schema::Data::Tuple {
+                                    name: #vname,
+                                    fields: &[
+                                        #( #field_defs ),*
+                                    ],
+                                },
+                            )
                         }
                     }
 
                     Fields::Named(_) => {
                         quote! {
-                            &::schema::VariantSchema::Struct {
-                                name: #vname,
-                                discriminant: #discriminant,
-                                fields: &[
-                                    #( #field_defs ),*
-                                ],
-                            }
+                            &(
+                                #discriminant,
+                                ::schema::Data::Struct {
+                                    name: #vname,
+                                    fields: &[
+                                        #( #field_defs ),*
+                                    ],
+                                },
+                            )
                         }
                     }
                 };

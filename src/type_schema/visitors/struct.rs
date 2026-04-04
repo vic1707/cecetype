@@ -1,5 +1,5 @@
 use super::{Resolver, Seed};
-use crate::{FieldSchema, SchemaFlavor, TypeSchema, Value, ValueBuilder};
+use crate::{value::Data as ValueData, FieldSchema, SchemaFlavor, TypeSchema, Value, ValueBuilder};
 use ::{
     core::{fmt, iter, marker::PhantomData},
     serde::{
@@ -75,8 +75,10 @@ where
         }
 
         Ok(Value::Struct {
-            name: VF::make_str(self.name),
-            fields: values,
+            data: ValueData::Struct {
+                name: VF::make_str(self.name),
+                fields: values,
+            },
         })
     }
 
@@ -129,8 +131,10 @@ where
         }
 
         Ok(Value::Struct {
-            name: VF::make_str(self.name),
-            fields: values,
+            data: ValueData::Struct {
+                name: VF::make_str(self.name),
+                fields: values,
+            },
         })
     }
 }
@@ -174,8 +178,10 @@ where
     where
         E: de::Error,
     {
-        Ok(Value::UnitStruct {
-            name: VF::make_str(self.name),
+        Ok(Value::Struct {
+            data: ValueData::Unit {
+                name: VF::make_str(self.name),
+            },
         })
     }
 }
@@ -246,9 +252,11 @@ where
             return Err(de::Error::invalid_length(fields.len() + 1, &self));
         }
 
-        Ok(Value::TupleStruct {
-            name: VF::make_str(self.name),
-            fields: values,
+        Ok(Value::Struct {
+            data: ValueData::Tuple {
+                name: VF::make_str(self.name),
+                fields: values,
+            },
         })
     }
 }
@@ -304,9 +312,11 @@ where
             .field
             .decode_value_with_resolver::<_, VF>(deserializer, self.resolver)?;
 
-        Ok(Value::NewTypeStruct {
-            name: VF::make_str(self.name),
-            field: VF::make_ptr(value),
+        Ok(Value::Struct {
+            data: ValueData::NewType {
+                name: VF::make_str(self.name),
+                field: VF::make_ptr(value),
+            },
         })
     }
 }
