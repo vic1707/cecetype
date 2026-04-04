@@ -1,7 +1,7 @@
 #[cfg(feature = "alloc")]
 use ::{
     alloc::{boxed::Box, string::String, vec::Vec},
-    core::fmt,
+    core::{fmt, marker::PhantomData},
 };
 
 pub struct Owned;
@@ -38,10 +38,33 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
         D: ::serde::Deserializer<'de>,
         T: ::serde::Deserialize<'de> + 's + Clone + PartialEq + fmt::Debug,
     {
-        use ::serde::Deserialize as _;
+        use ::serde::de::{SeqAccess, Visitor};
 
-        let values: Vec<T> = Vec::deserialize(deserializer)?;
-        Ok(values.into_iter().map(Box::new).collect())
+        struct BoxSeqVisitor<T>(PhantomData<T>);
+
+        impl<'de, T> Visitor<'de> for BoxSeqVisitor<T>
+        where
+            T: ::serde::Deserialize<'de>,
+        {
+            type Value = Vec<Box<T>>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a sequence")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0_usize));
+                while let Some(value) = seq.next_element::<T>()? {
+                    values.push(Box::new(value));
+                }
+                Ok(values)
+            }
+        }
+
+        deserializer.deserialize_seq(BoxSeqVisitor(PhantomData))
     }
 }
 
