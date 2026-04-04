@@ -9,7 +9,7 @@ use ::{
 };
 
 pub struct ArrayVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
-    element: &'s SF::Ptr<TypeSchema<'s, SF>>,
+    element: &'s TypeSchema<'s, SF>,
     len: usize,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VF>,
@@ -17,7 +17,7 @@ pub struct ArrayVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
 
 impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> ArrayVisitor<'a, 's, SF, VF> {
     pub const fn new(
-        element: &'s SF::Ptr<TypeSchema<'s, SF>>,
+        element: &'s TypeSchema<'s, SF>,
         len: usize,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {

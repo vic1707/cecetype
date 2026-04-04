@@ -9,16 +9,16 @@ use ::{
 };
 
 pub struct MapVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
-    key: &'s SF::Ptr<TypeSchema<'s, SF>>,
-    value: &'s SF::Ptr<TypeSchema<'s, SF>>,
+    key: &'s TypeSchema<'s, SF>,
+    value: &'s TypeSchema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VF>,
 }
 
 impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> MapVisitor<'a, 's, SF, VF> {
     pub const fn new(
-        key: &'s SF::Ptr<TypeSchema<'s, SF>>,
-        value: &'s SF::Ptr<TypeSchema<'s, SF>>,
+        key: &'s TypeSchema<'s, SF>,
+        value: &'s TypeSchema<'s, SF>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {

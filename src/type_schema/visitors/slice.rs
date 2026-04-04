@@ -9,14 +9,14 @@ use ::{
 };
 
 pub struct SliceVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
-    element: &'s SF::Ptr<TypeSchema<'s, SF>>,
+    element: &'s TypeSchema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VF>,
 }
 
 impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> SliceVisitor<'a, 's, SF, VF> {
     pub const fn new(
-        element: &'s SF::Ptr<TypeSchema<'s, SF>>,
+        element: &'s TypeSchema<'s, SF>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {

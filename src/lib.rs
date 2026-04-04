@@ -10,8 +10,8 @@ extern crate std;
 
 mod flavors;
 mod type_schema;
-mod value;
 mod utils;
+mod value;
 
 pub use self::{
     flavors::{

@@ -354,11 +354,8 @@ where
                     RefKind::Direct => {
                         target.decode_value_with_resolver::<_, VF>(deserializer, resolver)
                     }
-                    RefKind::Slice => {
-                        deserializer.deserialize_seq(visitors::RefSliceVisitor::<SF, VF>::new(
-                            target, resolver,
-                        ))
-                    }
+                    RefKind::Slice => deserializer
+                        .deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(target, resolver)),
                 }
             }
 
