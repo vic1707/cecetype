@@ -58,7 +58,7 @@ struct SchemaAttrOnBound<T>(#[schema(as(u8))] T);
 #[case::schema_attr_field((SchemaAttrOnField { foo: 0 }, TypeSchema::Struct { name: "SchemaAttrOnField", fields: &[&FieldSchema { name: "foo", ty: &TypeSchema::U16 }] as &[&_] }))]
 #[case::schema_attr_variant((SchemaAttrOnVariant::Foo { toto: 0 }, TypeSchema::Enum { name: "SchemaAttrOnVariant", variants: &[&VariantSchema::NewType { name: "Foo", discriminant: 0, field: &TypeSchema::U8 }] as &[&_] }))]
 #[case::schema_attr_tuple_variant((SchemaAttrOnTupleVariant::Foo(0, false), TypeSchema::Enum { name: "SchemaAttrOnTupleVariant", variants: &[&VariantSchema::NewType { name: "Foo", discriminant: 0, field: &TypeSchema::U8 }] as &[&_] }))]
-#[case::schema_attr_tuple_variant((SchemaAttrOnTupleVariantField::Foo(0, false), TypeSchema::Enum { name: "SchemaAttrOnTupleVariantField", variants: &[&VariantSchema::Tuple { name: "Foo", discriminant: 0, fields: &[&TypeSchema::U16, &TypeSchema::U8] as &[&_] }] as &[&_] }))]
+#[case::schema_attr_tuple_variant_field((SchemaAttrOnTupleVariantField::Foo(0, false), TypeSchema::Enum { name: "SchemaAttrOnTupleVariantField", variants: &[&VariantSchema::Tuple { name: "Foo", discriminant: 0, fields: &[&TypeSchema::U16, &TypeSchema::U8] as &[&_] }] as &[&_] }))]
 #[case::schema_attr_bound((SchemaAttrOnBound(NotSchema), TypeSchema::NewTypeStruct { name: "SchemaAttrOnBound", field: &TypeSchema::U8 }))]
 fn schemas<T: Schema>(#[case] (_ty, expected_schema): (T, StaticSchema)) {
     assert_eq!(T::SCHEMA, &expected_schema);

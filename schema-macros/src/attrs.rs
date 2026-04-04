@@ -83,7 +83,7 @@ impl ContainerAttrs {
                 } else {
                     return Err(::syn::Error::new_spanned(
                         meta.path,
-                        "Schema: unsupported serde attribute",
+                        "Schema: unsupported schema attribute",
                     ));
                 }
 
@@ -220,7 +220,7 @@ impl VariantAttrs {
                 } else {
                     return Err(::syn::Error::new_spanned(
                         meta.path,
-                        "Schema: unsupported serde attribute",
+                        "Schema: unsupported schema attribute",
                     ));
                 }
                 Ok(())
@@ -301,7 +301,7 @@ impl FieldAttrs {
                 } else {
                     return Err(::syn::Error::new_spanned(
                         meta.path,
-                        "Schema: unsupported serde attribute",
+                        "Schema: unsupported schema attribute",
                     ));
                 }
 

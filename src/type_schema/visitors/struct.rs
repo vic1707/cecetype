@@ -220,7 +220,7 @@ where
     type Value = Value<VF>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "newtype struct {}", &**self.name)
+        write!(formatter, "tuple struct {}", &**self.name)
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -272,12 +272,12 @@ where
 {
     pub const fn new(
         name: &'s SF::Str,
-        fields: &'s TypeSchema<'s, SF>,
+        field: &'s TypeSchema<'s, SF>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {
             name,
-            field: fields,
+            field,
             resolver,
             _p: PhantomData,
         }
