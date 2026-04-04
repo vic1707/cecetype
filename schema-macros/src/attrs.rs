@@ -13,6 +13,8 @@ pub enum RefAttrKind {
 // Won't support serde's
 // - `rename(...)` / `rename_all(...)` / `rename_all_fields(...)` variations
 // - `default` as we can't (won't) send the default value
+// May support if good solution is proposed
+// - `tag`+`content` / `untagged` seems to always require alloc
 #[derive(Default)]
 pub struct ContainerAttrs {
     pub references: Option<RefAttr>,
@@ -20,7 +22,7 @@ pub struct ContainerAttrs {
     pub repr_via: Option<::syn::Type>, // `schema(...)` or serde's `into` + `from`/`try_from`
     pub bounds: Option<punctuated::Punctuated<::syn::WherePredicate, ::syn::Token![,]>>,
     pub transparent: bool,
-} // serde's missing: rename_all, rename_all_fields, tag, content, untagged
+} // serde's missing: rename_all, rename_all_fields
 
 // Won't support serde's
 // - `rename(...)` / `rename_all(...)` variations
@@ -28,13 +30,15 @@ pub struct ContainerAttrs {
 // - `with` / `serialize_with` / `deserialize_with` as we can't send the functions used for serialization
 // - `other` as it can't really be represented
 // - `skip_serializing` / `skip_deserializing` as it would cause a desync
+// May support if good solution is proposed
+// - `untagged` seems to always require alloc
 #[derive(Default)]
 pub struct VariantAttrs {
     pub references: Option<RefAttr>,
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::Type>,
     pub skip: bool,
-} // serde's missing: rename_all, untagged
+} // serde's missing: rename_all
 
 // Won't support serde's
 // - `rename(...)` variations
