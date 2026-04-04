@@ -3,6 +3,7 @@ use schema::Schema as _;
 
 fn main() {
     println!("StaticSchema: {}", ::schema::StaticSchema::SCHEMA);
-    println!("OwnedSchema: {}", ::schema::OwnedSchema::SCHEMA);
     println!("BorrowedSchema: {}", ::schema::BorrowedSchema::SCHEMA);
+    #[cfg(feature = "alloc")]
+    println!("OwnedSchema: {}", ::schema::OwnedSchema::SCHEMA);
 }
