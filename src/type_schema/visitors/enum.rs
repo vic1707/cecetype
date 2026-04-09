@@ -49,7 +49,7 @@ where
     type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "enum {}", &**self.name)
+        write!(formatter, "enum {}", self.name.as_ref())
     }
 
     fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
@@ -62,7 +62,7 @@ where
             VariantId::Name(variant_name) => self
                 .variants
                 .iter()
-                .find(|variant| variant.1.name() == &**variant_name),
+                .find(|variant| variant.1.name() == variant_name.as_ref()),
             VariantId::Index(idx) => self
                 .variants
                 .deref()
@@ -198,7 +198,7 @@ impl<VF: ValueFlavor> fmt::Display for VariantId<VF> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Index(idx) => write!(f, "[id: {idx}]"),
-            Self::Name(name) => write!(f, "{}", &**name),
+            Self::Name(name) => write!(f, "{}", name.as_ref()),
         }
     }
 }

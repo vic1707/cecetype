@@ -1,10 +1,10 @@
-use ::core::{mem, ops::Deref};
+use ::core::mem;
 
 #[inline]
 #[expect(
     clippy::undocumented_unsafe_blocks,
     reason = "private use within serde ser/de"
 )]
-pub fn as_static_str(val: &(impl Deref<Target = str> + ?Sized)) -> &'static str {
-    unsafe { mem::transmute::<&str, &'static str>(&**val) }
+pub fn as_static_str(val: &(impl AsRef<str> + ?Sized)) -> &'static str {
+    unsafe { mem::transmute::<&str, &'static str>(val.as_ref()) }
 }

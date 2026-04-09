@@ -29,7 +29,7 @@ impl<VF: ValueFlavor> Data<VF> {
             Self::Unit { name }
             | Self::NewType { name, .. }
             | Self::Tuple { name, .. }
-            | Self::Struct { name, .. } => name,
+            | Self::Struct { name, .. } => name.as_ref(),
         }
     }
 }
@@ -85,12 +85,12 @@ where
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Unit { name } => write!(f, "{}", &**name),
+            Self::Unit { name } => write!(f, "{}", name.as_ref()),
             Self::NewType { name, field } => {
-                write!(f, "{}({})", &**name, &**field)
+                write!(f, "{}({})", name.as_ref(), &**field)
             }
             Self::Tuple { name, fields } => {
-                write!(f, "{} (", &**name)?;
+                write!(f, "{} (", name.as_ref())?;
                 for (i, val) in fields.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
@@ -100,12 +100,12 @@ where
                 write!(f, ")")
             }
             Self::Struct { name, fields } => {
-                write!(f, "{} {{ ", &**name)?;
+                write!(f, "{} {{ ", name.as_ref())?;
                 for (i, (key, val)) in fields.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", &**key, val)?;
+                    write!(f, "{}: {}", key.as_ref(), val)?;
                 }
                 write!(f, " }}")
             }
@@ -122,7 +122,7 @@ where
         match self {
             Self::Unit => write!(f, "()"),
             Self::Bool(val) => write!(f, "{val}"),
-            Self::Str(val) => write!(f, "\"{}\"", &**val),
+            Self::Str(val) => write!(f, "\"{}\"", val.as_ref()),
             Self::Char(val) => write!(f, "'{val}'"),
 
             Self::U8(val) => write!(f, "{val}"),
@@ -175,7 +175,7 @@ where
             Self::Struct { data } => write!(f, "{data}"),
 
             Self::Enum { name, data, .. } => {
-                write!(f, "{}::{data}", &**name)
+                write!(f, "{}::{data}", name.as_ref())
             }
 
             Self::Option(opt) => match opt {
@@ -198,7 +198,7 @@ where
 
             Self::Bool(val) => val.serialize(serializer),
 
-            Self::Str(val) => serializer.serialize_str(val),
+            Self::Str(val) => serializer.serialize_str(val.as_ref()),
             Self::Char(val) => val.serialize(serializer),
 
             Self::U8(val) => val.serialize(serializer),

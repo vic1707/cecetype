@@ -76,8 +76,8 @@ impl super::ValueBuilder for Owned {
     }
 
     #[inline]
-    fn make_str(str: &str) -> Self::Str {
-        String::from(str)
+    fn make_str(str: impl AsRef<str>) -> Self::Str {
+        String::from(str.as_ref())
     }
 
     #[inline]

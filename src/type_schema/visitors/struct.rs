@@ -48,7 +48,7 @@ where
     type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "struct {}", &**self.name)
+        write!(formatter, "struct {}", self.name.as_ref())
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -94,17 +94,17 @@ where
             let (field, slot @ &mut None) = fields
                 .iter()
                 .zip(slots.iter_mut())
-                .find(|(field, _)| *field.name == *key)
+                .find(|(field, _)| field.name.as_ref() == key.as_ref())
                 .ok_or_else(|| {
                     de::Error::custom(format_args!(
                         "unknown field `{}` in struct `{}`",
-                        &*key, &**self.name
+                        key.as_ref(), self.name.as_ref()
                     ))
                 })?
             else {
                 return Err(de::Error::custom(format_args!(
                     "duplicate field `{}` in struct `{}`",
-                    &*key, &**self.name
+                    key.as_ref(), self.name.as_ref()
                 )));
             };
 
@@ -123,7 +123,7 @@ where
             let value = slot.take().ok_or_else(|| {
                 de::Error::custom(format_args!(
                     "missing field `{}` in struct `{}`",
-                    &*field.name, &**self.name
+                    field.name.as_ref(), self.name.as_ref()
                 ))
             })?;
 
@@ -171,7 +171,7 @@ where
     type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "unit struct {}", &**self.name)
+        write!(formatter, "unit struct {}", self.name.as_ref())
     }
 
     fn visit_unit<E>(self) -> Result<Self::Value, E>
@@ -226,7 +226,7 @@ where
     type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "tuple struct {}", &**self.name)
+        write!(formatter, "tuple struct {}", self.name.as_ref())
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -301,7 +301,7 @@ where
     type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "newtype struct {}", &**self.name)
+        write!(formatter, "newtype struct {}", self.name.as_ref())
     }
 
     fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>

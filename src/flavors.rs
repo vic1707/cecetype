@@ -23,7 +23,7 @@ where
         + Clone
         + PartialEq
         + fmt::Debug;
-    type Str: Deref<Target = str> + Clone + PartialEq + fmt::Debug;
+    type Str: AsRef<str> + Clone + PartialEq + fmt::Debug;
 }
 
 pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
@@ -41,13 +41,13 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
 pub trait ValueFlavor {
     type Ptr<T: PartialEq + fmt::Debug>: Deref<Target = T> + PartialEq + fmt::Debug;
     type List<T: PartialEq + fmt::Debug>: DerefMut<Target = [T]> + PartialEq + fmt::Debug;
-    type Str: Deref<Target = str> + PartialEq + fmt::Debug;
+    type Str: AsRef<str> + PartialEq + fmt::Debug;
 }
 
 pub trait ValueBuilder: ValueFlavor {
     fn make_ptr<T: PartialEq + fmt::Debug>(value: T) -> Self::Ptr<T>;
 
-    fn make_str(str: &str) -> Self::Str;
+    fn make_str(str: impl AsRef<str>) -> Self::Str;
 
     fn list<T: PartialEq + fmt::Debug>() -> Self::List<T>;
     fn list_from_iter<T: PartialEq + fmt::Debug>(iter: impl Iterator<Item = T>) -> Self::List<T>;

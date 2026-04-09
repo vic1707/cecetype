@@ -62,7 +62,7 @@ impl<'s, SF: SchemaFlavor<'s>> Data<'s, SF> {
             Self::Unit { name }
             | Self::NewType { name, .. }
             | Self::Tuple { name, .. }
-            | Self::Struct { name, .. } => name,
+            | Self::Struct { name, .. } => name.as_ref(),
         }
     }
 }
@@ -184,12 +184,12 @@ where
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Unit { name } => write!(f, "{}", &**name),
+            Self::Unit { name } => write!(f, "{}", name.as_ref()),
             Self::NewType { name, field } => {
-                write!(f, "{} ({})", &**name, &**field)
+                write!(f, "{} ({})", name.as_ref(), &**field)
             }
             Self::Tuple { name, fields } => {
-                write!(f, "{} (", &**name)?;
+                write!(f, "{} (", name.as_ref())?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
@@ -199,12 +199,12 @@ where
                 write!(f, ")")
             }
             Self::Struct { name, fields } => {
-                write!(f, "{} {{ ", &**name)?;
+                write!(f, "{} {{ ", name.as_ref())?;
                 for (idx, field) in fields.deref().iter().enumerate() {
                     if idx != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", &*field.name, &*field.ty)?;
+                    write!(f, "{}: {}", field.name.as_ref(), &*field.ty)?;
                 }
                 write!(f, " }}")
             }
@@ -220,8 +220,8 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TypeSchema::Ref { name, kind } => match kind {
-                RefKind::Direct => write!(f, "-> {}", &**name),
-                RefKind::Slice => write!(f, "-> [{}]", &**name),
+                RefKind::Direct => write!(f, "-> {}", name.as_ref()),
+                RefKind::Slice => write!(f, "-> [{}]", name.as_ref()),
             },
             TypeSchema::Unit => write!(f, "()"),
             TypeSchema::Bool => write!(f, "bool"),
@@ -272,7 +272,7 @@ where
                 name: enum_name,
                 variants,
             } => {
-                write!(f, "{} {{ ", &**enum_name)?;
+                write!(f, "{} {{ ", enum_name.as_ref())?;
 
                 for (idx, variant) in variants.deref().iter().enumerate() {
                     let (discriminant, data) = &**variant;
@@ -281,20 +281,20 @@ where
                     }
                     match &data {
                         Data::Unit { name } => {
-                            write!(f, "{} = {}", &**name, discriminant)?;
+                            write!(f, "{} = {}", name.as_ref(), discriminant)?;
                         }
                         Data::Struct { name, fields } => {
-                            write!(f, "{} = {}({{ ", &**name, discriminant)?;
+                            write!(f, "{} = {}({{ ", name.as_ref(), discriminant)?;
                             for (fidx, field) in fields.deref().iter().enumerate() {
                                 if fidx != 0 {
                                     write!(f, ", ")?;
                                 }
-                                write!(f, "{}: {}", &*field.name, &*field.ty)?;
+                                write!(f, "{}: {}", field.name.as_ref(), &*field.ty)?;
                             }
                             write!(f, " }})")?;
                         }
                         Data::Tuple { name, fields } => {
-                            write!(f, "{} = {}(", &**name, discriminant)?;
+                            write!(f, "{} = {}(", name.as_ref(), discriminant)?;
                             for (fidx, field) in fields.deref().iter().enumerate() {
                                 if fidx != 0 {
                                     write!(f, ", ")?;
@@ -304,7 +304,7 @@ where
                             write!(f, ")")?;
                         }
                         Data::NewType { name, field } => {
-                            write!(f, "{} = {}({})", &**name, discriminant, &**field)?;
+                            write!(f, "{} = {}({})", name.as_ref(), discriminant, &**field)?;
                         }
                     }
                 }
@@ -346,8 +346,8 @@ where
     {
         match self {
             TypeSchema::Ref { name, kind } => {
-                let target = resolver.and_then(|res| res.resolve(name)).ok_or_else(|| {
-                    de::Error::custom(format_args!("unresolved schema ref `{}`", &**name))
+                let target = resolver.and_then(|res| res.resolve(name.as_ref())).ok_or_else(|| {
+                    de::Error::custom(format_args!("unresolved schema ref `{}`", name.as_ref()))
                 })?;
 
                 match kind {
@@ -401,14 +401,14 @@ where
                 ),
 
                 Data::NewType { name, field } => {
-                    let entry = visitors::Resolver::new(name, self, resolver);
+                    let entry = visitors::Resolver::new(name.as_ref(), self, resolver);
                     deserializer.deserialize_newtype_struct(
                         as_static_str(name),
                         visitors::NewTypeStructVisitor::<SF, VB>::new(name, field, Some(&entry)),
                     )
                 }
                 Data::Tuple { name, fields } => {
-                    let entry = visitors::Resolver::new(name, self, resolver);
+                    let entry = visitors::Resolver::new(name.as_ref(), self, resolver);
                     deserializer.deserialize_tuple_struct(
                         as_static_str(name),
                         fields.len(),
@@ -416,7 +416,7 @@ where
                     )
                 }
                 Data::Struct { name, fields } => {
-                    let entry = visitors::Resolver::new(name, self, resolver);
+                    let entry = visitors::Resolver::new(name.as_ref(), self, resolver);
                     deserializer.deserialize_struct(
                         as_static_str(name), // dunno
                         // Cannot send empty list as postcard uses the length to encode
@@ -427,7 +427,7 @@ where
             },
 
             TypeSchema::Enum { name, variants } => {
-                let entry = visitors::Resolver::new(name, self, resolver);
+                let entry = visitors::Resolver::new(name.as_ref(), self, resolver);
                 deserializer.deserialize_enum(
                     as_static_str(name), // dunno
                     // Cannot send empty list as postcard uses the length to encode
