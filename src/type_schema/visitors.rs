@@ -52,20 +52,20 @@ impl<'a, 's, SF: SchemaFlavor<'s>> Resolver<'a, 's, SF> {
     }
 }
 
-struct Seed<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+struct Seed<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     schema: &'s TypeSchema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
-    _p: PhantomData<VF>,
+    _p: PhantomData<VB>,
 }
 
-impl<'de, 's, SF, VF> DeserializeSeed<'de> for Seed<'_, 's, SF, VF>
+impl<'de, 's, SF, VB> DeserializeSeed<'de> for Seed<'_, 's, SF, VB>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder,
-    VF::Str: Deserialize<'de>,
+    VB: ValueBuilder,
+    VB::Str: Deserialize<'de>,
 {
-    type Value = Value<VF>;
+    type Value = Value<VB>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where

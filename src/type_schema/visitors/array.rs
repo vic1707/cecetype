@@ -8,14 +8,14 @@ use ::{
     },
 };
 
-pub struct ArrayVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+pub struct ArrayVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     element: &'s TypeSchema<'s, SF>,
     len: usize,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
-    _p: PhantomData<VF>,
+    _p: PhantomData<VB>,
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> ArrayVisitor<'a, 's, SF, VF> {
+impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> ArrayVisitor<'a, 's, SF, VB> {
     pub const fn new(
         element: &'s TypeSchema<'s, SF>,
         len: usize,
@@ -30,13 +30,13 @@ impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> ArrayVisitor<'a, 's, SF, VF
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for ArrayVisitor<'_, 's, SF, VF>
+impl<'de, 's, SF, VB> Visitor<'de> for ArrayVisitor<'_, 's, SF, VB>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder,
-    VF::Str: Deserialize<'de>,
+    VB: ValueBuilder,
+    VB::Str: Deserialize<'de>,
 {
-    type Value = Value<VF>;
+    type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(formatter, "array of length {}", self.len)
@@ -46,7 +46,7 @@ where
     where
         A: SeqAccess<'de>,
     {
-        let mut values = VF::list_with_capacity(self.len);
+        let mut values = VB::list_with_capacity(self.len);
 
         for i in 0..self.len {
             let el = seq
@@ -57,7 +57,7 @@ where
                 })?
                 .ok_or_else(|| de::Error::invalid_length(i, &self))?;
 
-            VF::list_push(&mut values, el);
+            VB::list_push(&mut values, el);
         }
 
         if seq.next_element::<de::IgnoredAny>()?.is_some() {

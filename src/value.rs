@@ -1,28 +1,28 @@
 use crate::{flavors::ValueFlavor, utils::as_static_str};
 use ::{core::fmt, derive_where::derive_where};
 
-#[derive_where(Debug;)] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[derive_where(Debug;)] // prevents compiler bounds check overflow & `VF: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `VF: PartialEq` bound
 #[non_exhaustive]
-pub enum Data<F: ValueFlavor> {
+pub enum Data<VF: ValueFlavor> {
     Unit {
-        name: F::Str,
+        name: VF::Str,
     },
     NewType {
-        name: F::Str,
-        field: F::Ptr<Value<F>>,
+        name: VF::Str,
+        field: VF::Ptr<Value<VF>>,
     },
     Tuple {
-        name: F::Str,
-        fields: F::List<Value<F>>,
+        name: VF::Str,
+        fields: VF::List<Value<VF>>,
     },
     Struct {
-        name: F::Str,
-        fields: F::List<(F::Str, Value<F>)>,
+        name: VF::Str,
+        fields: VF::List<(VF::Str, Value<VF>)>,
     },
 }
 
-impl<F: ValueFlavor> Data<F> {
+impl<VF: ValueFlavor> Data<VF> {
     #[inline]
     pub fn name(&self) -> &str {
         match self {
@@ -34,15 +34,15 @@ impl<F: ValueFlavor> Data<F> {
     }
 }
 
-#[derive_where(Debug;)] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[derive_where(Debug;)] // prevents compiler bounds check overflow & `VF: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `VF: PartialEq` bound
 #[non_exhaustive]
-pub enum Value<F: ValueFlavor> {
+pub enum Value<VF: ValueFlavor> {
     Unit,
 
     Bool(bool),
 
-    Str(F::Str),
+    Str(VF::Str),
     Char(char),
 
     U8(u8),
@@ -58,29 +58,29 @@ pub enum Value<F: ValueFlavor> {
     U128(u128),
     I128(i128),
 
-    Array(F::List<Self>),
-    Slice(F::List<Self>),
-    Map(F::List<(Self, Self)>),
+    Array(VF::List<Self>),
+    Slice(VF::List<Self>),
+    Map(VF::List<(Self, Self)>),
 
-    Tuple(F::List<Self>),
+    Tuple(VF::List<Self>),
 
     Struct {
         // TODO: tuple variant when `yaml_serde` supports nested enums
-        data: Data<F>,
+        data: Data<VF>,
     },
 
     Enum {
-        name: F::Str,
+        name: VF::Str,
         discriminant: u32,
-        data: Data<F>,
+        data: Data<VF>,
     },
 
-    Option(Option<F::Ptr<Self>>),
+    Option(Option<VF::Ptr<Self>>),
 }
 
-impl<F> fmt::Display for Data<F>
+impl<VF> fmt::Display for Data<VF>
 where
-    F: ValueFlavor,
+    VF: ValueFlavor,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -113,9 +113,9 @@ where
     }
 }
 
-impl<F> fmt::Display for Value<F>
+impl<VF> fmt::Display for Value<VF>
 where
-    F: ValueFlavor,
+    VF: ValueFlavor,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -186,10 +186,10 @@ where
     }
 }
 
-impl<F> ::serde::Serialize for Value<F>
+impl<VF> ::serde::Serialize for Value<VF>
 where
-    F: ValueFlavor,
-    F::Str: ::serde::Serialize,
+    VF: ValueFlavor,
+    VF::Str: ::serde::Serialize,
 {
     #[inline]
     fn serialize<S: ::serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -255,15 +255,15 @@ where
     }
 }
 
-fn serialize_data<S, F>(
-    data: &Data<F>,
-    enum_ctx: Option<(&F::Str, u32)>,
+fn serialize_data<S, VF>(
+    data: &Data<VF>,
+    enum_ctx: Option<(&VF::Str, u32)>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: ::serde::Serializer,
-    F: ValueFlavor,
-    F::Str: ::serde::Serialize,
+    VF: ValueFlavor,
+    VF::Str: ::serde::Serialize,
 {
     match (data, enum_ctx) {
         (Data::Unit { name }, None) => serializer.serialize_unit_struct(as_static_str(name)),

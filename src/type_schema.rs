@@ -18,44 +18,44 @@ pub enum RefKind {
 }
 
 #[derive(crate::Schema)]
-#[schema(bounds(F::Str: crate::Schema))]
-#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[schema(bounds(SF::Str: crate::Schema))]
+#[derive_where(Clone; )] // prevents compiler bounds check overflow & `SF: Debug` bound
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `SF: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `SF: PartialEq` bound
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
-    serialize = "F::Str: Serialize",
-    deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
+    serialize = "SF::Str: Serialize",
+    deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
 ))]
 #[non_exhaustive]
-pub enum Data<'s, F: SchemaFlavor<'s>> {
+pub enum Data<'s, SF: SchemaFlavor<'s>> {
     Unit {
-        name: F::Str,
+        name: SF::Str,
     },
     NewType {
-        name: F::Str,
+        name: SF::Str,
         #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        field: F::Ptr<TypeSchema<'s, F>>,
+        #[serde(deserialize_with = "SF::deserialize_ptr")]
+        field: SF::Ptr<TypeSchema<'s, SF>>,
     },
     Tuple {
-        name: F::Str,
+        name: SF::Str,
         #[schema(ref(TypeSchema, list))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
-        #[serde(deserialize_with = "F::deserialize_list")]
-        fields: F::List<TypeSchema<'s, F>>,
+        #[serde(deserialize_with = "SF::deserialize_list")]
+        fields: SF::List<TypeSchema<'s, SF>>,
     },
     Struct {
-        name: F::Str,
-        #[schema(as([FieldSchema<'s, F>]))]
+        name: SF::Str,
+        #[schema(as([FieldSchema<'s, SF>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
-        #[serde(deserialize_with = "F::deserialize_list")]
-        fields: F::List<FieldSchema<'s, F>>,
+        #[serde(deserialize_with = "SF::deserialize_list")]
+        fields: SF::List<FieldSchema<'s, SF>>,
     },
 }
 
-impl<'s, F: SchemaFlavor<'s>> Data<'s, F> {
+impl<'s, SF: SchemaFlavor<'s>> Data<'s, SF> {
     #[inline]
     pub fn name(&self) -> &str {
         match self {
@@ -68,19 +68,19 @@ impl<'s, F: SchemaFlavor<'s>> Data<'s, F> {
 }
 
 #[derive(crate::Schema)]
-#[schema(bounds(F::Str: crate::Schema))]
-#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[schema(bounds(SF::Str: crate::Schema))]
+#[derive_where(Clone; )] // prevents compiler bounds check overflow & `SF: Debug` bound
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `SF: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `SF: PartialEq` bound
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
-    serialize = "F::Str: Serialize",
-    deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
+    serialize = "SF::Str: Serialize",
+    deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
 ))]
 #[non_exhaustive]
-pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
+pub enum TypeSchema<'s, SF: SchemaFlavor<'s>> {
     Ref {
-        name: F::Str,
+        name: SF::Str,
         kind: RefKind,
     }, // special case to avoid recursive/cyclic types
 
@@ -107,79 +107,79 @@ pub enum TypeSchema<'s, F: SchemaFlavor<'s>> {
     Array {
         #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        element: F::Ptr<Self>,
+        #[serde(deserialize_with = "SF::deserialize_ptr")]
+        element: SF::Ptr<Self>,
         len: usize,
     },
 
     Slice {
         #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        element: F::Ptr<Self>,
+        #[serde(deserialize_with = "SF::deserialize_ptr")]
+        element: SF::Ptr<Self>,
     },
 
     Map {
         #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        key: F::Ptr<Self>,
+        #[serde(deserialize_with = "SF::deserialize_ptr")]
+        key: SF::Ptr<Self>,
         #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        value: F::Ptr<Self>,
+        #[serde(deserialize_with = "SF::deserialize_ptr")]
+        value: SF::Ptr<Self>,
     },
 
     Tuple {
         #[schema(ref(TypeSchema, list))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
-        #[serde(deserialize_with = "F::deserialize_list")]
-        elements: F::List<Self>,
+        #[serde(deserialize_with = "SF::deserialize_list")]
+        elements: SF::List<Self>,
     },
 
     Struct {
         // TODO: tuple variant when `yaml_serde` supports nested enums
-        data: Data<'s, F>,
+        data: Data<'s, SF>,
     },
 
     Enum {
-        name: F::Str,
-        #[schema(as([(u32, Data<'s, F>)]))]
+        name: SF::Str,
+        #[schema(as([(u32, Data<'s, SF>)]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
-        #[serde(deserialize_with = "F::deserialize_list")]
-        variants: F::List<(u32, Data<'s, F>)>,
+        #[serde(deserialize_with = "SF::deserialize_list")]
+        variants: SF::List<(u32, Data<'s, SF>)>,
     },
 
     Option(
         #[schema(ref(TypeSchema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
-        #[serde(deserialize_with = "F::deserialize_ptr")]
-        F::Ptr<Self>,
+        #[serde(deserialize_with = "SF::deserialize_ptr")]
+        SF::Ptr<Self>,
     ),
 }
 
 #[derive(crate::Schema)]
-#[schema(bounds(F::Str: crate::Schema))]
-#[derive_where(Clone; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `F: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `F: PartialEq` bound
+#[schema(bounds(SF::Str: crate::Schema))]
+#[derive_where(Clone; )] // prevents compiler bounds check overflow & `SF: Debug` bound
+#[derive_where(Debug; )] // prevents compiler bounds check overflow & `SF: Debug` bound
+#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `SF: PartialEq` bound
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
-    serialize = "F::Str: Serialize",
-    deserialize = "F: OwnedSchemaFlavor<'s>, F::Str: Deserialize<'de>"
+    serialize = "SF::Str: Serialize",
+    deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
 ))]
-pub struct FieldSchema<'s, F: SchemaFlavor<'s>> {
-    pub name: F::Str,
+pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
+    pub name: SF::Str,
     // pub key: u32, // Maybe for future protocols
     #[schema(ref(TypeSchema))]
     #[serde(serialize_with = "ser::serialize_ptr")]
-    #[serde(deserialize_with = "F::deserialize_ptr")]
-    pub ty: F::Ptr<TypeSchema<'s, F>>,
+    #[serde(deserialize_with = "SF::deserialize_ptr")]
+    pub ty: SF::Ptr<TypeSchema<'s, SF>>,
 }
 
-impl<'s, F> fmt::Display for Data<'s, F>
+impl<'s, SF> fmt::Display for Data<'s, SF>
 where
-    F: SchemaFlavor<'s>,
+    SF: SchemaFlavor<'s>,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -212,9 +212,9 @@ where
     }
 }
 
-impl<'s, F> fmt::Display for TypeSchema<'s, F>
+impl<'s, SF> fmt::Display for TypeSchema<'s, SF>
 where
-    F: SchemaFlavor<'s>,
+    SF: SchemaFlavor<'s>,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -325,24 +325,24 @@ where
     ///
     /// [`TypeSchema::Ref`] nodes are resolved automatically.
     #[inline]
-    pub fn decode_value<'de, D, VF>(&'s self, deserializer: D) -> Result<Value<VF>, D::Error>
+    pub fn decode_value<'de, D, VB>(&'s self, deserializer: D) -> Result<Value<VB>, D::Error>
     where
         D: serde::Deserializer<'de>,
-        VF: ValueBuilder,
-        VF::Str: Deserialize<'de>,
+        VB: ValueBuilder,
+        VB::Str: Deserialize<'de>,
     {
-        self.decode_value_with_resolver::<_, VF>(deserializer, None)
+        self.decode_value_with_resolver::<_, VB>(deserializer, None)
     }
 
-    pub(crate) fn decode_value_with_resolver<'de, D, VF>(
+    pub(crate) fn decode_value_with_resolver<'de, D, VB>(
         &'s self,
         deserializer: D,
         resolver: Option<&visitors::Resolver<'_, 's, SF>>,
-    ) -> Result<Value<VF>, D::Error>
+    ) -> Result<Value<VB>, D::Error>
     where
         D: serde::Deserializer<'de>,
-        VF: ValueBuilder,
-        VF::Str: Deserialize<'de>,
+        VB: ValueBuilder,
+        VB::Str: Deserialize<'de>,
     {
         match self {
             TypeSchema::Ref { name, kind } => {
@@ -352,10 +352,10 @@ where
 
                 match kind {
                     RefKind::Direct => {
-                        target.decode_value_with_resolver::<_, VF>(deserializer, resolver)
+                        target.decode_value_with_resolver::<_, VB>(deserializer, resolver)
                     }
                     RefKind::Slice => deserializer
-                        .deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(target, resolver)),
+                        .deserialize_seq(visitors::SliceVisitor::<SF, VB>::new(target, resolver)),
                 }
             }
 
@@ -364,7 +364,7 @@ where
                 Ok(Value::Unit)
             }
             TypeSchema::Bool => Ok(Value::Bool(bool::deserialize(deserializer)?)),
-            TypeSchema::Str => Ok(Value::Str(<VF::Str>::deserialize(deserializer)?)),
+            TypeSchema::Str => Ok(Value::Str(<VB::Str>::deserialize(deserializer)?)),
             TypeSchema::Char => Ok(Value::Char(char::deserialize(deserializer)?)),
             TypeSchema::U8 => Ok(Value::U8(u8::deserialize(deserializer)?)),
             TypeSchema::U16 => Ok(Value::U16(u16::deserialize(deserializer)?)),
@@ -381,30 +381,30 @@ where
 
             TypeSchema::Array { element, len } => deserializer.deserialize_tuple(
                 *len,
-                visitors::ArrayVisitor::<SF, VF>::new(element, *len, resolver),
+                visitors::ArrayVisitor::<SF, VB>::new(element, *len, resolver),
             ),
             TypeSchema::Slice { element } => deserializer
-                .deserialize_seq(visitors::SliceVisitor::<SF, VF>::new(element, resolver)),
+                .deserialize_seq(visitors::SliceVisitor::<SF, VB>::new(element, resolver)),
             TypeSchema::Map { key, value } => {
                 deserializer
-                    .deserialize_map(visitors::MapVisitor::<SF, VF>::new(key, value, resolver))
+                    .deserialize_map(visitors::MapVisitor::<SF, VB>::new(key, value, resolver))
             }
             TypeSchema::Tuple { elements } => deserializer.deserialize_tuple(
                 elements.len(),
-                visitors::TupleVisitor::<SF, VF>::new(elements, resolver),
+                visitors::TupleVisitor::<SF, VB>::new(elements, resolver),
             ),
 
             TypeSchema::Struct { data } => match data {
                 Data::Unit { name } => deserializer.deserialize_unit_struct(
                     as_static_str(name),
-                    visitors::UnitStructVisitor::<SF, VF>::new(name),
+                    visitors::UnitStructVisitor::<SF, VB>::new(name),
                 ),
 
                 Data::NewType { name, field } => {
                     let entry = visitors::Resolver::new(name, self, resolver);
                     deserializer.deserialize_newtype_struct(
                         as_static_str(name),
-                        visitors::NewTypeStructVisitor::<SF, VF>::new(name, field, Some(&entry)),
+                        visitors::NewTypeStructVisitor::<SF, VB>::new(name, field, Some(&entry)),
                     )
                 }
                 Data::Tuple { name, fields } => {
@@ -412,7 +412,7 @@ where
                     deserializer.deserialize_tuple_struct(
                         as_static_str(name),
                         fields.len(),
-                        visitors::TupleStructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
+                        visitors::TupleStructVisitor::<SF, VB>::new(name, fields, Some(&entry)),
                     )
                 }
                 Data::Struct { name, fields } => {
@@ -421,7 +421,7 @@ where
                         as_static_str(name), // dunno
                         // Cannot send empty list as postcard uses the length to encode
                         visitors::names(fields.len()), // dirty ass hack
-                        visitors::StructVisitor::<SF, VF>::new(name, fields, Some(&entry)),
+                        visitors::StructVisitor::<SF, VB>::new(name, fields, Some(&entry)),
                     )
                 }
             },
@@ -432,12 +432,12 @@ where
                     as_static_str(name), // dunno
                     // Cannot send empty list as postcard uses the length to encode
                     visitors::names(variants.len()), // dirty ass hack
-                    visitors::EnumVisitor::<SF, VF>::new(name, variants, Some(&entry)),
+                    visitors::EnumVisitor::<SF, VB>::new(name, variants, Some(&entry)),
                 )
             }
 
             TypeSchema::Option(schema) => deserializer
-                .deserialize_option(visitors::OptionVisitor::<SF, VF>::new(schema, resolver)),
+                .deserialize_option(visitors::OptionVisitor::<SF, VB>::new(schema, resolver)),
         }
     }
 }

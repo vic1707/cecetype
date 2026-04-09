@@ -8,14 +8,14 @@ use ::{
     },
 };
 
-pub struct MapVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+pub struct MapVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     key: &'s TypeSchema<'s, SF>,
     value: &'s TypeSchema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
-    _p: PhantomData<VF>,
+    _p: PhantomData<VB>,
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> MapVisitor<'a, 's, SF, VF> {
+impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> MapVisitor<'a, 's, SF, VB> {
     pub const fn new(
         key: &'s TypeSchema<'s, SF>,
         value: &'s TypeSchema<'s, SF>,
@@ -30,13 +30,13 @@ impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> MapVisitor<'a, 's, SF, VF> 
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for MapVisitor<'_, 's, SF, VF>
+impl<'de, 's, SF, VB> Visitor<'de> for MapVisitor<'_, 's, SF, VB>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder,
-    VF::Str: Deserialize<'de>,
+    VB: ValueBuilder,
+    VB::Str: Deserialize<'de>,
 {
-    type Value = Value<VF>;
+    type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(formatter, "Map")
@@ -48,7 +48,7 @@ where
     {
         let mut entries = map
             .size_hint()
-            .map_or_else(VF::list, VF::list_with_capacity);
+            .map_or_else(VB::list, VB::list_with_capacity);
 
         while let Some(key) = map.next_key_seed(Seed {
             schema: self.key,
@@ -60,7 +60,7 @@ where
                 resolver: self.resolver,
                 _p: PhantomData,
             })?;
-            VF::list_push(&mut entries, (key, value));
+            VB::list_push(&mut entries, (key, value));
         }
 
         Ok(Value::Map(entries))

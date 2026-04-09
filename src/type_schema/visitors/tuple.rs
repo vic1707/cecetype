@@ -8,13 +8,13 @@ use ::{
     },
 };
 
-pub struct TupleVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+pub struct TupleVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     elements: &'s SF::List<TypeSchema<'s, SF>>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
-    _p: PhantomData<VF>,
+    _p: PhantomData<VB>,
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> TupleVisitor<'a, 's, SF, VF> {
+impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> TupleVisitor<'a, 's, SF, VB> {
     pub const fn new(
         elements: &'s SF::List<TypeSchema<'s, SF>>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
@@ -27,13 +27,13 @@ impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> TupleVisitor<'a, 's, SF, VF
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for TupleVisitor<'_, 's, SF, VF>
+impl<'de, 's, SF, VB> Visitor<'de> for TupleVisitor<'_, 's, SF, VB>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder,
-    VF::Str: Deserialize<'de>,
+    VB: ValueBuilder,
+    VB::Str: Deserialize<'de>,
 {
-    type Value = Value<VF>;
+    type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(formatter, "tuple")
@@ -43,7 +43,7 @@ where
     where
         A: SeqAccess<'de>,
     {
-        let mut values = VF::list_with_capacity(self.elements.len());
+        let mut values = VB::list_with_capacity(self.elements.len());
 
         for schema in &**self.elements {
             let el = seq
@@ -54,7 +54,7 @@ where
                 })?
                 .ok_or_else(|| de::Error::invalid_length(values.len(), &self))?;
 
-            VF::list_push(&mut values, el);
+            VB::list_push(&mut values, el);
         }
 
         if seq.next_element::<de::IgnoredAny>()?.is_some() {

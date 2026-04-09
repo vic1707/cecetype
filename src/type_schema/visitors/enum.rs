@@ -17,15 +17,15 @@ enum VariantId<VF: ValueFlavor> {
     Name(VF::Str),
 }
 
-pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     name: &'s SF::Str,
     variants: &'s SF::List<(u32, Data<'s, SF>)>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
-    _p: PhantomData<VF>,
+    _p: PhantomData<VB>,
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> EnumVisitor<'a, 's, SF, VF> {
+impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> EnumVisitor<'a, 's, SF, VB> {
     pub const fn new(
         name: &'s SF::Str,
         variants: &'s SF::List<(u32, Data<'s, SF>)>,
@@ -40,13 +40,13 @@ impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> EnumVisitor<'a, 's, SF, VF>
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for EnumVisitor<'_, 's, SF, VF>
+impl<'de, 's, SF, VB> Visitor<'de> for EnumVisitor<'_, 's, SF, VB>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder,
-    VF::Str: Deserialize<'de>,
+    VB: ValueBuilder,
+    VB::Str: Deserialize<'de>,
 {
-    type Value = Value<VF>;
+    type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(formatter, "enum {}", &**self.name)
@@ -56,7 +56,7 @@ where
     where
         A: EnumAccess<'de>,
     {
-        let (variant_identifier, variant_access) = data.variant::<VariantId<VF>>()?;
+        let (variant_identifier, variant_access) = data.variant::<VariantId<VB>>()?;
 
         let (discriminant, variant_schema) = &**match &variant_identifier {
             VariantId::Name(variant_name) => self
@@ -78,21 +78,21 @@ where
                 variant_access.unit_variant()?;
 
                 ValueData::Unit {
-                    name: VF::make_str(variant_schema.name()),
+                    name: VB::make_str(variant_schema.name()),
                 }
             }
 
             Data::Tuple { fields, .. } => {
                 let Value::Tuple(fields_value) = variant_access.tuple_variant(
                     fields.len(),
-                    TupleVisitor::<SF, VF>::new(fields, self.resolver),
+                    TupleVisitor::<SF, VB>::new(fields, self.resolver),
                 )?
                 else {
                     unreachable!()
                 };
 
                 ValueData::Tuple {
-                    name: VF::make_str(variant_schema.name()),
+                    name: VB::make_str(variant_schema.name()),
                     fields: fields_value,
                 }
             }
@@ -101,14 +101,14 @@ where
                 field: field_schema,
                 ..
             } => {
-                let field = VF::make_ptr(variant_access.newtype_variant_seed(Seed {
+                let field = VB::make_ptr(variant_access.newtype_variant_seed(Seed {
                     schema: field_schema,
                     resolver: self.resolver,
                     _p: PhantomData,
                 })?);
 
                 ValueData::NewType {
-                    name: VF::make_str(variant_schema.name()),
+                    name: VB::make_str(variant_schema.name()),
                     field,
                 }
             }
@@ -123,35 +123,35 @@ where
                 } = variant_access.struct_variant(
                     // Cannot send empty list as postcard uses the length to encode
                     super::names(fields.len()),
-                    StructVisitor::<SF, VF>::new(name, fields, self.resolver),
+                    StructVisitor::<SF, VB>::new(name, fields, self.resolver),
                 )?
                 else {
                     unreachable!()
                 };
 
                 ValueData::Struct {
-                    name: VF::make_str(variant_schema.name()),
+                    name: VB::make_str(variant_schema.name()),
                     fields: fields_value,
                 }
             }
         };
 
         Ok(Value::Enum {
-            name: VF::make_str(self.name),
+            name: VB::make_str(self.name),
             discriminant: *discriminant,
             data: value_data,
         })
     }
 }
 
-pub struct OptionVisitor<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> {
+pub struct OptionVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     some: &'s TypeSchema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
-    _p: PhantomData<VF>,
+    _p: PhantomData<VB>,
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> OptionVisitor<'a, 's, SF, VF> {
+impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> OptionVisitor<'a, 's, SF, VB> {
     pub const fn new(
         some: &'s TypeSchema<'s, SF>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
@@ -164,13 +164,13 @@ impl<'a, 's, SF: SchemaFlavor<'s>, VF: ValueBuilder> OptionVisitor<'a, 's, SF, V
     }
 }
 
-impl<'de, 's, SF, VF> Visitor<'de> for OptionVisitor<'_, 's, SF, VF>
+impl<'de, 's, SF, VB> Visitor<'de> for OptionVisitor<'_, 's, SF, VB>
 where
     SF: SchemaFlavor<'s>,
-    VF: ValueBuilder,
-    VF::Str: Deserialize<'de>,
+    VB: ValueBuilder,
+    VB::Str: Deserialize<'de>,
 {
-    type Value = Value<VF>;
+    type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(formatter, "Option<{}>", self.some)
@@ -189,8 +189,8 @@ where
     {
         let value = self
             .some
-            .decode_value_with_resolver::<_, VF>(deserializer, self.resolver)?;
-        Ok(Value::Option(Some(VF::make_ptr(value))))
+            .decode_value_with_resolver::<_, VB>(deserializer, self.resolver)?;
+        Ok(Value::Option(Some(VB::make_ptr(value))))
     }
 }
 
@@ -203,13 +203,13 @@ impl<VF: ValueFlavor> fmt::Display for VariantId<VF> {
     }
 }
 
-struct VariantIdVisitor<VF: ValueBuilder>(PhantomData<VF>);
+struct VariantIdVisitor<VB: ValueBuilder>(PhantomData<VB>);
 
-impl<VF> Visitor<'_> for VariantIdVisitor<VF>
+impl<VB> Visitor<'_> for VariantIdVisitor<VB>
 where
-    VF: ValueBuilder,
+    VB: ValueBuilder,
 {
-    type Value = VariantId<VF>;
+    type Value = VariantId<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("a variant name or index")
@@ -237,13 +237,13 @@ where
     where
         E: de::Error,
     {
-        Ok(VariantId::Name(VF::make_str(v)))
+        Ok(VariantId::Name(VB::make_str(v)))
     }
 }
 
-impl<'de, VF> Deserialize<'de> for VariantId<VF>
+impl<'de, VB> Deserialize<'de> for VariantId<VB>
 where
-    VF: ValueBuilder,
+    VB: ValueBuilder,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -251,6 +251,6 @@ where
     {
         // We cannot derive this: `EnumAccess::variant` asks the format for an
         // identifier, and RON only drives that path through `deserialize_identifier`.
-        deserializer.deserialize_identifier(VariantIdVisitor::<VF>(PhantomData))
+        deserializer.deserialize_identifier(VariantIdVisitor::<VB>(PhantomData))
     }
 }
