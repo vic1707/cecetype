@@ -150,7 +150,6 @@ impl ContainerAttrs {
                         out.transparent = true;
                     }
 
-                    // -------- explicitly reject rename(...)
                     ::syn::Meta::List(list) if list.path.is_ident("rename") => {
                         return Err(::syn::Error::new_spanned(
                             &list.path,
@@ -279,10 +278,6 @@ impl VariantAttrs {
         Ok(out)
     }
 }
-
-// ----------------------------
-// Field
-// ----------------------------
 
 impl FieldAttrs {
     pub fn parse(attrs: &[::syn::Attribute]) -> ::syn::Result<Self> {
