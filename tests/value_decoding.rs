@@ -24,6 +24,7 @@ use ::std::{
 use ::{
     core::{
         cell::{Cell, RefCell},
+        marker::PhantomData,
         num::{NonZeroI64, NonZeroU32, Saturating, Wrapping},
         time::Duration,
     },
@@ -74,6 +75,7 @@ use ::{
 #[case::cell_u8((Cell::new(7_u8), Value::U8(7)))]
 #[case::refcell_bool((RefCell::new(true), Value::Bool(true)))]
 #[case::duration((Duration::new(120, 500_000_000), Value::Struct{ data: ValueData::Struct { name: "Duration".to_owned(), fields: vec![("secs".to_owned(), Value::U64(120)), ("nanos".to_owned(), Value::U32(500_000_000))] } }))]
+#[case::phantomdata((PhantomData::<()>, Value::Struct { data: ValueData::Unit { name: "PhantomData".to_owned() } }))]
 #[cfg_attr(feature = "alloc", case::btreeset((BTreeSet::from([1_u32, 2, 3]), Value::Slice(vec![Value::U32(1), Value::U32(2), Value::U32(3)]))))]
 #[cfg_attr(feature = "alloc", case::vecdeque((VecDeque::from([10_i32, 20_i32, 30_i32]), Value::Slice(vec![Value::I32(10), Value::I32(20), Value::I32(30)]))))]
 #[cfg_attr(feature = "alloc", case::linkedlist(([1_u8, 2, 3].into_iter().collect::<LinkedList<_>>(), Value::Slice(vec![Value::U8(1), Value::U8(2), Value::U8(3)]))))]
@@ -104,21 +106,4 @@ fn value_decoding<F: protocols::Format, D: Serialize + Schema>(
     let value_decoded = F::decode_value::<D>(&wire).unwrap();
 
     assert_eq!(value_decoded, expected);
-}
-
-/// `PhantomData` cannot roundtrip through `MessagePack` (serializes as empty
-/// sequence instead of unit), so it is tested with JSON only.
-#[cfg(test)]
-mod phantom_data_tests {
-    use ::core::marker::PhantomData;
-    use ::schema::{Owned, Schema as _, Value};
-
-    #[test]
-    fn phantom_data_json() {
-        let wire = serde_json::to_string(&PhantomData::<String>).unwrap();
-        let value = <PhantomData<String>>::SCHEMA
-            .decode_value::<_, Owned>(&mut serde_json::Deserializer::from_str(&wire))
-            .unwrap();
-        assert_eq!(value, Value::Unit);
-    }
 }

@@ -72,7 +72,11 @@ impl<T: Schema> Schema for RefCell<T> {
 }
 
 impl<T: ?Sized> Schema for PhantomData<T> {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Unit;
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
+        data: Data::Unit {
+            name: "PhantomData",
+        },
+    };
 }
 
 impl Schema for Duration {
