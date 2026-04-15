@@ -12,13 +12,13 @@ use ::core::marker::PhantomData;
 use ::schema::{Owned, Schema, Value};
 
 #[rstest::rstest]
-#[case(PhantomData::<BasicStruct>, r#"{ "a": 42 }"#, "missing field `b` in struct `BasicStruct` at line 1 column 11")]
-#[case(PhantomData::<BasicStruct>, r#"{ "a": 42, "b": true, "c": 1 }"#, "unknown field `c` in struct `BasicStruct` at line 1 column 25")]
-#[case(PhantomData::<BasicStruct>, r#"{ "a": 1, "a": 2, "b": true }"#, "duplicate field `a` in struct `BasicStruct` at line 1 column 13")]
-#[case(PhantomData::<(u32, bool)>, "[1]", "invalid length 1, expected tuple at line 1 column 3")]
-#[case(PhantomData::<(u32, bool)>, "[1, true, false]", "invalid length 3, expected tuple at line 1 column 16")]
-#[case(PhantomData::<(u32, bool)>, r#"[1, "14"]"#, r#"invalid type: string "14", expected a boolean at line 1 column 8"#)]
-#[case(PhantomData::<BasicEnum>, r#""Unknown""#, "unknown variant: `Unknown`")]
+#[case::missing_field(PhantomData::<BasicStruct>, r#"{ "a": 42 }"#, "missing field `b` in struct `BasicStruct` at line 1 column 11")]
+#[case::unknown_field(PhantomData::<BasicStruct>, r#"{ "a": 42, "b": true, "c": 1 }"#, "unknown field `c` in struct `BasicStruct` at line 1 column 25")]
+#[case::duplicate_field(PhantomData::<BasicStruct>, r#"{ "a": 1, "a": 2, "b": true }"#, "duplicate field `a` in struct `BasicStruct` at line 1 column 13")]
+#[case::tuple_too_short(PhantomData::<(u32, bool)>, "[1]", "invalid length 1, expected tuple at line 1 column 3")]
+#[case::tuple_too_long(PhantomData::<(u32, bool)>, "[1, true, false]", "invalid length 3, expected tuple at line 1 column 16")]
+#[case::tuple_wrong_type(PhantomData::<(u32, bool)>, r#"[1, "14"]"#, r#"invalid type: string "14", expected a boolean at line 1 column 8"#)]
+#[case::unknown_variant(PhantomData::<BasicEnum>, r#""Unknown""#, "unknown variant: `Unknown`")]
 fn json_decode_errors<T: Schema + ?Sized>(
     #[case] _type: PhantomData<T>,
     #[case] input: &str,
