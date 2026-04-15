@@ -1,3 +1,5 @@
+#![expect(clippy::needless_pub_self, reason = "false positive")]
+
 #[cfg(feature = "alloc")]
 mod alloc_impls;
 #[cfg(feature = "heapless")]
@@ -15,14 +17,6 @@ use ::core::{
     },
     time::Duration,
 };
-
-macro_rules! primitive_schema {
-    ($ty:ty, $variant:ident) => {
-        impl Schema for $ty {
-            const SCHEMA: &'static StaticSchema = &TypeSchema::$variant;
-        }
-    };
-}
 
 primitive_schema!((), Unit);
 primitive_schema!(bool, Bool);
@@ -55,20 +49,16 @@ primitive_schema!(f64, F64);
 primitive_schema!(&str, Str);
 primitive_schema!(char, Char);
 
-impl<T: Schema> Schema for Wrapping<T> {
-    const SCHEMA: &'static StaticSchema = T::SCHEMA;
+impl_tuple_schema!(L, K, J, I, H, G, F, E, D, C, B, A);
+
+passthrough_schemas!(Wrapping<T>, Saturating<T>, Cell<T>, RefCell<T>, &T, &mut T);
+
+impl<T: Schema> Schema for [T] {
+    const SCHEMA: &'static StaticSchema = &TypeSchema::Slice { element: T::SCHEMA };
 }
 
-impl<T: Schema> Schema for Saturating<T> {
-    const SCHEMA: &'static StaticSchema = T::SCHEMA;
-}
-
-impl<T: Schema> Schema for Cell<T> {
-    const SCHEMA: &'static StaticSchema = T::SCHEMA;
-}
-
-impl<T: Schema> Schema for RefCell<T> {
-    const SCHEMA: &'static StaticSchema = T::SCHEMA;
+impl<T: Schema> Schema for &[T] {
+    const SCHEMA: &'static StaticSchema = <[T] as Schema>::SCHEMA;
 }
 
 impl<T: ?Sized> Schema for PhantomData<T> {
@@ -104,22 +94,6 @@ impl<T: Schema, const N: usize> Schema for [T; N] {
     };
 }
 
-impl<T: Schema> Schema for [T] {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Slice { element: T::SCHEMA };
-}
-
-impl<T: Schema> Schema for &[T] {
-    const SCHEMA: &'static StaticSchema = <[T] as Schema>::SCHEMA;
-}
-
-impl<T: Schema> Schema for &T {
-    const SCHEMA: &'static StaticSchema = T::SCHEMA;
-}
-
-impl<T: Schema> Schema for &mut T {
-    const SCHEMA: &'static StaticSchema = T::SCHEMA;
-}
-
 const OK_DISCRIMINANT: u32 = 0;
 const ERR_DISCRIMINANT: u32 = 1;
 impl<T: Schema, E: Schema> Schema for Result<T, E> {
@@ -148,24 +122,6 @@ impl<T: Schema> Schema for Option<T> {
     const SCHEMA: &'static StaticSchema = &TypeSchema::Option(T::SCHEMA);
 }
 
-macro_rules! impl_tuple_schema {
-    () => {};
-    ($head:ident $(, $tail:ident)*) => {
-        impl<$head: Schema $(, $tail: Schema)*> Schema for ($head, $($tail,)*) {
-            const SCHEMA: &'static StaticSchema = &TypeSchema::Tuple {
-                elements: &[
-                    $head::SCHEMA,
-                    $($tail::SCHEMA),*
-                ],
-            };
-        }
-
-        impl_tuple_schema!($($tail),*);
-    };
-}
-
-impl_tuple_schema!(L, K, J, I, H, G, F, E, D, C, B, A);
-
 #[cfg(test)]
 mod tests {
     #![expect(
@@ -179,10 +135,78 @@ mod tests {
 
     const _: () = {
         assert! {
-            unsafe { *(ptr::from_ref::<Result<(), ()>>(&Result::Ok(())) as *const u8) } as u32  == OK_DISCRIMINANT
+            unsafe { *(ptr::from_ref::<Result<(), ()>>(&Result::Ok(())) as *const u8) } as u32 == OK_DISCRIMINANT
         };
         assert! {
-            unsafe { *(ptr::from_ref::<Result<(), ()>>(&Result::Err(())) as *const u8) } as u32  == ERR_DISCRIMINANT
+            unsafe { *(ptr::from_ref::<Result<(), ()>>(&Result::Err(())) as *const u8) } as u32 == ERR_DISCRIMINANT
         };
     };
 }
+
+mod macros {
+    macro_rules! primitive_schema {
+        ($ty:ty, $variant:ident) => {
+            impl Schema for $ty {
+                const SCHEMA: &'static StaticSchema = &TypeSchema::$variant;
+            }
+        };
+    }
+
+    macro_rules! passthrough_schemas {
+        ($($wrapper:ty),* $(,)?) => {
+            $(
+                impl<T: Schema> Schema for $wrapper {
+                    const SCHEMA: &'static StaticSchema = T::SCHEMA;
+                }
+            )*
+        };
+    }
+
+    macro_rules! impl_tuple_schema {
+        () => {};
+        ($head:ident $(, $tail:ident)*) => {
+            impl<$head: Schema $(, $tail: Schema)*> Schema for ($head, $($tail,)*) {
+                const SCHEMA: &'static StaticSchema = &TypeSchema::Tuple {
+                    elements: &[
+                        $head::SCHEMA,
+                        $($tail::SCHEMA),*
+                    ],
+                };
+            }
+
+            impl_tuple_schema!($($tail),*);
+        };
+    }
+
+    macro_rules! slice_like {
+        ($($ty:ty),* $(,)?) => {
+            $(
+                impl<T: Schema> Schema for $ty {
+                    const SCHEMA: &'static StaticSchema =
+                        &TypeSchema::Slice { element: T::SCHEMA };
+                }
+            )*
+        };
+    }
+
+    macro_rules! map_like {
+        ($($ty:ty),* $(,)?) => {
+            $(
+                impl<K: Schema, V: Schema> Schema for $ty {
+                    const SCHEMA: &'static StaticSchema = &TypeSchema::Map {
+                        key: K::SCHEMA,
+                        value: V::SCHEMA,
+                    };
+                }
+            )*
+        };
+    }
+
+    pub(super) use {
+        impl_tuple_schema, map_like, passthrough_schemas, primitive_schema, slice_like,
+    };
+}
+
+pub(self) use macros::{
+    impl_tuple_schema, map_like, passthrough_schemas, primitive_schema, slice_like,
+};
