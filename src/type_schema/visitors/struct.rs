@@ -98,13 +98,15 @@ where
                 .ok_or_else(|| {
                     de::Error::custom(format_args!(
                         "unknown field `{}` in struct `{}`",
-                        key.as_ref(), self.name.as_ref()
+                        key.as_ref(),
+                        self.name.as_ref()
                     ))
                 })?
             else {
                 return Err(de::Error::custom(format_args!(
                     "duplicate field `{}` in struct `{}`",
-                    key.as_ref(), self.name.as_ref()
+                    key.as_ref(),
+                    self.name.as_ref()
                 )));
             };
 
@@ -123,7 +125,8 @@ where
             let value = slot.take().ok_or_else(|| {
                 de::Error::custom(format_args!(
                     "missing field `{}` in struct `{}`",
-                    field.name.as_ref(), self.name.as_ref()
+                    field.name.as_ref(),
+                    self.name.as_ref()
                 ))
             })?;
 

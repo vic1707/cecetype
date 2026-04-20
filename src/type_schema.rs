@@ -346,9 +346,11 @@ where
     {
         match self {
             TypeSchema::Ref { name, kind } => {
-                let target = resolver.and_then(|res| res.resolve(name.as_ref())).ok_or_else(|| {
-                    de::Error::custom(format_args!("unresolved schema ref `{}`", name.as_ref()))
-                })?;
+                let target = resolver
+                    .and_then(|res| res.resolve(name.as_ref()))
+                    .ok_or_else(|| {
+                        de::Error::custom(format_args!("unresolved schema ref `{}`", name.as_ref()))
+                    })?;
 
                 match kind {
                     RefKind::Direct => {
