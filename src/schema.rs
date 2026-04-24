@@ -24,7 +24,13 @@ pub enum RefKind {
 /// Struct/enum data representation.
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
-#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
+#[::derive_where::derive_where(
+    Clone, Debug, PartialEq;
+    SF::Str: Clone + fmt::Debug + PartialEq,
+    SF::Ptr<Schema<'s, SF>>: Clone + fmt::Debug + PartialEq,
+    SF::List<Schema<'s, SF>>: Clone + fmt::Debug + PartialEq,
+    SF::List<FieldSchema<'s, SF>>: Clone + fmt::Debug + PartialEq,
+)] // prevents useless `SF` bounds
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SF::Str: Serialize",
@@ -56,7 +62,14 @@ pub enum Data<'s, SF: SchemaFlavor<'s>> {
 /// Type schema representation.
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
-#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
+#[::derive_where::derive_where(
+    Clone, Debug, PartialEq;
+    SF::Str: Clone + fmt::Debug + PartialEq,
+    SF::Ptr<Self>: Clone + fmt::Debug + PartialEq,
+    SF::List<Self>: Clone + fmt::Debug + PartialEq,
+    SF::List<FieldSchema<'s, SF>>: Clone + fmt::Debug + PartialEq,
+    SF::List<VariantSchema<'s, SF>>: Clone + fmt::Debug + PartialEq,
+)] // prevents useless `SF` bounds
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SF::Str: Serialize",
@@ -146,7 +159,11 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
 /// Field metadata: name and type schema.
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
-#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
+#[::derive_where::derive_where(
+    Clone, Debug, PartialEq;
+    SF::Str: Clone + fmt::Debug + PartialEq,
+    SF::Ptr<Schema<'s, SF>>: Clone + fmt::Debug + PartialEq,
+)] // prevents useless `SF` bounds
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SF::Str: Serialize",
@@ -164,7 +181,11 @@ pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
 /// Enum variant metadata.
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
-#[::derive_where::derive_where(Clone, Debug, PartialEq;)]
+#[::derive_where::derive_where(
+    Clone, Debug, PartialEq;
+    SF::Str: Clone + fmt::Debug + PartialEq,
+    Data<'s, SF>: Clone + fmt::Debug + PartialEq,
+)] // prevents useless `SF` bounds
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SF::Str: Serialize",

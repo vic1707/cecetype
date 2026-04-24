@@ -19,15 +19,9 @@ pub trait SchemaFlavor<'s>
 where
     Self: 's,
 {
-    type Ptr<T: 's + Clone + PartialEq + fmt::Debug>: Deref<Target = T>
-        + Clone
-        + PartialEq
-        + fmt::Debug;
-    type List<T: 's + Clone + PartialEq + fmt::Debug>: Deref<Target = [Self::Ptr<T>]>
-        + Clone
-        + PartialEq
-        + fmt::Debug;
-    type Str: AsRef<str> + Clone + PartialEq + fmt::Debug;
+    type Ptr<T: 's>: Deref<Target = T>;
+    type List<T: 's>: Deref<Target = [Self::Ptr<T>]>;
+    type Str: AsRef<str>;
 }
 
 /// Extended flavor for deserializing owned data.
@@ -35,37 +29,32 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
     fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de> + Clone + PartialEq + fmt::Debug;
+        T: ::serde::Deserialize<'de>;
 
     fn deserialize_list<'de, D, T>(deserializer: D) -> Result<Self::List<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de> + Clone + PartialEq + fmt::Debug;
+        T: ::serde::Deserialize<'de>;
 }
 
 /// Memory model for value storage.
 pub trait ValueFlavor {
-    type Ptr<T: PartialEq + fmt::Debug + Clone>: Deref<Target = T> + PartialEq + fmt::Debug + Clone;
-    type List<T: PartialEq + fmt::Debug + Clone>: DerefMut<Target = [T]>
-        + PartialEq
-        + fmt::Debug
-        + Clone;
-    type Str: AsRef<str> + PartialEq + fmt::Debug + fmt::Display + Clone;
+    type Ptr<T>: Deref<Target = T>;
+    type List<T>: DerefMut<Target = [T]>;
+    type Str: AsRef<str> + fmt::Debug + fmt::Display;
 }
 
 /// Factory for creating values.
 pub trait ValueBuilder: ValueFlavor {
-    fn make_ptr<T: PartialEq + fmt::Debug + Clone>(value: T) -> Self::Ptr<T>;
+    fn make_ptr<T>(value: T) -> Self::Ptr<T>;
 
     fn make_str(str: impl AsRef<str>) -> Self::Str;
     fn make_str_from_display(disp: &impl fmt::Display) -> Self::Str;
 
-    fn list<T: PartialEq + fmt::Debug + Clone>() -> Self::List<T>;
-    fn list_from_iter<T: PartialEq + fmt::Debug + Clone>(
-        iter: impl Iterator<Item = T>,
-    ) -> Self::List<T>;
-    fn list_with_capacity<T: PartialEq + fmt::Debug + Clone>(capacity: usize) -> Self::List<T>;
-    fn list_push<T: PartialEq + fmt::Debug + Clone>(builder: &mut Self::List<T>, value: T);
+    fn list<T>() -> Self::List<T>;
+    fn list_from_iter<T>(iter: impl Iterator<Item = T>) -> Self::List<T>;
+    fn list_with_capacity<T>(capacity: usize) -> Self::List<T>;
+    fn list_push<T>(builder: &mut Self::List<T>, value: T);
 }
 
 pub(crate) mod ser {

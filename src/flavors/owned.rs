@@ -8,14 +8,14 @@ use ::{
 pub struct Owned;
 
 impl<'s> super::SchemaFlavor<'s> for Owned {
-    type Ptr<T: 's + Clone + PartialEq + fmt::Debug> = Box<T>;
-    type List<T: 's + Clone + PartialEq + fmt::Debug> = Vec<Box<T>>;
+    type Ptr<T: 's> = Box<T>;
+    type List<T: 's> = Vec<Box<T>>;
     type Str = String;
 }
 
 impl super::ValueFlavor for Owned {
-    type Ptr<T: PartialEq + fmt::Debug + Clone> = Box<T>;
-    type List<T: PartialEq + fmt::Debug + Clone> = Vec<T>;
+    type Ptr<T> = Box<T>;
+    type List<T> = Vec<T>;
     type Str = String;
 }
 
@@ -24,7 +24,7 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
     fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de> + 's + Clone + PartialEq + fmt::Debug,
+        T: ::serde::Deserialize<'de> + 's,
     {
         let value = T::deserialize(deserializer)?;
         Ok(Box::new(value))
@@ -34,7 +34,7 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
     fn deserialize_list<'de, D, T>(deserializer: D) -> Result<Self::List<T>, D::Error>
     where
         D: ::serde::Deserializer<'de>,
-        T: ::serde::Deserialize<'de> + 's + Clone + PartialEq + fmt::Debug,
+        T: ::serde::Deserialize<'de> + 's,
     {
         use ::serde::de::{SeqAccess, Visitor};
 
@@ -68,7 +68,7 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
 
 impl super::ValueBuilder for Owned {
     #[inline]
-    fn make_ptr<T: PartialEq + fmt::Debug + Clone>(value: T) -> Self::Ptr<T> {
+    fn make_ptr<T>(value: T) -> Self::Ptr<T> {
         Box::new(value)
     }
 
@@ -82,21 +82,19 @@ impl super::ValueBuilder for Owned {
     }
 
     #[inline]
-    fn list<T: PartialEq + fmt::Debug + Clone>() -> Self::List<T> {
+    fn list<T>() -> Self::List<T> {
         Self::List::new()
     }
     #[inline]
-    fn list_from_iter<T: PartialEq + fmt::Debug + Clone>(
-        iter: impl Iterator<Item = T>,
-    ) -> Self::List<T> {
+    fn list_from_iter<T>(iter: impl Iterator<Item = T>) -> Self::List<T> {
         iter.collect()
     }
     #[inline]
-    fn list_with_capacity<T: PartialEq + fmt::Debug + Clone>(capacity: usize) -> Self::List<T> {
+    fn list_with_capacity<T>(capacity: usize) -> Self::List<T> {
         Self::List::with_capacity(capacity)
     }
     #[inline]
-    fn list_push<T: PartialEq + fmt::Debug + Clone>(builder: &mut Self::List<T>, value: T) {
+    fn list_push<T>(builder: &mut Self::List<T>, value: T) {
         builder.push(value);
     }
 }

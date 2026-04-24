@@ -2,7 +2,13 @@ use crate::{flavors::ValueFlavor, utils::as_static_str};
 use ::core::fmt;
 
 /// Struct/enum value data.
-#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
+#[::derive_where::derive_where(
+    Clone, Debug, PartialEq;
+    VF::Str: Clone + fmt::Debug + PartialEq,
+    VF::Ptr<Value<VF>>: Clone + fmt::Debug + PartialEq,
+    VF::List<Value<VF>>: Clone + fmt::Debug + PartialEq,
+    VF::List<(VF::Str, Value<VF>)>: Clone + fmt::Debug + PartialEq,
+)] // prevents useless `VF` bounds
 #[non_exhaustive]
 pub enum Data<VF: ValueFlavor> {
     Unit,
@@ -18,7 +24,15 @@ pub enum Data<VF: ValueFlavor> {
 }
 
 /// Runtime value representation. Mirrors [`Schema`](crate::schema::Schema) variants with actual data.
-#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
+#[::derive_where::derive_where(
+    Clone, Debug, PartialEq;
+    VF::Str: Clone + fmt::Debug + PartialEq,
+    VF::List<Self>: Clone + fmt::Debug + PartialEq,
+    VF::Ptr<Self>: Clone + fmt::Debug + PartialEq,
+    VF::List<(Self, Self)>: Clone + fmt::Debug + PartialEq,
+    VF::List<(VF::Str, Self)>: Clone + fmt::Debug + PartialEq,
+
+)]// prevents compiler bounds check overflow & `VF: Clone + Debug + PartialEq` bound
 #[non_exhaustive]
 pub enum Value<VF: ValueFlavor> {
     Unit,

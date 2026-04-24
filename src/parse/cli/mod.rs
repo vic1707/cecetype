@@ -10,8 +10,8 @@
 //! let value: OwnedValue = Request::SCHEMA.build_value(&mut parser).unwrap();
 //! ```
 
-pub mod spec;
 mod lexer;
+pub mod spec;
 mod word;
 
 use self::{
@@ -19,7 +19,7 @@ use self::{
     word::{ParseError, Word},
 };
 use crate::{flavors, schema, value};
-use ::core::{fmt, iter::Peekable, mem};
+use ::core::{iter::Peekable, mem};
 
 /// CLI parser error with location info.
 #[derive(Debug, ::thiserror::Error)]
@@ -515,7 +515,7 @@ impl<'i, VB: flavors::ValueBuilder> Parser<'i, VB> {
         Ok((fname, result?))
     }
 
-    fn parse_repeated<'s, T, R: PartialEq + fmt::Debug + Clone>(
+    fn parse_repeated<'s, T, R>(
         &mut self,
         schemas: impl ExactSizeIterator<Item = T>,
         separator: Option<Token<'i>>,

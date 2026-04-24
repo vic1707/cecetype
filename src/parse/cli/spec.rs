@@ -45,7 +45,11 @@ use ::{
 };
 
 /// Generates usage help, examples, and type listings from request/response schemas.
-#[::derive_where::derive_where(Debug;)]
+#[::derive_where::derive_where(
+    Debug;
+    SF::Str: fmt::Debug,
+    SF::Ptr<Schema<'s, SF>>: fmt::Debug,
+)]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "
@@ -70,7 +74,10 @@ pub struct Spec<'s, SF: SchemaFlavor<'s>> {
     response: SF::Ptr<Schema<'s, SF>>,
 }
 
-#[::derive_where::derive_where(Debug;)]
+#[::derive_where::derive_where(
+    Debug;
+    SF::Str: fmt::Debug,
+)]
 #[derive(::thiserror::Error)]
 #[error("Found Ref: '{}'", self.0.as_ref())]
 pub struct FoundRef<'s, SF: SchemaFlavor<'s>>(pub SF::Str);
@@ -363,7 +370,12 @@ impl ReprMode {
     }
 }
 
-#[::derive_where::derive_where(PartialEq; )]
+#[::derive_where::derive_where(
+    PartialEq;
+    SF::Str: PartialEq,
+    SF::List<VariantSchema<'s, SF>>: PartialEq,
+    Data<'s, SF>: PartialEq,
+)]
 enum NamedSchema<'a, 's, SF: SchemaFlavor<'s>> {
     Enum {
         name: &'a SF::Str,
