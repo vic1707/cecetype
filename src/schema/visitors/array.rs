@@ -1,33 +1,40 @@
 use super::{Resolver, Seed};
-use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
+use crate::{
+    flavors::{SchemaFlavor, ValueBuilder},
+    schema::Schema,
+    value::Value,
+};
 use ::{
     core::{fmt, marker::PhantomData},
     serde::{
-        de::{self, SeqAccess, Visitor},
         Deserialize,
+        de::{self, SeqAccess, Visitor},
     },
 };
 
-pub struct TupleVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
-    elements: &'s SF::List<TypeSchema<'s, SF>>,
+pub struct ArrayVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
+    element: &'s Schema<'s, SF>,
+    len: usize,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VB>,
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> TupleVisitor<'a, 's, SF, VB> {
+impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> ArrayVisitor<'a, 's, SF, VB> {
     pub const fn new(
-        elements: &'s SF::List<TypeSchema<'s, SF>>,
+        element: &'s Schema<'s, SF>,
+        len: usize,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {
-            elements,
+            element,
+            len,
             resolver,
             _p: PhantomData,
         }
     }
 }
 
-impl<'de, 's, SF, VB> Visitor<'de> for TupleVisitor<'_, 's, SF, VB>
+impl<'de, 's, SF, VB> Visitor<'de> for ArrayVisitor<'_, 's, SF, VB>
 where
     SF: SchemaFlavor<'s>,
     VB: ValueBuilder,
@@ -36,31 +43,31 @@ where
     type Value = Value<VB>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "tuple")
+        write!(formatter, "array of length {}", self.len)
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {
-        let mut values = VB::list_with_capacity(self.elements.len());
+        let mut values = VB::list_with_capacity(self.len);
 
-        for schema in &**self.elements {
+        for i in 0..self.len {
             let el = seq
                 .next_element_seed(Seed {
-                    schema,
+                    schema: self.element,
                     resolver: self.resolver,
                     _p: PhantomData,
                 })?
-                .ok_or_else(|| de::Error::invalid_length(values.len(), &self))?;
+                .ok_or_else(|| de::Error::invalid_length(i, &self))?;
 
             VB::list_push(&mut values, el);
         }
 
         if seq.next_element::<de::IgnoredAny>()?.is_some() {
-            return Err(de::Error::invalid_length(self.elements.len() + 1, &self));
+            return Err(de::Error::invalid_length(self.len + 1, &self));
         }
 
-        Ok(Value::Tuple(values))
+        Ok(Value::Array(values))
     }
 }

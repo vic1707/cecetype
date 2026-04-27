@@ -7,35 +7,35 @@ mod tuple;
 
 pub use self::{
     array::ArrayVisitor,
-    map::MapVisitor,
     r#enum::{EnumVisitor, OptionVisitor},
-    r#struct::{NewTypeStructVisitor, StructVisitor, TupleStructVisitor, UnitStructVisitor},
+    map::MapVisitor,
     slice::SliceVisitor,
+    r#struct::{NewTypeStructVisitor, StructVisitor, TupleStructVisitor, UnitStructVisitor},
     tuple::TupleVisitor,
 };
-use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
+use crate::{
+    flavors::{SchemaFlavor, ValueBuilder},
+    schema::Schema,
+    value::Value,
+};
 use ::{
     core::marker::PhantomData,
-    serde::{de::DeserializeSeed, Deserialize},
+    serde::{Deserialize, de::DeserializeSeed},
 };
 
-/// Stack-linked-list for resolving `TypeSchema::Ref` names during deserialization.
+/// Stack-linked-list for resolving `Schema::Ref` names during deserialization.
 ///
 /// Each entry maps a type name to its schema. When entering a named node
 /// (Struct, Enum, etc.), a new `Resolver` is pushed onto the stack. When a
 /// `Ref { name, kind }` is encountered, the chain is walked to find the schema.
 pub struct Resolver<'a, 's, SF: SchemaFlavor<'s>> {
     name: &'s str,
-    schema: &'s TypeSchema<'s, SF>,
+    schema: &'s Schema<'s, SF>,
     parent: Option<&'a Self>,
 }
 
 impl<'a, 's, SF: SchemaFlavor<'s>> Resolver<'a, 's, SF> {
-    pub const fn new(
-        name: &'s str,
-        schema: &'s TypeSchema<'s, SF>,
-        parent: Option<&'a Self>,
-    ) -> Self {
+    pub const fn new(name: &'s str, schema: &'s Schema<'s, SF>, parent: Option<&'a Self>) -> Self {
         Self {
             name,
             schema,
@@ -43,7 +43,7 @@ impl<'a, 's, SF: SchemaFlavor<'s>> Resolver<'a, 's, SF> {
         }
     }
 
-    pub fn resolve(&self, name: &str) -> Option<&'s TypeSchema<'s, SF>> {
+    pub fn resolve(&self, name: &str) -> Option<&'s Schema<'s, SF>> {
         if self.name == name {
             Some(self.schema)
         } else {
@@ -53,7 +53,7 @@ impl<'a, 's, SF: SchemaFlavor<'s>> Resolver<'a, 's, SF> {
 }
 
 struct Seed<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
-    schema: &'s TypeSchema<'s, SF>,
+    schema: &'s Schema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VB>,

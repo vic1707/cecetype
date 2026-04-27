@@ -1,10 +1,14 @@
 use super::{Resolver, Seed};
-use crate::{value::Data as ValueData, FieldSchema, SchemaFlavor, TypeSchema, Value, ValueBuilder};
+use crate::{
+    flavors::{SchemaFlavor, ValueBuilder},
+    schema::{FieldSchema, Schema},
+    value::{Data as ValueData, Value},
+};
 use ::{
     core::{fmt, iter, marker::PhantomData},
     serde::{
-        de::{self, MapAccess, SeqAccess, Visitor},
         Deserialize,
+        de::{self, MapAccess, SeqAccess, Visitor},
     },
 };
 
@@ -195,7 +199,7 @@ where
     VB: ValueBuilder,
 {
     name: &'s SF::Str,
-    fields: &'s SF::List<TypeSchema<'s, SF>>,
+    fields: &'s SF::List<Schema<'s, SF>>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VB>,
@@ -208,7 +212,7 @@ where
 {
     pub const fn new(
         name: &'s SF::Str,
-        fields: &'s SF::List<TypeSchema<'s, SF>>,
+        fields: &'s SF::List<Schema<'s, SF>>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {
@@ -270,7 +274,7 @@ where
     VB: ValueBuilder,
 {
     name: &'s SF::Str,
-    field: &'s TypeSchema<'s, SF>,
+    field: &'s Schema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VB>,
@@ -283,7 +287,7 @@ where
 {
     pub const fn new(
         name: &'s SF::Str,
-        field: &'s TypeSchema<'s, SF>,
+        field: &'s Schema<'s, SF>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {

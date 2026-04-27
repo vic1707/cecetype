@@ -1,14 +1,13 @@
 mod borrowed;
 mod owned;
 
-use ::core::{
-    fmt,
-    ops::{Deref, DerefMut},
-};
-
 pub use self::{
     borrowed::{Borrowed, Static},
     owned::Owned,
+};
+use ::core::{
+    fmt,
+    ops::{Deref, DerefMut},
 };
 
 pub trait SchemaFlavor<'s>
@@ -55,10 +54,10 @@ pub trait ValueBuilder: ValueFlavor {
     fn list_push<T: PartialEq + fmt::Debug>(builder: &mut Self::List<T>, value: T);
 }
 
-pub mod ser {
+pub(crate) mod ser {
     use ::{
         core::ops::Deref,
-        serde::{ser::SerializeSeq as _, Serialize, Serializer},
+        serde::{Serialize, Serializer, ser::SerializeSeq as _},
     };
 
     #[inline]

@@ -1,13 +1,16 @@
+#![expect(clippy::module_name_repetitions, reason = "_")]
 mod primitive_impls;
 mod visitors;
 
 use crate::{
-    flavors::ser, utils::as_static_str, OwnedSchemaFlavor, SchemaFlavor, Value, ValueBuilder,
+    flavors::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, ser},
+    utils::as_static_str,
+    value::Value,
 };
 use ::{
     core::{fmt, ops::Deref as _},
     derive_where::derive_where,
-    serde::{de, Deserialize, Serialize},
+    serde::{Deserialize, Serialize, de},
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::Schema)]
@@ -34,17 +37,17 @@ pub enum Data<'s, SF: SchemaFlavor<'s>> {
     },
     NewType {
         name: SF::Str,
-        #[schema(ref(TypeSchema))]
+        #[schema(ref(Schema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "SF::deserialize_ptr")]
-        field: SF::Ptr<TypeSchema<'s, SF>>,
+        field: SF::Ptr<Schema<'s, SF>>,
     },
     Tuple {
         name: SF::Str,
-        #[schema(ref(TypeSchema, list))]
+        #[schema(ref(Schema, list))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "SF::deserialize_list")]
-        fields: SF::List<TypeSchema<'s, SF>>,
+        fields: SF::List<Schema<'s, SF>>,
     },
     Struct {
         name: SF::Str,
@@ -78,7 +81,7 @@ impl<'s, SF: SchemaFlavor<'s>> Data<'s, SF> {
     deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
 ))]
 #[non_exhaustive]
-pub enum TypeSchema<'s, SF: SchemaFlavor<'s>> {
+pub enum Schema<'s, SF: SchemaFlavor<'s>> {
     Ref {
         name: SF::Str,
         kind: RefKind,
@@ -105,7 +108,7 @@ pub enum TypeSchema<'s, SF: SchemaFlavor<'s>> {
     I128,
 
     Array {
-        #[schema(ref(TypeSchema))]
+        #[schema(ref(Schema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "SF::deserialize_ptr")]
         element: SF::Ptr<Self>,
@@ -113,25 +116,25 @@ pub enum TypeSchema<'s, SF: SchemaFlavor<'s>> {
     },
 
     Slice {
-        #[schema(ref(TypeSchema))]
+        #[schema(ref(Schema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "SF::deserialize_ptr")]
         element: SF::Ptr<Self>,
     },
 
     Map {
-        #[schema(ref(TypeSchema))]
+        #[schema(ref(Schema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "SF::deserialize_ptr")]
         key: SF::Ptr<Self>,
-        #[schema(ref(TypeSchema))]
+        #[schema(ref(Schema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "SF::deserialize_ptr")]
         value: SF::Ptr<Self>,
     },
 
     Tuple {
-        #[schema(ref(TypeSchema, list))]
+        #[schema(ref(Schema, list))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "SF::deserialize_list")]
         elements: SF::List<Self>,
@@ -151,7 +154,7 @@ pub enum TypeSchema<'s, SF: SchemaFlavor<'s>> {
     },
 
     Option(
-        #[schema(ref(TypeSchema))]
+        #[schema(ref(Schema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "SF::deserialize_ptr")]
         SF::Ptr<Self>,
@@ -171,10 +174,10 @@ pub enum TypeSchema<'s, SF: SchemaFlavor<'s>> {
 pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
     pub name: SF::Str,
     // pub key: u32, // Maybe for future protocols
-    #[schema(ref(TypeSchema))]
+    #[schema(ref(Schema))]
     #[serde(serialize_with = "ser::serialize_ptr")]
     #[serde(deserialize_with = "SF::deserialize_ptr")]
-    pub ty: SF::Ptr<TypeSchema<'s, SF>>,
+    pub ty: SF::Ptr<Schema<'s, SF>>,
 }
 
 impl<'s, SF> fmt::Display for Data<'s, SF>
@@ -212,50 +215,50 @@ where
     }
 }
 
-impl<'s, SF> fmt::Display for TypeSchema<'s, SF>
+impl<'s, SF> fmt::Display for Schema<'s, SF>
 where
     SF: SchemaFlavor<'s>,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TypeSchema::Ref { name, kind } => match kind {
+            Schema::Ref { name, kind } => match kind {
                 RefKind::Direct => write!(f, "-> {}", name.as_ref()),
                 RefKind::Slice => write!(f, "-> [{}]", name.as_ref()),
             },
-            TypeSchema::Unit => write!(f, "()"),
-            TypeSchema::Bool => write!(f, "bool"),
-            TypeSchema::Str => write!(f, "str"),
-            TypeSchema::Char => write!(f, "char"),
+            Schema::Unit => write!(f, "()"),
+            Schema::Bool => write!(f, "bool"),
+            Schema::Str => write!(f, "str"),
+            Schema::Char => write!(f, "char"),
 
-            TypeSchema::U8 => write!(f, "u8"),
-            TypeSchema::U16 => write!(f, "u16"),
-            TypeSchema::U32 => write!(f, "u32"),
-            TypeSchema::U64 => write!(f, "u64"),
+            Schema::U8 => write!(f, "u8"),
+            Schema::U16 => write!(f, "u16"),
+            Schema::U32 => write!(f, "u32"),
+            Schema::U64 => write!(f, "u64"),
 
-            TypeSchema::I8 => write!(f, "i8"),
-            TypeSchema::I16 => write!(f, "i16"),
-            TypeSchema::I32 => write!(f, "i32"),
-            TypeSchema::I64 => write!(f, "i64"),
+            Schema::I8 => write!(f, "i8"),
+            Schema::I16 => write!(f, "i16"),
+            Schema::I32 => write!(f, "i32"),
+            Schema::I64 => write!(f, "i64"),
 
-            TypeSchema::F32 => write!(f, "f32"),
-            TypeSchema::F64 => write!(f, "f64"),
-            TypeSchema::U128 => write!(f, "u128"),
-            TypeSchema::I128 => write!(f, "i128"),
+            Schema::F32 => write!(f, "f32"),
+            Schema::F64 => write!(f, "f64"),
+            Schema::U128 => write!(f, "u128"),
+            Schema::I128 => write!(f, "i128"),
 
-            TypeSchema::Array { element, len } => {
+            Schema::Array { element, len } => {
                 write!(f, "[{}; {}]", &**element, len)
             }
 
-            TypeSchema::Slice { element } => {
+            Schema::Slice { element } => {
                 write!(f, "[{}]", &**element)
             }
 
-            TypeSchema::Map { key, value } => {
+            Schema::Map { key, value } => {
                 write!(f, "Map<{}, {}>", &**key, &**value)
             }
 
-            TypeSchema::Tuple { elements } => {
+            Schema::Tuple { elements } => {
                 write!(f, "(")?;
                 for (i, elem) in elements.deref().iter().enumerate() {
                     if i != 0 {
@@ -266,9 +269,9 @@ where
                 write!(f, ")")
             }
 
-            TypeSchema::Struct { data } => write!(f, "{data}"),
+            Schema::Struct { data } => write!(f, "{data}"),
 
-            TypeSchema::Enum {
+            Schema::Enum {
                 name: enum_name,
                 variants,
             } => {
@@ -312,18 +315,18 @@ where
                 write!(f, " }}")
             }
 
-            TypeSchema::Option(schema) => write!(f, "Option<{}>", &**schema),
+            Schema::Option(schema) => write!(f, "Option<{}>", &**schema),
         }
     }
 }
 
-impl<'s, SF> TypeSchema<'s, SF>
+impl<'s, SF> Schema<'s, SF>
 where
     SF: SchemaFlavor<'s>,
 {
     /// Deserialize a [`Value`] from the given deserializer using this schema.
     ///
-    /// [`TypeSchema::Ref`] nodes are resolved automatically.
+    /// [`Schema::Ref`] nodes are resolved automatically.
     #[inline]
     pub fn decode_value<'de, D, VB>(&'s self, deserializer: D) -> Result<Value<VB>, D::Error>
     where
@@ -345,7 +348,7 @@ where
         VB::Str: Deserialize<'de>,
     {
         match self {
-            TypeSchema::Ref { name, kind } => {
+            Schema::Ref { name, kind } => {
                 let target = resolver
                     .and_then(|res| res.resolve(name.as_ref()))
                     .ok_or_else(|| {
@@ -361,42 +364,44 @@ where
                 }
             }
 
-            TypeSchema::Unit => {
+            Schema::Unit => {
                 <()>::deserialize(deserializer)?;
                 Ok(Value::Unit)
             }
-            TypeSchema::Bool => Ok(Value::Bool(bool::deserialize(deserializer)?)),
-            TypeSchema::Str => Ok(Value::Str(<VB::Str>::deserialize(deserializer)?)),
-            TypeSchema::Char => Ok(Value::Char(char::deserialize(deserializer)?)),
-            TypeSchema::U8 => Ok(Value::U8(u8::deserialize(deserializer)?)),
-            TypeSchema::U16 => Ok(Value::U16(u16::deserialize(deserializer)?)),
-            TypeSchema::U32 => Ok(Value::U32(u32::deserialize(deserializer)?)),
-            TypeSchema::U64 => Ok(Value::U64(u64::deserialize(deserializer)?)),
-            TypeSchema::I8 => Ok(Value::I8(i8::deserialize(deserializer)?)),
-            TypeSchema::I16 => Ok(Value::I16(i16::deserialize(deserializer)?)),
-            TypeSchema::I32 => Ok(Value::I32(i32::deserialize(deserializer)?)),
-            TypeSchema::I64 => Ok(Value::I64(i64::deserialize(deserializer)?)),
-            TypeSchema::F32 => Ok(Value::F32(f32::deserialize(deserializer)?)),
-            TypeSchema::F64 => Ok(Value::F64(f64::deserialize(deserializer)?)),
-            TypeSchema::U128 => Ok(Value::U128(u128::deserialize(deserializer)?)),
-            TypeSchema::I128 => Ok(Value::I128(i128::deserialize(deserializer)?)),
+            Schema::Bool => Ok(Value::Bool(bool::deserialize(deserializer)?)),
+            Schema::Str => Ok(Value::Str(<VB::Str>::deserialize(deserializer)?)),
+            Schema::Char => Ok(Value::Char(char::deserialize(deserializer)?)),
+            Schema::U8 => Ok(Value::U8(u8::deserialize(deserializer)?)),
+            Schema::U16 => Ok(Value::U16(u16::deserialize(deserializer)?)),
+            Schema::U32 => Ok(Value::U32(u32::deserialize(deserializer)?)),
+            Schema::U64 => Ok(Value::U64(u64::deserialize(deserializer)?)),
+            Schema::I8 => Ok(Value::I8(i8::deserialize(deserializer)?)),
+            Schema::I16 => Ok(Value::I16(i16::deserialize(deserializer)?)),
+            Schema::I32 => Ok(Value::I32(i32::deserialize(deserializer)?)),
+            Schema::I64 => Ok(Value::I64(i64::deserialize(deserializer)?)),
+            Schema::F32 => Ok(Value::F32(f32::deserialize(deserializer)?)),
+            Schema::F64 => Ok(Value::F64(f64::deserialize(deserializer)?)),
+            Schema::U128 => Ok(Value::U128(u128::deserialize(deserializer)?)),
+            Schema::I128 => Ok(Value::I128(i128::deserialize(deserializer)?)),
 
-            TypeSchema::Array { element, len } => deserializer.deserialize_tuple(
+            Schema::Array { element, len } => deserializer.deserialize_tuple(
                 *len,
                 visitors::ArrayVisitor::<SF, VB>::new(element, *len, resolver),
             ),
-            TypeSchema::Slice { element } => deserializer
-                .deserialize_seq(visitors::SliceVisitor::<SF, VB>::new(element, resolver)),
-            TypeSchema::Map { key, value } => {
+            Schema::Slice { element } => {
+                deserializer
+                    .deserialize_seq(visitors::SliceVisitor::<SF, VB>::new(element, resolver))
+            }
+            Schema::Map { key, value } => {
                 deserializer
                     .deserialize_map(visitors::MapVisitor::<SF, VB>::new(key, value, resolver))
             }
-            TypeSchema::Tuple { elements } => deserializer.deserialize_tuple(
+            Schema::Tuple { elements } => deserializer.deserialize_tuple(
                 elements.len(),
                 visitors::TupleVisitor::<SF, VB>::new(elements, resolver),
             ),
 
-            TypeSchema::Struct { data } => match data {
+            Schema::Struct { data } => match data {
                 Data::Unit { name } => deserializer.deserialize_unit_struct(
                     as_static_str(name),
                     visitors::UnitStructVisitor::<SF, VB>::new(name),
@@ -428,7 +433,7 @@ where
                 }
             },
 
-            TypeSchema::Enum { name, variants } => {
+            Schema::Enum { name, variants } => {
                 let entry = visitors::Resolver::new(name.as_ref(), self, resolver);
                 deserializer.deserialize_enum(
                     as_static_str(name), // dunno
@@ -438,8 +443,10 @@ where
                 )
             }
 
-            TypeSchema::Option(schema) => deserializer
-                .deserialize_option(visitors::OptionVisitor::<SF, VB>::new(schema, resolver)),
+            Schema::Option(schema) => {
+                deserializer
+                    .deserialize_option(visitors::OptionVisitor::<SF, VB>::new(schema, resolver))
+            }
         }
     }
 }

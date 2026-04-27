@@ -117,7 +117,7 @@ impl ContainerAttrs {
                         return Err(::syn::Error::new_spanned(
                             f_tf_i_w_s,
                             "Schema: `from`/`try_from`/`into` incompatible with #[schema = ty]",
-                        ))
+                        ));
                     }
 
                     ::syn::Meta::NameValue(::syn::MetaNameValue {

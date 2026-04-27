@@ -1,24 +1,28 @@
 use super::{Resolver, Seed};
-use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
+use crate::{
+    flavors::{SchemaFlavor, ValueBuilder},
+    schema::Schema,
+    value::Value,
+};
 use ::{
     core::{fmt, marker::PhantomData},
     serde::{
-        de::{MapAccess, Visitor},
         Deserialize,
+        de::{MapAccess, Visitor},
     },
 };
 
 pub struct MapVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
-    key: &'s TypeSchema<'s, SF>,
-    value: &'s TypeSchema<'s, SF>,
+    key: &'s Schema<'s, SF>,
+    value: &'s Schema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VB>,
 }
 
 impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> MapVisitor<'a, 's, SF, VB> {
     pub const fn new(
-        key: &'s TypeSchema<'s, SF>,
-        value: &'s TypeSchema<'s, SF>,
+        key: &'s Schema<'s, SF>,
+        value: &'s Schema<'s, SF>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {

@@ -1,5 +1,5 @@
 use super::{map_like, passthrough_schemas, primitive_schema, slice_like};
-use crate::{Schema, StaticSchema, TypeSchema};
+use crate::{Schema, StaticSchema, schema};
 use ::alloc::{
     borrow::{Cow, ToOwned},
     boxed::Box,
@@ -27,5 +27,5 @@ impl<T: Schema + ToOwned> Schema for Cow<'_, [T]>
 where
     [T]: ToOwned,
 {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Slice { element: T::SCHEMA };
+    const SCHEMA: &'static StaticSchema = &schema::Schema::Slice { element: T::SCHEMA };
 }

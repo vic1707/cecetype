@@ -1,22 +1,26 @@
 use super::{Resolver, Seed};
-use crate::{SchemaFlavor, TypeSchema, Value, ValueBuilder};
+use crate::{
+    flavors::{SchemaFlavor, ValueBuilder},
+    schema::Schema,
+    value::Value,
+};
 use ::{
     core::{fmt, marker::PhantomData},
     serde::{
-        de::{SeqAccess, Visitor},
         Deserialize,
+        de::{SeqAccess, Visitor},
     },
 };
 
 pub struct SliceVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
-    element: &'s TypeSchema<'s, SF>,
+    element: &'s Schema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
     _p: PhantomData<VB>,
 }
 
 impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> SliceVisitor<'a, 's, SF, VB> {
     pub const fn new(
-        element: &'s TypeSchema<'s, SF>,
+        element: &'s Schema<'s, SF>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {

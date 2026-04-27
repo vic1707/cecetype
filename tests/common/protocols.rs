@@ -1,6 +1,6 @@
-use ::schema::{OwnedValue, Schema};
 use ::{
     core::{error, fmt},
+    dimly::{OwnedValue, Schema},
     serde::{Deserialize, Serialize},
 };
 

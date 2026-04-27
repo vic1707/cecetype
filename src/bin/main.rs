@@ -1,9 +1,9 @@
 #![expect(clippy::print_stdout, reason = "sanity check")]
-use ::schema::Schema as _;
+use ::dimly::Schema as _;
 
 fn main() {
-    println!("StaticSchema: {}", ::schema::StaticSchema::SCHEMA);
-    println!("BorrowedSchema: {}", ::schema::BorrowedSchema::SCHEMA);
+    println!("StaticSchema: {}", ::dimly::StaticSchema::SCHEMA);
+    println!("BorrowedSchema: {}", ::dimly::BorrowedSchema::SCHEMA);
     #[cfg(feature = "alloc")]
-    println!("OwnedSchema: {}", ::schema::OwnedSchema::SCHEMA);
+    println!("OwnedSchema: {}", ::dimly::OwnedSchema::SCHEMA);
 }

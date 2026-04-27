@@ -13,13 +13,6 @@ extern crate alloc;
 mod common;
 
 use self::common::*;
-#[cfg(feature = "alloc")]
-use ::alloc::collections::{BTreeSet, LinkedList, VecDeque};
-#[cfg(feature = "std")]
-use ::std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
 use ::{
     core::{
         cell::{Cell, RefCell},
@@ -27,7 +20,14 @@ use ::{
         num::{NonZeroI64, NonZeroU32, Saturating, Wrapping},
         time::Duration,
     },
-    serde::{de::DeserializeOwned, Serialize},
+    serde::{Serialize, de::DeserializeOwned},
+};
+#[cfg(feature = "alloc")]
+use ::alloc::collections::{BTreeSet, LinkedList, VecDeque};
+#[cfg(feature = "std")]
+use ::std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
 };
 
 #[rstest::rstest]
@@ -79,7 +79,7 @@ use ::{
 #[cfg_attr(feature = "std", case::hashset(HashSet::from([99_u32])))]
 fn roundtrip<
     F: protocols::Format,
-    D: Serialize + ::schema::Schema + DeserializeOwned + PartialEq + fmt::Debug,
+    D: Serialize + ::dimly::Schema + DeserializeOwned + PartialEq + fmt::Debug,
 >(
     #[values(
         protocols::Json,

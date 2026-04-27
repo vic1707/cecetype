@@ -7,13 +7,13 @@ mod heapless_impls;
 #[cfg(feature = "std")]
 mod std_impls;
 
-use crate::{type_schema::Data, FieldSchema, Schema, StaticSchema, TypeSchema};
+use crate::{Schema, StaticSchema, schema};
 use ::core::{
     cell::{Cell, RefCell},
     marker::PhantomData,
     num::{
-        NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
-        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize, Saturating, Wrapping,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize, NonZeroU8,
+        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize, Saturating, Wrapping,
     },
     time::Duration,
 };
@@ -54,7 +54,7 @@ impl_tuple_schema!(L, K, J, I, H, G, F, E, D, C, B, A);
 passthrough_schemas!(Wrapping<T>, Saturating<T>, Cell<T>, RefCell<T>, &T, &mut T);
 
 impl<T: Schema> Schema for [T] {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Slice { element: T::SCHEMA };
+    const SCHEMA: &'static StaticSchema = &schema::Schema::Slice { element: T::SCHEMA };
 }
 
 impl<T: Schema> Schema for &[T] {
@@ -62,25 +62,25 @@ impl<T: Schema> Schema for &[T] {
 }
 
 impl<T: ?Sized> Schema for PhantomData<T> {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
-        data: Data::Unit {
+    const SCHEMA: &'static StaticSchema = &schema::Schema::Struct {
+        data: schema::Data::Unit {
             name: "PhantomData",
         },
     };
 }
 
 impl Schema for Duration {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Struct {
-        data: Data::Struct {
+    const SCHEMA: &'static StaticSchema = &schema::Schema::Struct {
+        data: schema::Data::Struct {
             name: "Duration",
             fields: &[
-                &FieldSchema {
+                &schema::FieldSchema {
                     name: "secs",
-                    ty: &TypeSchema::U64,
+                    ty: &schema::Schema::U64,
                 },
-                &FieldSchema {
+                &schema::FieldSchema {
                     name: "nanos",
-                    ty: &TypeSchema::U32,
+                    ty: &schema::Schema::U32,
                 },
             ],
         },
@@ -88,7 +88,7 @@ impl Schema for Duration {
 }
 
 impl<T: Schema, const N: usize> Schema for [T; N] {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Array {
+    const SCHEMA: &'static StaticSchema = &schema::Schema::Array {
         element: T::SCHEMA,
         len: N,
     };
@@ -97,19 +97,19 @@ impl<T: Schema, const N: usize> Schema for [T; N] {
 const OK_DISCRIMINANT: u32 = 0;
 const ERR_DISCRIMINANT: u32 = 1;
 impl<T: Schema, E: Schema> Schema for Result<T, E> {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Enum {
+    const SCHEMA: &'static StaticSchema = &schema::Schema::Enum {
         name: "Result",
         variants: &[
             &(
                 OK_DISCRIMINANT,
-                Data::NewType {
+                schema::Data::NewType {
                     name: "Ok",
                     field: T::SCHEMA,
                 },
             ),
             &(
                 ERR_DISCRIMINANT,
-                Data::NewType {
+                schema::Data::NewType {
                     name: "Err",
                     field: E::SCHEMA,
                 },
@@ -119,7 +119,7 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
 }
 
 impl<T: Schema> Schema for Option<T> {
-    const SCHEMA: &'static StaticSchema = &TypeSchema::Option(T::SCHEMA);
+    const SCHEMA: &'static StaticSchema = &schema::Schema::Option(T::SCHEMA);
 }
 
 #[cfg(test)]
@@ -147,7 +147,7 @@ mod macros {
     macro_rules! primitive_schema {
         ($ty:ty, $variant:ident) => {
             impl Schema for $ty {
-                const SCHEMA: &'static StaticSchema = &TypeSchema::$variant;
+                const SCHEMA: &'static StaticSchema = &schema::Schema::$variant;
             }
         };
     }
@@ -166,7 +166,7 @@ mod macros {
         () => {};
         ($head:ident $(, $tail:ident)*) => {
             impl<$head: Schema $(, $tail: Schema)*> Schema for ($head, $($tail,)*) {
-                const SCHEMA: &'static StaticSchema = &TypeSchema::Tuple {
+                const SCHEMA: &'static StaticSchema = &schema::Schema::Tuple {
                     elements: &[
                         $head::SCHEMA,
                         $($tail::SCHEMA),*
@@ -183,7 +183,7 @@ mod macros {
             $(
                 impl<T: Schema> Schema for $ty {
                     const SCHEMA: &'static StaticSchema =
-                        &TypeSchema::Slice { element: T::SCHEMA };
+                        &schema::Schema::Slice { element: T::SCHEMA };
                 }
             )*
         };
@@ -193,7 +193,7 @@ mod macros {
         ($($ty:ty),* $(,)?) => {
             $(
                 impl<K: Schema, V: Schema> Schema for $ty {
-                    const SCHEMA: &'static StaticSchema = &TypeSchema::Map {
+                    const SCHEMA: &'static StaticSchema = &schema::Schema::Map {
                         key: K::SCHEMA,
                         value: V::SCHEMA,
                     };

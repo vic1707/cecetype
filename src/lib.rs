@@ -1,6 +1,6 @@
 #![no_std]
 
-extern crate self as schema;
+extern crate self as dimly;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -8,36 +8,29 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-mod flavors;
-mod type_schema;
+pub mod flavors;
+pub mod schema;
 mod utils;
-mod value;
+pub mod value;
 
-pub use self::{
-    flavors::{
-        ser, Borrowed, Owned, OwnedSchemaFlavor, SchemaFlavor, Static, ValueBuilder, ValueFlavor,
-    },
-    type_schema::{Data, FieldSchema, RefKind, TypeSchema},
-    value::{Data as ValueData, Value},
-};
-pub use ::schema_macros::Schema;
+pub use ::dimly_macros::Schema;
 
 pub trait Schema {
     const SCHEMA: &'static StaticSchema;
 }
 
-pub type OwnedSchema<'s> = TypeSchema<'s, Owned>;
-pub type OwnedValue = Value<Owned>;
+pub type OwnedSchema<'s> = schema::Schema<'s, flavors::Owned>;
+pub type OwnedValue = value::Value<flavors::Owned>;
 
-pub type BorrowedSchema<'s> = TypeSchema<'s, Borrowed>;
-pub type StaticSchema = TypeSchema<'static, Static>;
+pub type BorrowedSchema<'s> = schema::Schema<'s, flavors::Borrowed>;
+pub type StaticSchema = schema::Schema<'static, flavors::Static>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use ::{
         core::fmt,
-        serde::{de::DeserializeOwned, Deserialize, Serialize},
+        serde::{Deserialize, Serialize, de::DeserializeOwned},
     };
 
     macro_rules! implements {

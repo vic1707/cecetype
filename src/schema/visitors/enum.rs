@@ -1,14 +1,14 @@
-use super::{Resolver, StructVisitor, TupleVisitor};
+use super::{Resolver, Seed, StructVisitor, TupleVisitor};
 use crate::{
-    type_schema::{visitors::Seed, Data},
-    value::Data as ValueData,
-    SchemaFlavor, TypeSchema, Value, ValueBuilder, ValueFlavor,
+    flavors::{SchemaFlavor, ValueBuilder, ValueFlavor},
+    schema::{Data as SchemaData, Schema},
+    value::{Data as ValueData, Value},
 };
 use ::{
     core::{fmt, marker::PhantomData, ops::Deref as _},
     serde::{
-        de::{self, EnumAccess, VariantAccess as _, Visitor},
         Deserialize,
+        de::{self, EnumAccess, VariantAccess as _, Visitor},
     },
 };
 
@@ -19,7 +19,7 @@ enum VariantId<VF: ValueFlavor> {
 
 pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     name: &'s SF::Str,
-    variants: &'s SF::List<(u32, Data<'s, SF>)>,
+    variants: &'s SF::List<(u32, SchemaData<'s, SF>)>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VB>,
@@ -28,7 +28,7 @@ pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
 impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> EnumVisitor<'a, 's, SF, VB> {
     pub const fn new(
         name: &'s SF::Str,
-        variants: &'s SF::List<(u32, Data<'s, SF>)>,
+        variants: &'s SF::List<(u32, SchemaData<'s, SF>)>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {
@@ -74,7 +74,7 @@ where
         })?;
 
         let value_data = match &variant_schema {
-            Data::Unit { .. } => {
+            SchemaData::Unit { .. } => {
                 variant_access.unit_variant()?;
 
                 ValueData::Unit {
@@ -82,7 +82,7 @@ where
                 }
             }
 
-            Data::Tuple { fields, .. } => {
+            SchemaData::Tuple { fields, .. } => {
                 let Value::Tuple(fields_value) = variant_access.tuple_variant(
                     fields.len(),
                     TupleVisitor::<SF, VB>::new(fields, self.resolver),
@@ -97,7 +97,7 @@ where
                 }
             }
 
-            Data::NewType {
+            SchemaData::NewType {
                 field: field_schema,
                 ..
             } => {
@@ -113,7 +113,7 @@ where
                 }
             }
 
-            Data::Struct { name, fields, .. } => {
+            SchemaData::Struct { name, fields, .. } => {
                 let Value::Struct {
                     data:
                         ValueData::Struct {
@@ -145,17 +145,14 @@ where
 }
 
 pub struct OptionVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
-    some: &'s TypeSchema<'s, SF>,
+    some: &'s Schema<'s, SF>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VB>,
 }
 
 impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> OptionVisitor<'a, 's, SF, VB> {
-    pub const fn new(
-        some: &'s TypeSchema<'s, SF>,
-        resolver: Option<&'a Resolver<'a, 's, SF>>,
-    ) -> Self {
+    pub const fn new(some: &'s Schema<'s, SF>, resolver: Option<&'a Resolver<'a, 's, SF>>) -> Self {
         Self {
             some,
             resolver,

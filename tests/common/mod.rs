@@ -3,7 +3,7 @@
 pub mod protocols;
 
 use ::{
-    schema::*,
+    dimly::*,
     serde::{Deserialize, Serialize},
 };
 
