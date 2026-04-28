@@ -38,20 +38,25 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
 }
 
 pub trait ValueFlavor {
-    type Ptr<T: PartialEq + fmt::Debug>: Deref<Target = T> + PartialEq + fmt::Debug;
-    type List<T: PartialEq + fmt::Debug>: DerefMut<Target = [T]> + PartialEq + fmt::Debug;
-    type Str: AsRef<str> + PartialEq + fmt::Debug;
+    type Ptr<T: PartialEq + fmt::Debug + Clone>: Deref<Target = T> + PartialEq + fmt::Debug + Clone;
+    type List<T: PartialEq + fmt::Debug + Clone>: DerefMut<Target = [T]>
+        + PartialEq
+        + fmt::Debug
+        + Clone;
+    type Str: AsRef<str> + PartialEq + fmt::Debug + Clone;
 }
 
 pub trait ValueBuilder: ValueFlavor {
-    fn make_ptr<T: PartialEq + fmt::Debug>(value: T) -> Self::Ptr<T>;
+    fn make_ptr<T: PartialEq + fmt::Debug + Clone>(value: T) -> Self::Ptr<T>;
 
     fn make_str(str: impl AsRef<str>) -> Self::Str;
 
-    fn list<T: PartialEq + fmt::Debug>() -> Self::List<T>;
-    fn list_from_iter<T: PartialEq + fmt::Debug>(iter: impl Iterator<Item = T>) -> Self::List<T>;
-    fn list_with_capacity<T: PartialEq + fmt::Debug>(capacity: usize) -> Self::List<T>;
-    fn list_push<T: PartialEq + fmt::Debug>(builder: &mut Self::List<T>, value: T);
+    fn list<T: PartialEq + fmt::Debug + Clone>() -> Self::List<T>;
+    fn list_from_iter<T: PartialEq + fmt::Debug + Clone>(
+        iter: impl Iterator<Item = T>,
+    ) -> Self::List<T>;
+    fn list_with_capacity<T: PartialEq + fmt::Debug + Clone>(capacity: usize) -> Self::List<T>;
+    fn list_push<T: PartialEq + fmt::Debug + Clone>(builder: &mut Self::List<T>, value: T);
 }
 
 pub(crate) mod ser {

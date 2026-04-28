@@ -9,7 +9,6 @@ use crate::{
 };
 use ::{
     core::{fmt, ops::Deref as _},
-    derive_where::derive_where,
     serde::{Deserialize, Serialize, de},
 };
 
@@ -22,9 +21,7 @@ pub enum RefKind {
 
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
-#[derive_where(Clone; )] // prevents compiler bounds check overflow & `SF: Debug` bound
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `SF: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `SF: PartialEq` bound
+#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SF::Str: Serialize",
@@ -72,9 +69,7 @@ impl<'s, SF: SchemaFlavor<'s>> Data<'s, SF> {
 
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
-#[derive_where(Clone; )] // prevents compiler bounds check overflow & `SF: Debug` bound
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `SF: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `SF: PartialEq` bound
+#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SF::Str: Serialize",
@@ -163,9 +158,7 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
 
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
-#[derive_where(Clone; )] // prevents compiler bounds check overflow & `SF: Debug` bound
-#[derive_where(Debug; )] // prevents compiler bounds check overflow & `SF: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `SF: PartialEq` bound
+#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
 #[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "SF::Str: Serialize",

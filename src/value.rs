@@ -1,8 +1,7 @@
 use crate::{flavors::ValueFlavor, utils::as_static_str};
-use ::{core::fmt, derive_where::derive_where};
+use ::{core::fmt};
 
-#[derive_where(Debug;)] // prevents compiler bounds check overflow & `VF: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `VF: PartialEq` bound
+#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
 #[non_exhaustive]
 pub enum Data<VF: ValueFlavor> {
     Unit {
@@ -34,8 +33,7 @@ impl<VF: ValueFlavor> Data<VF> {
     }
 }
 
-#[derive_where(Debug;)] // prevents compiler bounds check overflow & `VF: Debug` bound
-#[derive_where(PartialEq;)] // prevents compiler bounds check overflow & `VF: PartialEq` bound
+#[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
 #[non_exhaustive]
 pub enum Value<VF: ValueFlavor> {
     Unit,
