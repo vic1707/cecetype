@@ -43,7 +43,7 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
                 ));
             }
         },
-        |ty| Ok(::syn::parse_quote! { <#ty as ::dimly::Schema>::SCHEMA }),
+        |ty| Ok(::syn::parse_quote! { <#ty as ::cecetype::Schema>::SCHEMA }),
     )?;
 
     let schema_bounds = container_attrs.bounds.map_or_else(
@@ -51,7 +51,7 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
             generics
                 .type_params()
                 .map(
-                    |syn::TypeParam { ident: ident2, .. }| ::syn::parse_quote! { #ident2: ::dimly::Schema },
+                    |syn::TypeParam { ident: ident2, .. }| ::syn::parse_quote! { #ident2: ::cecetype::Schema },
                 )
                 .collect::<Vec<::syn::WherePredicate>>()
         },
@@ -68,19 +68,19 @@ fn expand(input: ::proc_macro::TokenStream) -> ::syn::Result<::proc_macro2::Toke
     if let Some(ref_attr) = container_attrs.references {
         let ref_name = ref_attr.name.to_string();
         let kind = match ref_attr.kind {
-            RefAttrKind::Direct => quote! { ::dimly::schema::RefKind::Direct },
-            RefAttrKind::List => quote! { ::dimly::schema::RefKind::Slice },
+            RefAttrKind::Direct => quote! { ::cecetype::schema::RefKind::Direct },
+            RefAttrKind::List => quote! { ::cecetype::schema::RefKind::Slice },
         };
         return Ok(quote! {
-            impl #impl_generics ::dimly::Schema for #ident #ty_generics #where_clause {
-                const SCHEMA: &'static ::dimly::StaticSchema = &::dimly::schema::Schema::Ref { name: #ref_name, kind: #kind };
+            impl #impl_generics ::cecetype::Schema for #ident #ty_generics #where_clause {
+                const SCHEMA: &'static ::cecetype::StaticSchema = &::cecetype::schema::Schema::Ref { name: #ref_name, kind: #kind };
             }
         });
     }
 
     Ok(quote! {
-        impl #impl_generics ::dimly::Schema for #ident #ty_generics #where_clause {
-            const SCHEMA: &'static ::dimly::StaticSchema = &#schema;
+        impl #impl_generics ::cecetype::Schema for #ident #ty_generics #where_clause {
+            const SCHEMA: &'static ::cecetype::StaticSchema = &#schema;
         }
     })
 }
@@ -100,7 +100,7 @@ fn struct_schema(
     if container_attrs.transparent {
         let (field, field_attrs) = fields.first().unwrap();
         let ty = field_attrs.repr_via.as_ref().unwrap_or(&field.ty);
-        return Ok(::syn::parse_quote! { <#ty as ::dimly::Schema>::SCHEMA });
+        return Ok(::syn::parse_quote! { <#ty as ::cecetype::Schema>::SCHEMA });
     }
 
     let mut field_defs = fields.into_iter().map(field_schema);
@@ -108,9 +108,9 @@ fn struct_schema(
     let schema = match &data.fields {
         Fields::Named(_) => {
             ::syn::parse_quote! {
-                ::dimly::schema::Schema::Struct{
+                ::cecetype::schema::Schema::Struct{
                     name: #struct_name,
-                    data: ::dimly::schema::Data::Struct {
+                    data: ::cecetype::schema::Data::Struct {
                         fields: &[
                             #( #field_defs ),*
                         ],
@@ -122,9 +122,9 @@ fn struct_schema(
         Fields::Unnamed(_) if field_defs.len() == 1 => {
             let field = field_defs.next().unwrap();
             ::syn::parse_quote! {
-                ::dimly::schema::Schema::Struct{
+                ::cecetype::schema::Schema::Struct{
                     name: #struct_name,
-                    data: ::dimly::schema::Data::NewType {
+                    data: ::cecetype::schema::Data::NewType {
                         field: #field,
                     }
                 }
@@ -133,9 +133,9 @@ fn struct_schema(
 
         Fields::Unnamed(_) => {
             ::syn::parse_quote! {
-                ::dimly::schema::Schema::Struct {
+                ::cecetype::schema::Schema::Struct {
                     name: #struct_name,
-                    data: ::dimly::schema::Data::Tuple {
+                    data: ::cecetype::schema::Data::Tuple {
                         fields: &[
                             #( #field_defs ),*
                         ],
@@ -146,9 +146,9 @@ fn struct_schema(
 
         Fields::Unit => {
             ::syn::parse_quote! {
-                ::dimly::schema::Schema::Struct{
+                ::cecetype::schema::Schema::Struct{
                     name: #struct_name,
-                    data: ::dimly::schema::Data::Unit,
+                    data: ::cecetype::schema::Data::Unit,
                 }
             }
         }
@@ -195,20 +195,20 @@ fn enum_schema(
                     .map::<::syn::Expr, _>(|ref_attr| {
                         let ref_name = ref_attr.name.to_string();
                         let kind = match ref_attr.kind {
-                            RefAttrKind::Direct => quote! { ::dimly::schema::RefKind::Direct },
-                            RefAttrKind::List => quote! { ::dimly::schema::RefKind::Slice },
+                            RefAttrKind::Direct => quote! { ::cecetype::schema::RefKind::Direct },
+                            RefAttrKind::List => quote! { ::cecetype::schema::RefKind::Slice },
                         };
 
-                        ::syn::parse_quote! { &::dimly::schema::Schema::Ref { name: #ref_name, kind: #kind } }
+                        ::syn::parse_quote! { &::cecetype::schema::Schema::Ref { name: #ref_name, kind: #kind } }
                     })
-                    .or_else(|| variant_attrs.repr_via.as_ref().map(|repr_ty| ::syn::parse_quote! { <#repr_ty as ::dimly::Schema>::SCHEMA })
+                    .or_else(|| variant_attrs.repr_via.as_ref().map(|repr_ty| ::syn::parse_quote! { <#repr_ty as ::cecetype::Schema>::SCHEMA })
                     )
                 {
                     return Ok(quote! {
                         &(
                             #discriminant,
                             #vname,
-                            ::dimly::schema::Data::NewType {
+                            ::cecetype::schema::Data::NewType {
                                 field: #schema,
                             },
                         )
@@ -230,7 +230,7 @@ fn enum_schema(
                             &(
                                 #discriminant,
                                 #vname,
-                                ::dimly::schema::Data::Unit,
+                                ::cecetype::schema::Data::Unit,
                             )
                         }
                     }
@@ -242,7 +242,7 @@ fn enum_schema(
                             &(
                                 #discriminant,
                                 #vname,
-                                ::dimly::schema::Data::NewType {
+                                ::cecetype::schema::Data::NewType {
                                     field: #fschema,
                                 },
                             )
@@ -254,7 +254,7 @@ fn enum_schema(
                             &(
                                 #discriminant,
                                 #vname,
-                                ::dimly::schema::Data::Tuple {
+                                ::cecetype::schema::Data::Tuple {
                                     fields: &[
                                         #( #field_defs ),*
                                     ],
@@ -268,7 +268,7 @@ fn enum_schema(
                             &(
                                 #discriminant,
                                 #vname,
-                                ::dimly::schema::Data::Struct {
+                                ::cecetype::schema::Data::Struct {
                                     fields: &[
                                         #( #field_defs ),*
                                     ],
@@ -283,7 +283,7 @@ fn enum_schema(
         .collect::<::syn::Result<Vec<_>>>()?;
 
     Ok(::syn::parse_quote! {
-        ::dimly::schema::Schema::Enum {
+        ::cecetype::schema::Schema::Enum {
             name: #enum_name,
             variants: &[
                 #( #variants ),*
@@ -298,15 +298,15 @@ fn field_schema(
     let ty_schema: ::syn::Expr = field_attrs.references.map_or_else(
         || {
             let repr_ty = field_attrs.repr_via.as_ref().unwrap_or(ty);
-            ::syn::parse_quote! { <#repr_ty as ::dimly::Schema>::SCHEMA }
+            ::syn::parse_quote! { <#repr_ty as ::cecetype::Schema>::SCHEMA }
         },
         |ref_attr| {
             let ref_name = ref_attr.name.to_string();
             let kind = match ref_attr.kind {
-                RefAttrKind::Direct => quote! { ::dimly::schema::RefKind::Direct },
-                RefAttrKind::List => quote! { ::dimly::schema::RefKind::Slice },
+                RefAttrKind::Direct => quote! { ::cecetype::schema::RefKind::Direct },
+                RefAttrKind::List => quote! { ::cecetype::schema::RefKind::Slice },
             };
-            ::syn::parse_quote! { &::dimly::schema::Schema::Ref { name: #ref_name, kind: #kind } }
+            ::syn::parse_quote! { &::cecetype::schema::Schema::Ref { name: #ref_name, kind: #kind } }
         },
     );
     field_attrs
@@ -318,7 +318,7 @@ fn field_schema(
             || ::syn::parse_quote! { #ty_schema },
             |name| {
                 ::syn::parse_quote! {
-                    &::dimly::schema::FieldSchema {
+                    &::cecetype::schema::FieldSchema {
                         name: #name,
                         ty: #ty_schema,
                     }

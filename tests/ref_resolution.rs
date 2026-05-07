@@ -8,13 +8,13 @@
 mod common;
 
 use ::{
-    core::marker::PhantomData,
-    dimly::{
+    cecetype::{
         Schema, StaticSchema,
         flavors::Owned,
         schema,
         value::{Data, Value},
     },
+    core::marker::PhantomData,
 };
 
 #[derive(serde::Serialize, serde::Deserialize, Schema, PartialEq, Eq, Debug, Clone)]

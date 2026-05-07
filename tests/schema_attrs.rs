@@ -4,8 +4,8 @@ mod common;
 
 use self::common::*;
 use ::{
+    cecetype::{Schema, StaticSchema, schema},
     core::marker::PhantomData,
-    dimly::{Schema, StaticSchema, schema},
     serde::{Deserialize, Serialize},
 };
 

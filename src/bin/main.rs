@@ -1,9 +1,9 @@
 #![expect(clippy::print_stdout, reason = "sanity check")]
-use ::dimly::Schema as _;
+use ::cecetype::Schema as _;
 
 fn main() {
-    println!("StaticSchema: {}", ::dimly::StaticSchema::SCHEMA);
-    println!("BorrowedSchema: {}", ::dimly::BorrowedSchema::SCHEMA);
+    println!("StaticSchema: {}", ::cecetype::StaticSchema::SCHEMA);
+    println!("BorrowedSchema: {}", ::cecetype::BorrowedSchema::SCHEMA);
     #[cfg(feature = "alloc")]
-    println!("OwnedSchema: {}", ::dimly::OwnedSchema::SCHEMA);
+    println!("OwnedSchema: {}", ::cecetype::OwnedSchema::SCHEMA);
 }

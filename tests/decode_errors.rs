@@ -8,8 +8,8 @@
 mod common;
 
 use self::common::*;
+use ::cecetype::{Schema, flavors::Owned, value::Value};
 use ::core::marker::PhantomData;
-use ::dimly::{Schema, flavors::Owned, value::Value};
 
 #[rstest::rstest]
 #[case::missing_field(PhantomData::<BasicStruct>, r#"{ "a": 42 }"#, "missing field `b` in struct `BasicStruct` at line 1 column 11")]

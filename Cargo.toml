@@ -1,10 +1,10 @@
 [package]
-name = "dimly"
+name = "cecetype"
 version = "0.0.0"
 edition = "2024"
 
 [workspace]
-members = ["dimly-macros"]
+members = ["cecetype-macros"]
 
 [features]
 default = ["alloc", "std", "heapless"]
@@ -17,7 +17,7 @@ hash32 = { version = "0.3", default-features = false, optional = true }
 heapless = { version = "0.9.2", default-features = false, features = [
     "serde",
 ], optional = true }
-dimly-macros = { path = "dimly-macros" }
+cecetype-macros = { path = "cecetype-macros" }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 derive-where = { version = "1.6.1", default-features = false }
 

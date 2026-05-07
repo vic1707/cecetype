@@ -3,7 +3,7 @@
 pub mod protocols;
 
 use ::{
-    dimly::*,
+    cecetype::*,
     serde::{Deserialize, Serialize},
 };
 

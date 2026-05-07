@@ -14,15 +14,15 @@ mod common;
 
 use self::common::*;
 use ::{
+    cecetype::{
+        OwnedSchema, OwnedValue, Schema,
+        value::{Data, Value},
+    },
     core::{
         cell::{Cell, RefCell},
         marker::PhantomData,
         num::{NonZeroI64, NonZeroU32, Saturating, Wrapping},
         time::Duration,
-    },
-    dimly::{
-        OwnedSchema, OwnedValue, Schema,
-        value::{Data, Value},
     },
     serde::Serialize,
 };

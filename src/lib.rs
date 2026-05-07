@@ -1,6 +1,6 @@
 #![no_std]
 
-extern crate self as dimly;
+extern crate self as cecetype;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -13,7 +13,7 @@ pub mod schema;
 mod utils;
 pub mod value;
 
-pub use ::dimly_macros::Schema;
+pub use ::cecetype_macros::Schema;
 
 pub trait Schema {
     const SCHEMA: &'static StaticSchema;

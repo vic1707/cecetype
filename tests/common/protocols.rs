@@ -1,6 +1,6 @@
 use ::{
+    cecetype::{OwnedValue, Schema},
     core::{error, fmt},
-    dimly::{OwnedValue, Schema},
     serde::{Deserialize, Serialize},
 };
 

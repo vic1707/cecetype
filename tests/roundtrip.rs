@@ -79,7 +79,7 @@ use ::std::{
 #[cfg_attr(feature = "std", case::hashset(HashSet::from([99_u32])))]
 fn roundtrip<
     F: protocols::Format,
-    D: Serialize + ::dimly::Schema + DeserializeOwned + PartialEq + fmt::Debug,
+    D: Serialize + ::cecetype::Schema + DeserializeOwned + PartialEq + fmt::Debug,
 >(
     #[values(
         protocols::Json,
