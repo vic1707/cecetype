@@ -79,10 +79,8 @@ where
         }
 
         Ok(Value::Struct {
-            data: ValueData::Struct {
-                name: VB::make_str(self.name),
-                fields: values,
-            },
+            name: VB::make_str(self.name),
+            data: ValueData::Struct { fields: values },
         })
     }
 
@@ -138,10 +136,8 @@ where
         }
 
         Ok(Value::Struct {
-            data: ValueData::Struct {
-                name: VB::make_str(self.name),
-                fields: values,
-            },
+            name: VB::make_str(self.name),
+            data: ValueData::Struct { fields: values },
         })
     }
 }
@@ -186,9 +182,8 @@ where
         E: de::Error,
     {
         Ok(Value::Struct {
-            data: ValueData::Unit {
-                name: VB::make_str(self.name),
-            },
+            name: VB::make_str(self.name),
+            data: ValueData::Unit,
         })
     }
 }
@@ -260,10 +255,8 @@ where
         }
 
         Ok(Value::Struct {
-            data: ValueData::Tuple {
-                name: VB::make_str(self.name),
-                fields: values,
-            },
+            name: VB::make_str(self.name),
+            data: ValueData::Tuple { fields: values },
         })
     }
 }
@@ -320,8 +313,8 @@ where
             .decode_value_with_resolver::<_, VB>(deserializer, self.resolver)?;
 
         Ok(Value::Struct {
+            name: VB::make_str(self.name),
             data: ValueData::NewType {
-                name: VB::make_str(self.name),
                 field: VB::make_ptr(value),
             },
         })

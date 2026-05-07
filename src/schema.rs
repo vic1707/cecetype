@@ -29,42 +29,25 @@ pub enum RefKind {
 ))]
 #[non_exhaustive]
 pub enum Data<'s, SF: SchemaFlavor<'s>> {
-    Unit {
-        name: SF::Str,
-    },
+    Unit,
     NewType {
-        name: SF::Str,
         #[schema(ref(Schema))]
         #[serde(serialize_with = "ser::serialize_ptr")]
         #[serde(deserialize_with = "SF::deserialize_ptr")]
         field: SF::Ptr<Schema<'s, SF>>,
     },
     Tuple {
-        name: SF::Str,
         #[schema(ref(Schema, list))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "SF::deserialize_list")]
         fields: SF::List<Schema<'s, SF>>,
     },
     Struct {
-        name: SF::Str,
         #[schema(as([FieldSchema<'s, SF>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "SF::deserialize_list")]
         fields: SF::List<FieldSchema<'s, SF>>,
     },
-}
-
-impl<'s, SF: SchemaFlavor<'s>> Data<'s, SF> {
-    #[inline]
-    pub fn name(&self) -> &str {
-        match self {
-            Self::Unit { name }
-            | Self::NewType { name, .. }
-            | Self::Tuple { name, .. }
-            | Self::Struct { name, .. } => name.as_ref(),
-        }
-    }
 }
 
 #[derive(crate::Schema)]
@@ -136,16 +119,16 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
     },
 
     Struct {
-        // TODO: tuple variant when `yaml_serde` supports nested enums
+        name: SF::Str,
         data: Data<'s, SF>,
     },
 
     Enum {
         name: SF::Str,
-        #[schema(as([(u32, Data<'s, SF>)]))]
+        #[schema(as([(u32, SF::Str, Data<'s, SF>)]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "SF::deserialize_list")]
-        variants: SF::List<(u32, Data<'s, SF>)>,
+        variants: SF::List<(u32, SF::Str, Data<'s, SF>)>,
     },
 
     Option(
@@ -171,41 +154,6 @@ pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
     #[serde(serialize_with = "ser::serialize_ptr")]
     #[serde(deserialize_with = "SF::deserialize_ptr")]
     pub ty: SF::Ptr<Schema<'s, SF>>,
-}
-
-impl<'s, SF> fmt::Display for Data<'s, SF>
-where
-    SF: SchemaFlavor<'s>,
-{
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Unit { name } => write!(f, "{}", name.as_ref()),
-            Self::NewType { name, field } => {
-                write!(f, "{} ({})", name.as_ref(), &**field)
-            }
-            Self::Tuple { name, fields } => {
-                write!(f, "{} (", name.as_ref())?;
-                for (idx, field) in fields.deref().iter().enumerate() {
-                    if idx != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", &**field)?;
-                }
-                write!(f, ")")
-            }
-            Self::Struct { name, fields } => {
-                write!(f, "{} {{ ", name.as_ref())?;
-                for (idx, field) in fields.deref().iter().enumerate() {
-                    if idx != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}: {}", field.name.as_ref(), &*field.ty)?;
-                }
-                write!(f, " }}")
-            }
-        }
-    }
 }
 
 impl<'s, SF> fmt::Display for Schema<'s, SF>
@@ -262,7 +210,30 @@ where
                 write!(f, ")")
             }
 
-            Schema::Struct { data } => write!(f, "{data}"),
+            Schema::Struct { name, data } => match data {
+                Data::Unit => write!(f, "{}", name.as_ref()),
+                Data::NewType { field } => write!(f, "{} ({})", name.as_ref(), &**field),
+                Data::Tuple { fields } => {
+                    write!(f, "{} (", name.as_ref())?;
+                    for (i, field) in fields.deref().iter().enumerate() {
+                        if i != 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", &**field)?;
+                    }
+                    write!(f, ")")
+                }
+                Data::Struct { fields } => {
+                    write!(f, "{} {{ ", name.as_ref())?;
+                    for (i, field) in fields.deref().iter().enumerate() {
+                        if i != 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}: {}", field.name.as_ref(), &*field.ty)?;
+                    }
+                    write!(f, " }}")
+                }
+            },
 
             Schema::Enum {
                 name: enum_name,
@@ -271,15 +242,15 @@ where
                 write!(f, "{} {{ ", enum_name.as_ref())?;
 
                 for (idx, variant) in variants.deref().iter().enumerate() {
-                    let (discriminant, data) = &**variant;
+                    let (discriminant, name, data) = &**variant;
                     if idx != 0 {
                         write!(f, " | ")?;
                     }
                     match &data {
-                        Data::Unit { name } => {
+                        Data::Unit => {
                             write!(f, "{} = {}", name.as_ref(), discriminant)?;
                         }
-                        Data::Struct { name, fields } => {
+                        Data::Struct { fields } => {
                             write!(f, "{} = {}({{ ", name.as_ref(), discriminant)?;
                             for (fidx, field) in fields.deref().iter().enumerate() {
                                 if fidx != 0 {
@@ -289,7 +260,7 @@ where
                             }
                             write!(f, " }})")?;
                         }
-                        Data::Tuple { name, fields } => {
+                        Data::Tuple { fields } => {
                             write!(f, "{} = {}(", name.as_ref(), discriminant)?;
                             for (fidx, field) in fields.deref().iter().enumerate() {
                                 if fidx != 0 {
@@ -299,7 +270,7 @@ where
                             }
                             write!(f, ")")?;
                         }
-                        Data::NewType { name, field } => {
+                        Data::NewType { field } => {
                             write!(f, "{} = {}({})", name.as_ref(), discriminant, &**field)?;
                         }
                     }
@@ -394,20 +365,20 @@ where
                 visitors::TupleVisitor::<SF, VB>::new(elements, resolver),
             ),
 
-            Schema::Struct { data } => match data {
-                Data::Unit { name } => deserializer.deserialize_unit_struct(
+            Schema::Struct { name, data } => match data {
+                Data::Unit => deserializer.deserialize_unit_struct(
                     as_static_str(name),
                     visitors::UnitStructVisitor::<SF, VB>::new(name),
                 ),
 
-                Data::NewType { name, field } => {
+                Data::NewType { field } => {
                     let entry = visitors::Resolver::new(name.as_ref(), self, resolver);
                     deserializer.deserialize_newtype_struct(
                         as_static_str(name),
                         visitors::NewTypeStructVisitor::<SF, VB>::new(name, field, Some(&entry)),
                     )
                 }
-                Data::Tuple { name, fields } => {
+                Data::Tuple { fields } => {
                     let entry = visitors::Resolver::new(name.as_ref(), self, resolver);
                     deserializer.deserialize_tuple_struct(
                         as_static_str(name),
@@ -415,7 +386,7 @@ where
                         visitors::TupleStructVisitor::<SF, VB>::new(name, fields, Some(&entry)),
                     )
                 }
-                Data::Struct { name, fields } => {
+                Data::Struct { fields } => {
                     let entry = visitors::Resolver::new(name.as_ref(), self, resolver);
                     deserializer.deserialize_struct(
                         as_static_str(name), // dunno

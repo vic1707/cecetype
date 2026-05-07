@@ -1,36 +1,19 @@
 use crate::{flavors::ValueFlavor, utils::as_static_str};
-use ::{core::fmt};
+use ::core::fmt;
 
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
 #[non_exhaustive]
 pub enum Data<VF: ValueFlavor> {
-    Unit {
-        name: VF::Str,
-    },
+    Unit,
     NewType {
-        name: VF::Str,
         field: VF::Ptr<Value<VF>>,
     },
     Tuple {
-        name: VF::Str,
         fields: VF::List<Value<VF>>,
     },
     Struct {
-        name: VF::Str,
         fields: VF::List<(VF::Str, Value<VF>)>,
     },
-}
-
-impl<VF: ValueFlavor> Data<VF> {
-    #[inline]
-    pub fn name(&self) -> &str {
-        match self {
-            Self::Unit { name }
-            | Self::NewType { name, .. }
-            | Self::Tuple { name, .. }
-            | Self::Struct { name, .. } => name.as_ref(),
-        }
-    }
 }
 
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
@@ -63,52 +46,18 @@ pub enum Value<VF: ValueFlavor> {
     Tuple(VF::List<Self>),
 
     Struct {
-        // TODO: tuple variant when `yaml_serde` supports nested enums
+        name: VF::Str,
         data: Data<VF>,
     },
 
     Enum {
-        name: VF::Str,
+        enum_name: VF::Str,
+        variant_name: VF::Str,
         discriminant: u32,
         data: Data<VF>,
     },
 
     Option(Option<VF::Ptr<Self>>),
-}
-
-impl<VF> fmt::Display for Data<VF>
-where
-    VF: ValueFlavor,
-{
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Unit { name } => write!(f, "{}", name.as_ref()),
-            Self::NewType { name, field } => {
-                write!(f, "{}({})", name.as_ref(), &**field)
-            }
-            Self::Tuple { name, fields } => {
-                write!(f, "{} (", name.as_ref())?;
-                for (i, val) in fields.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{val}")?;
-                }
-                write!(f, ")")
-            }
-            Self::Struct { name, fields } => {
-                write!(f, "{} {{ ", name.as_ref())?;
-                for (i, (key, val)) in fields.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}: {}", key.as_ref(), val)?;
-                }
-                write!(f, " }}")
-            }
-        }
-    }
 }
 
 impl<VF> fmt::Display for Value<VF>
@@ -170,10 +119,62 @@ where
                 write!(f, ")")
             }
 
-            Self::Struct { data } => write!(f, "{data}"),
+            Self::Struct { name, data } => match data {
+                Data::Unit => write!(f, "{}", name.as_ref()),
+                Data::NewType { field } => write!(f, "{} ({})", name.as_ref(), &**field),
+                Data::Tuple { fields } => {
+                    write!(f, "{} (", name.as_ref())?;
+                    for (i, val) in fields.iter().enumerate() {
+                        if i != 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{val}")?;
+                    }
+                    write!(f, ")")
+                }
+                Data::Struct { fields } => {
+                    write!(f, "{} {{ ", name.as_ref())?;
+                    for (i, (key, val)) in fields.iter().enumerate() {
+                        if i != 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}: {}", key.as_ref(), val)?;
+                    }
+                    write!(f, " }}")
+                }
+            },
 
-            Self::Enum { name, data, .. } => {
-                write!(f, "{}::{data}", name.as_ref())
+            Self::Enum {
+                enum_name,
+                variant_name,
+                data,
+                ..
+            } => {
+                write!(f, "{}::", enum_name.as_ref())?;
+                match data {
+                    Data::Unit => write!(f, "{}", variant_name.as_ref()),
+                    Data::NewType { field } => write!(f, "{}({})", variant_name.as_ref(), &**field),
+                    Data::Tuple { fields } => {
+                        write!(f, "{}(", variant_name.as_ref())?;
+                        for (i, val) in fields.iter().enumerate() {
+                            if i != 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{val}")?;
+                        }
+                        write!(f, ")")
+                    }
+                    Data::Struct { fields } => {
+                        write!(f, "{{ ")?;
+                        for (i, (key, val)) in fields.iter().enumerate() {
+                            if i != 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{}: {}", key.as_ref(), val)?;
+                        }
+                        write!(f, " }}")
+                    }
+                }
             }
 
             Self::Option(opt) => match opt {
@@ -237,13 +238,19 @@ where
                 tup.end()
             }
 
-            Self::Struct { data } => serialize_data(data, None, serializer),
+            Self::Struct { name, data } => serialize_data(name, data, None, serializer),
 
             Self::Enum {
-                name,
+                enum_name,
+                variant_name,
                 discriminant,
                 data,
-            } => serialize_data(data, Some((name, *discriminant)), serializer),
+            } => serialize_data(
+                variant_name,
+                data,
+                Some((enum_name, *discriminant)),
+                serializer,
+            ),
 
             Self::Option(opt) => match opt {
                 Some(val) => serializer.serialize_some(&**val),
@@ -254,6 +261,7 @@ where
 }
 
 fn serialize_data<S, VF>(
+    name: &VF::Str,
     data: &Data<VF>,
     enum_ctx: Option<(&VF::Str, u32)>,
     serializer: S,
@@ -264,14 +272,17 @@ where
     VF::Str: ::serde::Serialize,
 {
     match (data, enum_ctx) {
-        (Data::Unit { name }, None) => serializer.serialize_unit_struct(as_static_str(name)),
-        (Data::Unit { name }, Some((enum_name, discriminant))) => serializer
-            .serialize_unit_variant(as_static_str(enum_name), discriminant, as_static_str(name)),
+        (Data::Unit, None) => serializer.serialize_unit_struct(as_static_str(name)),
+        (Data::Unit, Some((enum_name, discriminant))) => serializer.serialize_unit_variant(
+            as_static_str(enum_name),
+            discriminant,
+            as_static_str(name),
+        ),
 
-        (Data::NewType { name, field }, None) => {
+        (Data::NewType { field }, None) => {
             serializer.serialize_newtype_struct(as_static_str(name), &**field)
         }
-        (Data::NewType { name, field }, Some((enum_name, discriminant))) => serializer
+        (Data::NewType { field }, Some((enum_name, discriminant))) => serializer
             .serialize_newtype_variant(
                 as_static_str(enum_name),
                 discriminant,
@@ -279,7 +290,7 @@ where
                 &**field,
             ),
 
-        (Data::Tuple { name, fields }, None) => {
+        (Data::Tuple { fields }, None) => {
             use ::serde::ser::SerializeTupleStruct as _;
 
             let mut ts = serializer.serialize_tuple_struct(as_static_str(name), fields.len())?;
@@ -288,7 +299,7 @@ where
             }
             ts.end()
         }
-        (Data::Tuple { name, fields }, Some((enum_name, discriminant))) => {
+        (Data::Tuple { fields }, Some((enum_name, discriminant))) => {
             use ::serde::ser::SerializeTupleVariant as _;
 
             let mut tv = serializer.serialize_tuple_variant(
@@ -303,7 +314,7 @@ where
             tv.end()
         }
 
-        (Data::Struct { name, fields }, None) => {
+        (Data::Struct { fields }, None) => {
             use ::serde::ser::SerializeStruct as _;
 
             let mut st = serializer.serialize_struct(as_static_str(name), fields.len())?;
@@ -312,7 +323,7 @@ where
             }
             st.end()
         }
-        (Data::Struct { name, fields }, Some((enum_name, discriminant))) => {
+        (Data::Struct { fields }, Some((enum_name, discriminant))) => {
             use ::serde::ser::SerializeStructVariant as _;
 
             let mut sv = serializer.serialize_struct_variant(

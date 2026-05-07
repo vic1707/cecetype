@@ -63,16 +63,15 @@ impl<T: Schema> Schema for &[T] {
 
 impl<T: ?Sized> Schema for PhantomData<T> {
     const SCHEMA: &'static StaticSchema = &schema::Schema::Struct {
-        data: schema::Data::Unit {
-            name: "PhantomData",
-        },
+        name: "PhantomData",
+        data: schema::Data::Unit,
     };
 }
 
 impl Schema for Duration {
     const SCHEMA: &'static StaticSchema = &schema::Schema::Struct {
+        name: "Duration",
         data: schema::Data::Struct {
-            name: "Duration",
             fields: &[
                 &schema::FieldSchema {
                     name: "secs",
@@ -102,17 +101,13 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
         variants: &[
             &(
                 OK_DISCRIMINANT,
-                schema::Data::NewType {
-                    name: "Ok",
-                    field: T::SCHEMA,
-                },
+                "Ok",
+                schema::Data::NewType { field: T::SCHEMA },
             ),
             &(
                 ERR_DISCRIMINANT,
-                schema::Data::NewType {
-                    name: "Err",
-                    field: E::SCHEMA,
-                },
+                "Err",
+                schema::Data::NewType { field: E::SCHEMA },
             ),
         ],
     };

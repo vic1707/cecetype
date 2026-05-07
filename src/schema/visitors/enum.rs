@@ -19,7 +19,7 @@ enum VariantId<VF: ValueFlavor> {
 
 pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     name: &'s SF::Str,
-    variants: &'s SF::List<(u32, SchemaData<'s, SF>)>,
+    variants: &'s SF::List<(u32, SF::Str, SchemaData<'s, SF>)>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VB>,
@@ -28,7 +28,7 @@ pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
 impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> EnumVisitor<'a, 's, SF, VB> {
     pub const fn new(
         name: &'s SF::Str,
-        variants: &'s SF::List<(u32, SchemaData<'s, SF>)>,
+        variants: &'s SF::List<(u32, SF::Str, SchemaData<'s, SF>)>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {
@@ -58,11 +58,11 @@ where
     {
         let (variant_identifier, variant_access) = data.variant::<VariantId<VB>>()?;
 
-        let (discriminant, variant_schema) = &**match &variant_identifier {
+        let (discriminant, variant_name, variant_schema) = &**match &variant_identifier {
             VariantId::Name(variant_name) => self
                 .variants
                 .iter()
-                .find(|variant| variant.1.name() == variant_name.as_ref()),
+                .find(|variant| variant.1.as_ref() == variant_name.as_ref()),
             VariantId::Index(idx) => self
                 .variants
                 .deref()
@@ -77,9 +77,7 @@ where
             SchemaData::Unit { .. } => {
                 variant_access.unit_variant()?;
 
-                ValueData::Unit {
-                    name: VB::make_str(variant_schema.name()),
-                }
+                ValueData::Unit
             }
 
             SchemaData::Tuple { fields, .. } => {
@@ -92,7 +90,6 @@ where
                 };
 
                 ValueData::Tuple {
-                    name: VB::make_str(variant_schema.name()),
                     fields: fields_value,
                 }
             }
@@ -107,37 +104,35 @@ where
                     _p: PhantomData,
                 })?);
 
-                ValueData::NewType {
-                    name: VB::make_str(variant_schema.name()),
-                    field,
-                }
+                ValueData::NewType { field }
             }
 
-            SchemaData::Struct { name, fields, .. } => {
+            SchemaData::Struct { fields, .. } => {
                 let Value::Struct {
                     data:
                         ValueData::Struct {
                             fields: fields_value,
                             ..
                         },
+                    ..
                 } = variant_access.struct_variant(
                     // Cannot send empty list as postcard uses the length to encode
                     super::names(fields.len()),
-                    StructVisitor::<SF, VB>::new(name, fields, self.resolver),
+                    StructVisitor::<SF, VB>::new(variant_name, fields, self.resolver),
                 )?
                 else {
                     unreachable!()
                 };
 
                 ValueData::Struct {
-                    name: VB::make_str(variant_schema.name()),
                     fields: fields_value,
                 }
             }
         };
 
         Ok(Value::Enum {
-            name: VB::make_str(self.name),
+            enum_name: VB::make_str(self.name),
+            variant_name: VB::make_str(variant_name),
             discriminant: *discriminant,
             data: value_data,
         })

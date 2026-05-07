@@ -109,8 +109,8 @@ fn struct_schema(
         Fields::Named(_) => {
             ::syn::parse_quote! {
                 ::dimly::schema::Schema::Struct{
+                    name: #struct_name,
                     data: ::dimly::schema::Data::Struct {
-                        name: #struct_name,
                         fields: &[
                             #( #field_defs ),*
                         ],
@@ -123,8 +123,8 @@ fn struct_schema(
             let field = field_defs.next().unwrap();
             ::syn::parse_quote! {
                 ::dimly::schema::Schema::Struct{
+                    name: #struct_name,
                     data: ::dimly::schema::Data::NewType {
-                        name: #struct_name,
                         field: #field,
                     }
                 }
@@ -134,8 +134,8 @@ fn struct_schema(
         Fields::Unnamed(_) => {
             ::syn::parse_quote! {
                 ::dimly::schema::Schema::Struct {
+                    name: #struct_name,
                     data: ::dimly::schema::Data::Tuple {
-                        name: #struct_name,
                         fields: &[
                             #( #field_defs ),*
                         ],
@@ -147,9 +147,8 @@ fn struct_schema(
         Fields::Unit => {
             ::syn::parse_quote! {
                 ::dimly::schema::Schema::Struct{
-                    data: ::dimly::schema::Data::Unit {
-                        name: #struct_name,
-                    }
+                    name: #struct_name,
+                    data: ::dimly::schema::Data::Unit,
                 }
             }
         }
@@ -208,8 +207,8 @@ fn enum_schema(
                     return Ok(quote! {
                         &(
                             #discriminant,
+                            #vname,
                             ::dimly::schema::Data::NewType {
-                                name: #vname,
                                 field: #schema,
                             },
                         )
@@ -230,9 +229,8 @@ fn enum_schema(
                         quote! {
                             &(
                                 #discriminant,
-                                ::dimly::schema::Data::Unit {
-                                    name: #vname,
-                                },
+                                #vname,
+                                ::dimly::schema::Data::Unit,
                             )
                         }
                     }
@@ -243,8 +241,8 @@ fn enum_schema(
                         quote! {
                             &(
                                 #discriminant,
+                                #vname,
                                 ::dimly::schema::Data::NewType {
-                                    name: #vname,
                                     field: #fschema,
                                 },
                             )
@@ -255,8 +253,8 @@ fn enum_schema(
                         quote! {
                             &(
                                 #discriminant,
+                                #vname,
                                 ::dimly::schema::Data::Tuple {
-                                    name: #vname,
                                     fields: &[
                                         #( #field_defs ),*
                                     ],
@@ -269,8 +267,8 @@ fn enum_schema(
                         quote! {
                             &(
                                 #discriminant,
+                                #vname,
                                 ::dimly::schema::Data::Struct {
-                                    name: #vname,
                                     fields: &[
                                         #( #field_defs ),*
                                     ],
