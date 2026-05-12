@@ -18,6 +18,7 @@ use ::{
     core::marker::PhantomData,
 };
 
+#[cfg(feature = "derive")]
 #[derive(serde::Serialize, serde::Deserialize, Schema, PartialEq, Eq, Debug, Clone)]
 enum Recurse {
     Leaf,
@@ -28,8 +29,8 @@ enum Recurse {
 }
 
 #[rstest::rstest]
-#[case::ref_self(PhantomData::<Recurse>, r#"{ "RefSelf": "Leaf" }"#, Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 1, variant_name: "RefSelf".to_owned(), data: Data::NewType { field: Box::new(Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 0, variant_name: "Leaf".to_owned(), data: Data::Unit }) } })]
-#[case::ref_list(PhantomData::<Recurse>, r#"{ "RefList": ["Leaf", { "RefSelf": "Leaf" }] }"#, Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 2, variant_name: "RefList".to_owned(), data: Data::NewType { field: Box::new(Value::Slice(vec![Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 0, variant_name: "Leaf".to_owned(), data: Data::Unit }, Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 1, variant_name: "RefSelf".to_owned(), data: Data::NewType { field: Box::new(Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 0, variant_name: "Leaf".to_owned(), data: Data::Unit }) } }])) } })]
+#[cfg_attr(feature = "derive", case::ref_self(PhantomData::<Recurse>, r#"{ "RefSelf": "Leaf" }"#, Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 1, variant_name: "RefSelf".to_owned(), data: Data::NewType { field: Box::new(Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 0, variant_name: "Leaf".to_owned(), data: Data::Unit }) } }))]
+#[cfg_attr(feature = "derive", case::ref_list(PhantomData::<Recurse>, r#"{ "RefList": ["Leaf", { "RefSelf": "Leaf" }] }"#, Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 2, variant_name: "RefList".to_owned(), data: Data::NewType { field: Box::new(Value::Slice(vec![Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 0, variant_name: "Leaf".to_owned(), data: Data::Unit }, Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 1, variant_name: "RefSelf".to_owned(), data: Data::NewType { field: Box::new(Value::Enum { enum_name: "Recurse".to_owned(), discriminant: 0, variant_name: "Leaf".to_owned(), data: Data::Unit }) } }])) } }))]
 fn test_recursive_decoding<T: Schema + ?Sized>(
     #[case] _type: PhantomData<T>,
     #[case] json: &str,

@@ -1,4 +1,4 @@
-#![cfg(feature = "alloc")]
+#![cfg(all(feature = "alloc", feature = "derive"))]
 #![expect(clippy::as_conversions, reason = "test file")]
 
 mod common;

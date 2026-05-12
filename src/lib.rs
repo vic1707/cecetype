@@ -14,6 +14,7 @@ pub mod schema;
 mod utils;
 pub mod value;
 
+#[cfg(feature = "derive")]
 pub use ::cecetype_macros::Schema;
 
 pub trait Schema {

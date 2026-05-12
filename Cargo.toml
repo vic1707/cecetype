@@ -7,14 +7,15 @@ edition = "2024"
 members = ["cecetype-macros"]
 
 [features]
-default = ["alloc", "cli"]
+default = ["derive", "alloc", "cli"]
+derive = ["dep:cecetype-macros"]
 alloc = ["serde/alloc"]
 std = ["alloc", "serde/std"]
 heapless = ["dep:heapless"]
 cli = []
 
 [dependencies]
-cecetype-macros = { path = "cecetype-macros" }
+cecetype-macros = { path = "cecetype-macros", optional = true }
 derive-where = { version = "1.6.1", default-features = false }
 heapless = { version = "0.9.3", default-features = false, features = [
     "serde",

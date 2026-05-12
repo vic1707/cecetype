@@ -1,5 +1,5 @@
 #![expect(clippy::min_ident_chars, dead_code, reason = "shared test fixtures")]
-
+#![cfg(feature = "derive")]
 pub mod protocols;
 
 use ::{
