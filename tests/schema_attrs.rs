@@ -1,3 +1,4 @@
+#![cfg(feature = "alloc")]
 #![expect(clippy::as_conversions, reason = "test file")]
 
 mod common;

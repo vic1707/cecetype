@@ -9,6 +9,7 @@ extern crate alloc;
 extern crate std;
 
 pub mod flavors;
+pub mod parse;
 pub mod schema;
 mod utils;
 pub mod value;

@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "wip")]
 
 mod attrs;
+
 use self::attrs::{ContainerAttrs, FieldAttrs, RefAttrKind, VariantAttrs};
 use ::{
     quote::quote,

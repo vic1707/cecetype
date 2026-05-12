@@ -43,13 +43,14 @@ pub trait ValueFlavor {
         + PartialEq
         + fmt::Debug
         + Clone;
-    type Str: AsRef<str> + PartialEq + fmt::Debug + Clone;
+    type Str: AsRef<str> + PartialEq + fmt::Debug + fmt::Display + Clone;
 }
 
 pub trait ValueBuilder: ValueFlavor {
     fn make_ptr<T: PartialEq + fmt::Debug + Clone>(value: T) -> Self::Ptr<T>;
 
     fn make_str(str: impl AsRef<str>) -> Self::Str;
+    fn make_str_from_display(disp: &impl fmt::Display) -> Self::Str;
 
     fn list<T: PartialEq + fmt::Debug + Clone>() -> Self::List<T>;
     fn list_from_iter<T: PartialEq + fmt::Debug + Clone>(

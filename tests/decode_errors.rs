@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![cfg(feature = "alloc")]
 #![expect(
     clippy::unwrap_used,
     clippy::used_underscore_binding,

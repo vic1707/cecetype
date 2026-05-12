@@ -4,11 +4,12 @@ mod visitors;
 
 use crate::{
     flavors::{OwnedSchemaFlavor, SchemaFlavor, ValueBuilder, ser},
+    parse::{BuildError, Parser},
     utils::as_static_str,
     value::Value,
 };
 use ::{
-    core::{fmt, ops::Deref as _},
+    core::{fmt, iter, ops::Deref as _},
     serde::{Deserialize, Serialize, de},
 };
 
@@ -411,6 +412,151 @@ where
                 deserializer
                     .deserialize_option(visitors::OptionVisitor::<SF, VB>::new(schema, resolver))
             }
+        }
+    }
+}
+
+#[expect(clippy::multiple_inherent_impl, reason = "wip")]
+impl<'s, SF> Schema<'s, SF>
+where
+    SF: SchemaFlavor<'s>,
+{
+    #[inline]
+    pub fn build_value<VB, P>(
+        &'s self,
+        parser: &mut P,
+    ) -> Result<Value<VB>, BuildError<'s, P::Error>>
+    where
+        VB: ValueBuilder,
+        P: Parser<'s, VB>,
+    {
+        let value = self.build_value_with_resolver(parser, None)?;
+        parser.finish().map_err(BuildError::Parser)?;
+        Ok(value)
+    }
+
+    pub(crate) fn build_value_with_resolver<VB, P>(
+        &'s self,
+        parser: &mut P,
+        resolver: Option<&visitors::Resolver<'_, 's, SF>>,
+    ) -> Result<Value<VB>, BuildError<'s, P::Error>>
+    where
+        VB: ValueBuilder,
+        P: Parser<'s, VB>,
+    {
+        #[expect(clippy::shadow_unrelated, reason = "false positive")]
+        let builder = |parser: &mut P, target: &'s Schema<'s, SF>| {
+            target.build_value_with_resolver::<VB, P>(parser, resolver)
+        };
+
+        match self {
+            Schema::Ref { name, kind } => {
+                let target = resolver
+                    .and_then(|res| res.resolve(name.as_ref()))
+                    .ok_or_else(|| BuildError::UnresolvedRef(name.as_ref()))?;
+
+                match kind {
+                    RefKind::Direct => target.build_value_with_resolver(parser, resolver),
+                    RefKind::Slice => parser.parse_seq(target, builder).map(Value::Slice),
+                }
+            }
+
+            Schema::Unit => parser
+                .parse_unit()
+                .map_err(BuildError::Parser)
+                .map(|()| Value::Unit),
+
+            Schema::Bool => parser
+                .parse_bool()
+                .map_err(BuildError::Parser)
+                .map(Value::Bool),
+
+            Schema::Char => parser
+                .parse_char()
+                .map(Value::Char)
+                .map_err(BuildError::Parser),
+            Schema::Str => parser
+                .parse_string()
+                .map(|str| VB::make_str(str))
+                .map(Value::Str)
+                .map_err(BuildError::Parser),
+
+            Schema::U8 => parser.parse_u8().map(Value::U8).map_err(BuildError::Parser),
+            Schema::U16 => parser
+                .parse_u16()
+                .map(Value::U16)
+                .map_err(BuildError::Parser),
+            Schema::U32 => parser
+                .parse_u32()
+                .map(Value::U32)
+                .map_err(BuildError::Parser),
+            Schema::U64 => parser
+                .parse_u64()
+                .map(Value::U64)
+                .map_err(BuildError::Parser),
+            Schema::U128 => parser
+                .parse_u128()
+                .map(Value::U128)
+                .map_err(BuildError::Parser),
+
+            Schema::I8 => parser.parse_i8().map(Value::I8).map_err(BuildError::Parser),
+            Schema::I16 => parser
+                .parse_i16()
+                .map(Value::I16)
+                .map_err(BuildError::Parser),
+            Schema::I32 => parser
+                .parse_i32()
+                .map(Value::I32)
+                .map_err(BuildError::Parser),
+            Schema::I64 => parser
+                .parse_i64()
+                .map(Value::I64)
+                .map_err(BuildError::Parser),
+            Schema::I128 => parser
+                .parse_i128()
+                .map(Value::I128)
+                .map_err(BuildError::Parser),
+
+            Schema::F32 => parser
+                .parse_f32()
+                .map(Value::F32)
+                .map_err(BuildError::Parser),
+            Schema::F64 => parser
+                .parse_f64()
+                .map(Value::F64)
+                .map_err(BuildError::Parser),
+
+            Schema::Map { key, value } => parser.parse_map((key, value), builder).map(Value::Map),
+
+            Schema::Array { element, len } => parser
+                .parse_array(iter::repeat_n(&**element, *len), builder)
+                .map(Value::Array),
+
+            Schema::Slice { element } => parser.parse_seq(element, builder).map(Value::Slice),
+
+            Schema::Tuple { elements } => parser
+                .parse_tuple(elements.iter().map(|el| &**el), builder)
+                .map(Value::Tuple),
+
+            Schema::Option(inner) => parser.parse_option(inner, builder).map(Value::Option),
+
+            Schema::Struct { name, data } => {
+                parser
+                    .parse_struct(data, builder)
+                    .map(|struct_data| Value::Struct {
+                        name: VB::make_str(name),
+                        data: struct_data,
+                    })
+            }
+
+            Schema::Enum { name, variants } => parser.parse_enum(variants, builder).map(
+                |(discriminant, variant_name, enum_data)| Value::Enum {
+                    enum_name: VB::make_str(name.as_ref()),
+                    variant_name,
+                    discriminant,
+                    data: enum_data,
+                },
+            ),
         }
     }
 }

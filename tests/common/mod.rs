@@ -14,6 +14,36 @@ pub struct BasicStruct {
 }
 
 #[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
+pub struct WithOption {
+    pub required: u32,
+    pub optional: Option<u8>,
+    pub also_required: bool,
+}
+
+#[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
+pub struct WithOptionalStruct {
+    pub inner: Option<BasicStruct>,
+    pub tail: u8,
+}
+
+#[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
+pub struct StructWithUnitField {
+    pub marker: (),
+    pub value: u8,
+}
+
+#[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
+pub struct NestedOptionStruct {
+    pub optional: Option<u8>,
+    pub required: u8,
+}
+
+#[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
+pub struct OuterNestedOptionStruct {
+    pub inner: NestedOptionStruct,
+}
+
+#[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
 pub struct UnitStruct;
 
 #[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
@@ -111,4 +141,18 @@ pub struct Transparent {
     pub foo: u8,
     #[serde(skip)]
     pub bar: u16,
+}
+
+#[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
+pub struct StructWithEnum {
+    pub tuple: (u32, bool),
+    pub inner: BasicEnum,
+    pub array: [u8; 3],
+}
+
+#[derive(Serialize, Deserialize, Schema, PartialEq, Eq, Debug)]
+#[expect(clippy::option_option, reason = "test")]
+pub struct NestedOption {
+    pub inner: Option<Option<u8>>,
+    pub required: u8,
 }

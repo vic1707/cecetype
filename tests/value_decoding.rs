@@ -1,3 +1,4 @@
+#![cfg(feature = "alloc")]
 #![expect(
     clippy::unseparated_literal_suffix,
     clippy::as_conversions,

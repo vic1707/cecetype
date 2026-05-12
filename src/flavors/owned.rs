@@ -79,6 +79,10 @@ impl super::ValueBuilder for Owned {
     fn make_str(str: impl AsRef<str>) -> Self::Str {
         String::from(str.as_ref())
     }
+    #[inline]
+    fn make_str_from_display(disp: &impl fmt::Display) -> Self::Str {
+        ::alloc::format!("{disp}")
+    }
 
     #[inline]
     fn list<T: PartialEq + fmt::Debug + Clone>() -> Self::List<T> {
