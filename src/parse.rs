@@ -104,7 +104,7 @@ pub trait Parser<'s, VB: flavors::ValueBuilder>: Sized {
 
     fn parse_enum<SF: flavors::SchemaFlavor<'s>>(
         &mut self,
-        variants: &'s SF::List<(u32, SF::Str, schema::Data<'s, SF>)>,
+        variants: &'s SF::List<schema::VariantSchema<'s, SF>>,
         builder: impl FnMut(
             &mut Self,
             &'s schema::Schema<'s, SF>,

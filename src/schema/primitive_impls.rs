@@ -99,16 +99,16 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
     const SCHEMA: &'static StaticSchema = &schema::Schema::Enum {
         name: "Result",
         variants: &[
-            &(
-                OK_DISCRIMINANT,
-                "Ok",
-                schema::Data::NewType { field: T::SCHEMA },
-            ),
-            &(
-                ERR_DISCRIMINANT,
-                "Err",
-                schema::Data::NewType { field: E::SCHEMA },
-            ),
+            &schema::VariantSchema {
+                discriminant: OK_DISCRIMINANT,
+                name: "Ok",
+                data: schema::Data::NewType { field: T::SCHEMA },
+            },
+            &schema::VariantSchema {
+                discriminant: ERR_DISCRIMINANT,
+                name: "Err",
+                data: schema::Data::NewType { field: E::SCHEMA },
+            },
         ],
     };
 }

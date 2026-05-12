@@ -126,10 +126,10 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
 
     Enum {
         name: SF::Str,
-        #[schema(as([(u32, SF::Str, Data<'s, SF>)]))]
+        #[schema(as([VariantSchema<'s, SF>]))]
         #[serde(serialize_with = "ser::serialize_list_ptr")]
         #[serde(deserialize_with = "SF::deserialize_list")]
-        variants: SF::List<(u32, SF::Str, Data<'s, SF>)>,
+        variants: SF::List<VariantSchema<'s, SF>>,
     },
 
     Option(
@@ -155,6 +155,20 @@ pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
     #[serde(serialize_with = "ser::serialize_ptr")]
     #[serde(deserialize_with = "SF::deserialize_ptr")]
     pub ty: SF::Ptr<Schema<'s, SF>>,
+}
+
+#[derive(crate::Schema)]
+#[schema(bounds(SF::Str: crate::Schema))]
+#[::derive_where::derive_where(Clone, Debug, PartialEq;)]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "SF::Str: Serialize",
+    deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
+))]
+pub struct VariantSchema<'s, SF: SchemaFlavor<'s>> {
+    pub discriminant: u32,
+    pub name: SF::Str,
+    pub data: Data<'s, SF>,
 }
 
 impl<'s, SF> fmt::Display for Schema<'s, SF>
@@ -243,10 +257,14 @@ where
                 write!(f, "{} {{ ", enum_name.as_ref())?;
 
                 for (idx, variant) in variants.deref().iter().enumerate() {
-                    let (discriminant, name, data) = &**variant;
                     if idx != 0 {
                         write!(f, " | ")?;
                     }
+                    let VariantSchema {
+                        discriminant,
+                        name,
+                        data,
+                    } = &**variant;
                     match &data {
                         Data::Unit => {
                             write!(f, "{} = {}", name.as_ref(), discriminant)?;

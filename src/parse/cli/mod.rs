@@ -379,7 +379,7 @@ impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'in
     #[inline]
     fn parse_enum<SF: flavors::SchemaFlavor<'s>>(
         &mut self,
-        variants: &'s SF::List<(u32, SF::Str, schema::Data<'s, SF>)>,
+        variants: &'s SF::List<schema::VariantSchema<'s, SF>>,
         builder: impl FnMut(
             &mut Self,
             &'s schema::Schema<'s, SF>,
@@ -389,28 +389,32 @@ impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'in
             .and_then(|atom| atom.bare().map_err(|err| self.lift_err(err)))
             .map_err(super::BuildError::Parser)?;
 
-        let Some((discriminant, variant_name, variant_data)) = variants
+        let Some(variant) = (**variants)
             .iter()
-            .map(|variant_ptr| (&variant_ptr.0, variant_ptr.1.as_ref(), &variant_ptr.2))
-            .find(|(_, name, _)| name.eq_ignore_ascii_case(input_name))
+            .find(|va| va.name.as_ref().eq_ignore_ascii_case(input_name))
         else {
             return Err(super::BuildError::Parser(
                 self.lift_err(ErrorKind::VariantNotFound(input_name)),
             ));
         };
+        let schema::VariantSchema {
+            discriminant,
+            name,
+            data,
+        } = &**variant;
 
         let new_path =
-            VB::make_str_from_display(&format_args!("{}.{}", self.path.as_ref(), variant_name));
+            VB::make_str_from_display(&format_args!("{}.{}", self.path.as_ref(), name.as_ref()));
         let saved = mem::replace(&mut self.path, new_path);
         let saved_depth = self.depth;
         self.depth = 0;
 
-        let data = self.parse_data(variant_data, builder)?;
+        let parsed_data = self.parse_data(data, builder)?;
 
         self.path = saved;
         self.depth = saved_depth;
 
-        Ok((*discriminant, VB::make_str(variant_name), data))
+        Ok((*discriminant, VB::make_str(name.as_ref()), parsed_data))
     }
 }
 

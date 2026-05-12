@@ -1,11 +1,11 @@
 use super::{Resolver, Seed, StructVisitor, TupleVisitor};
 use crate::{
     flavors::{SchemaFlavor, ValueBuilder, ValueFlavor},
-    schema::{Data as SchemaData, Schema},
+    schema::{Data as SchemaData, Schema, VariantSchema},
     value::{Data as ValueData, Value},
 };
 use ::{
-    core::{fmt, marker::PhantomData, ops::Deref as _},
+    core::{fmt, marker::PhantomData},
     serde::{
         Deserialize,
         de::{self, EnumAccess, VariantAccess as _, Visitor},
@@ -19,7 +19,7 @@ enum VariantId<VF: ValueFlavor> {
 
 pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
     name: &'s SF::Str,
-    variants: &'s SF::List<(u32, SF::Str, SchemaData<'s, SF>)>,
+    variants: &'s SF::List<VariantSchema<'s, SF>>,
     resolver: Option<&'a Resolver<'a, 's, SF>>,
 
     _p: PhantomData<VB>,
@@ -28,7 +28,7 @@ pub struct EnumVisitor<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> {
 impl<'a, 's, SF: SchemaFlavor<'s>, VB: ValueBuilder> EnumVisitor<'a, 's, SF, VB> {
     pub const fn new(
         name: &'s SF::Str,
-        variants: &'s SF::List<(u32, SF::Str, SchemaData<'s, SF>)>,
+        variants: &'s SF::List<VariantSchema<'s, SF>>,
         resolver: Option<&'a Resolver<'a, 's, SF>>,
     ) -> Self {
         Self {
@@ -58,22 +58,25 @@ where
     {
         let (variant_identifier, variant_access) = data.variant::<VariantId<VB>>()?;
 
-        let (discriminant, variant_name, variant_schema) = &**match &variant_identifier {
-            VariantId::Name(variant_name) => self
-                .variants
+        let variant_schema = match &variant_identifier {
+            VariantId::Name(variant_name) => (**self.variants)
                 .iter()
-                .find(|variant| variant.1.as_ref() == variant_name.as_ref()),
-            VariantId::Index(idx) => self
-                .variants
-                .deref()
+                .find(|variant| variant.name.as_ref() == variant_name.as_ref()),
+            VariantId::Index(idx) => (**self.variants)
                 .iter()
-                .find(|variant| variant.0 == *idx),
+                .find(|variant| variant.discriminant == *idx),
         }
         .ok_or_else(|| {
             de::Error::custom(format_args!("unknown variant: `{variant_identifier}`"))
         })?;
 
-        let value_data = match &variant_schema {
+        let VariantSchema {
+            discriminant,
+            name: variant_name,
+            data: variant_data,
+        } = &**variant_schema;
+
+        let value_data = match variant_data {
             SchemaData::Unit { .. } => {
                 variant_access.unit_variant()?;
 

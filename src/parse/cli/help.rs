@@ -7,7 +7,7 @@
 // TODO: how to support refs? worried about infinite help print
 use crate::{
     flavors::SchemaFlavor,
-    schema::{Data, Schema},
+    schema::{Data, Schema, VariantSchema},
 };
 use ::core::{cell::RefCell, convert::Infallible, error, fmt, iter};
 
@@ -79,8 +79,8 @@ impl<'s, SF: SchemaFlavor<'s>> Help<'s, 's, SF> {
                                     write!(
                                         fmt,
                                         "\t\t{:<variant_col$}\t{}",
-                                        va.1.as_ref(),
-                                        ReprMode::Usage.fmt_data(&va.2, 0)
+                                        va.name.as_ref(),
+                                        ReprMode::Usage.fmt_data(&va.data, 0)
                                     )
                                 })
                             }),
@@ -144,7 +144,7 @@ fn find_ref<'a, 's, SF: SchemaFlavor<'s>>(schema: &'a Schema<'s, SF>) -> Option<
         Schema::Map { key, value } => find_ref(key).or_else(|| find_ref(value)),
         Schema::Tuple { elements } => elements.iter().find_map(|el| find_ref(el)),
         Schema::Struct { data, .. } => find_ref_data(data),
-        Schema::Enum { variants, .. } => variants.iter().find_map(|va| find_ref_data(&va.2)),
+        Schema::Enum { variants, .. } => variants.iter().find_map(|va| find_ref_data(&va.data)),
         #[rustfmt::skip]
         Schema::Unit | Schema::Bool | Schema::Str | Schema::Char | Schema::U8 | Schema::U16 | Schema::U32 | Schema::U64 | Schema::I8 | Schema::I16 | Schema::I32 | Schema::I64 | Schema::F32 | Schema::F64 | Schema::U128 | Schema::I128 => None,
     }
@@ -247,7 +247,7 @@ impl ReprMode {
             Schema::Enum { name, variants } => {
                 let Some(example_variant) = variants
                     .iter()
-                    .find(|va| !matches!(va.2, Data::Unit))
+                    .find(|va| !matches!(va.data, Data::Unit))
                     .or_else(|| variants.first())
                 else {
                     // TODO: dunno, don't like
@@ -256,7 +256,7 @@ impl ReprMode {
                 repr!(
                     self, fmt,
                     usage("<`{}`>", name.as_ref());
-                    example("{} {}", example_variant.1.as_ref(), self.fmt_data(&example_variant.2, 0))
+                    example("{} {}", example_variant.name.as_ref(), self.fmt_data(&example_variant.data, 0))
                 )
             }
             Schema::Struct { name, data } => {
@@ -297,7 +297,7 @@ impl ReprMode {
 enum NamedSchema<'s, SF: SchemaFlavor<'s>> {
     Enum {
         name: &'s SF::Str,
-        variants: &'s SF::List<(u32, SF::Str, Data<'s, SF>)>,
+        variants: &'s SF::List<VariantSchema<'s, SF>>,
     },
     Struct {
         name: &'s SF::Str,
@@ -370,7 +370,7 @@ fn visit_types<'s, SF: SchemaFlavor<'s>, E: error::Error>(
                 prev: seen,
             };
             for va in variants.iter() {
-                visit_data(&va.2, Some(&seen), visitor)?;
+                visit_data(&va.data, Some(&seen), visitor)?;
             }
             Ok(())
         }
@@ -400,7 +400,7 @@ fn max_type_name_length<'s, SF: SchemaFlavor<'s>>(schema: &'s Schema<'s, SF>) ->
         max = max.max(ns.name().len());
         if let NamedSchema::Enum { variants, .. } = ns {
             for va in variants.iter() {
-                max = max.max(va.1.as_ref().len() + '\t'.len_utf16());
+                max = max.max(va.name.as_ref().len() + '\t'.len_utf16());
             }
         }
         Result::<(), Infallible>::Ok(())

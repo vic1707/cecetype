@@ -206,13 +206,13 @@ fn enum_schema(
                     )
                 {
                     return Ok(quote! {
-                        &(
-                            #discriminant,
-                            #vname,
-                            ::cecetype::schema::Data::NewType {
+                        &::cecetype::schema::VariantSchema {
+                            discriminant: #discriminant,
+                            name: #vname,
+                            data: ::cecetype::schema::Data::NewType {
                                 field: #schema,
                             },
-                        )
+                        }
                     });
                 }
 
@@ -228,11 +228,11 @@ fn enum_schema(
                 let schema = match vfields {
                     Fields::Unit => {
                         quote! {
-                            &(
-                                #discriminant,
-                                #vname,
-                                ::cecetype::schema::Data::Unit,
-                            )
+                            &::cecetype::schema::VariantSchema {
+                                discriminant: #discriminant,
+                                name: #vname,
+                                data: ::cecetype::schema::Data::Unit,
+                            }
                         }
                     }
 
@@ -240,41 +240,41 @@ fn enum_schema(
                         let fschema = field_defs.first().unwrap();
 
                         quote! {
-                            &(
-                                #discriminant,
-                                #vname,
-                                ::cecetype::schema::Data::NewType {
+                            &::cecetype::schema::VariantSchema {
+                                discriminant: #discriminant,
+                                name: #vname,
+                                data: ::cecetype::schema::Data::NewType {
                                     field: #fschema,
                                 },
-                            )
+                            }
                         }
                     }
 
                     Fields::Unnamed(_) => {
                         quote! {
-                            &(
-                                #discriminant,
-                                #vname,
-                                ::cecetype::schema::Data::Tuple {
+                            &::cecetype::schema::VariantSchema {
+                                discriminant: #discriminant,
+                                name: #vname,
+                                data: ::cecetype::schema::Data::Tuple {
                                     fields: &[
                                         #( #field_defs ),*
                                     ],
                                 },
-                            )
+                            }
                         }
                     }
 
                     Fields::Named(_) => {
                         quote! {
-                            &(
-                                #discriminant,
-                                #vname,
-                                ::cecetype::schema::Data::Struct {
+                            &::cecetype::schema::VariantSchema {
+                                discriminant: #discriminant,
+                                name: #vname,
+                                data: ::cecetype::schema::Data::Struct {
                                     fields: &[
                                         #( #field_defs ),*
                                     ],
                                 },
-                            )
+                            }
                         }
                     }
                 };
