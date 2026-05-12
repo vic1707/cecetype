@@ -10,6 +10,7 @@ mod std_impls;
 use crate::{Schema, StaticSchema, schema};
 use ::core::{
     cell::{Cell, RefCell},
+    convert::Infallible,
     marker::PhantomData,
     num::{
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize, NonZeroU8,
@@ -110,6 +111,13 @@ impl<T: Schema, E: Schema> Schema for Result<T, E> {
                 data: schema::Data::NewType { field: E::SCHEMA },
             },
         ],
+    };
+}
+
+impl Schema for Infallible {
+    const SCHEMA: &'static StaticSchema = &schema::Schema::Enum {
+        name: "Infallible",
+        variants: &[],
     };
 }
 
