@@ -1,3 +1,4 @@
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
 #![expect(clippy::unwrap_used, reason = "wip")]
 
 mod attrs;
@@ -8,6 +9,9 @@ use ::{
     syn::{self, Fields},
 };
 
+/// Derive macro for [`::cecetype::Schema`].
+///
+/// See [cecetype-macros](https://docs.rs/cecetype-macros) for usage.
 #[proc_macro_derive(Schema, attributes(serde, schema))]
 #[inline]
 pub fn derive_schema(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream {

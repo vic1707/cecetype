@@ -5,6 +5,7 @@ use ::core::{
     num::{ParseFloatError, ParseIntError},
 };
 
+/// Word parsing error.
 #[derive(Debug, ::thiserror::Error)]
 pub enum ParseError {
     #[error("invalid char: {0}")]
@@ -17,6 +18,7 @@ pub enum ParseError {
     Float(#[from] ParseFloatError),
 }
 
+/// A word from CLI input: bare or quoted.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Word<'w> {
     Bare(&'w str),

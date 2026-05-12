@@ -1,3 +1,32 @@
+//! Usage help generator from schemas.
+//!
+//! ```
+//! use cecetype::{Schema, parse::cli::help::Help};
+//!
+//! #[derive(Schema)]
+//! struct Request { id: u64, msg: String }
+//!
+//! #[derive(Schema)]
+//! struct Response { ok: bool }
+//!
+//! let help = Help::new("cmd", "Does something", Request::SCHEMA, Response::SCHEMA).unwrap().to_string();
+//! assert_eq!(help, "\
+//!cmd -- Does something
+//!
+//!USAGE:
+//!\tcmd <`Request`>
+//!
+//!TYPES:
+//!\tRequest\t<id: <u64>> <msg: <str>>
+//!
+//!EXAMPLE:
+//!\tcmd 0 'example'
+//!
+//!RESPONSE:
+//!\tResponse { ok: bool }
+//!
+//!");
+//! ```
 #![expect(
     clippy::cognitive_complexity,
     clippy::shadow_unrelated,
@@ -11,6 +40,7 @@ use crate::{
 };
 use ::core::{cell::RefCell, convert::Infallible, error, fmt, iter};
 
+/// Generates usage help, examples, and type listings from request/response schemas.
 #[::derive_where::derive_where(Debug;)]
 pub struct Help<'a, 's, SF: SchemaFlavor<'s>> {
     name: &'a str,
@@ -25,6 +55,9 @@ pub struct Help<'a, 's, SF: SchemaFlavor<'s>> {
 pub struct FoundRef<'s, SF: SchemaFlavor<'s>>(pub &'s SF::Str);
 
 impl<'s, SF: SchemaFlavor<'s>> Help<'s, 's, SF> {
+    /// Create help for request/response schemas.
+    ///
+    /// Returns `Err(FoundRef)` if schemas contain `Ref` nodes.
     #[inline]
     pub fn new(
         name: &'s str,
@@ -47,18 +80,21 @@ impl<'s, SF: SchemaFlavor<'s>> Help<'s, 's, SF> {
 
     #[inline]
     #[must_use]
+    #[doc(hidden)]
     pub fn usage(&self) -> impl fmt::Display + '_ {
         ReprMode::Usage.fmt(self.request, 0)
     }
 
     #[inline]
     #[must_use]
+    #[doc(hidden)]
     pub fn example(&self) -> impl fmt::Display + '_ {
         ReprMode::Example.fmt(self.request, 0)
     }
 
     #[inline]
     #[must_use]
+    #[doc(hidden)]
     pub fn types(&self) -> Option<impl fmt::Display + '_> {
         let col = max_type_name_length(self.request)?;
         let mut first = true;

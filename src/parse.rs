@@ -1,9 +1,11 @@
+//! Parsing spec for building [`Value`](crate::value::Value) from input.
 use crate::{flavors, schema, value};
 use ::core::error;
 
 #[cfg(feature = "cli")]
 pub mod cli;
 
+/// Error when building a value from a parser.
 #[derive(Debug, ::thiserror::Error)]
 pub enum BuildError<'schema, E: error::Error> {
     #[error("unresolved schema ref: '{0}'")]
@@ -12,6 +14,7 @@ pub enum BuildError<'schema, E: error::Error> {
     Parser(E),
 }
 
+/// Parse text into [`Value`](crate::value::Value) following a schema.
 pub trait Parser<'s, VB: flavors::ValueBuilder>: Sized {
     type Error: error::Error;
     type Atom;

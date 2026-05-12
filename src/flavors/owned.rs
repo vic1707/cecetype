@@ -4,6 +4,7 @@ use ::{
     core::{fmt, marker::PhantomData},
 };
 
+/// Owned flavor: `Box<T>`, `Vec<T>`, `String`. Requires `alloc`.
 pub struct Owned;
 
 impl<'s> super::SchemaFlavor<'s> for Owned {

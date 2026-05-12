@@ -1,3 +1,6 @@
+//! Memory models for schema/value storage.
+//!
+//! Flavors define how pointers, lists, and strings are stored:
 mod borrowed;
 #[cfg(feature = "alloc")]
 mod owned;
@@ -11,6 +14,7 @@ use ::core::{
     ops::{Deref, DerefMut},
 };
 
+/// Memory model for schema storage.
 pub trait SchemaFlavor<'s>
 where
     Self: 's,
@@ -26,6 +30,7 @@ where
     type Str: AsRef<str> + Clone + PartialEq + fmt::Debug;
 }
 
+/// Extended flavor for deserializing owned data.
 pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
     fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
     where
@@ -38,6 +43,7 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
         T: ::serde::Deserialize<'de> + Clone + PartialEq + fmt::Debug;
 }
 
+/// Memory model for value storage.
 pub trait ValueFlavor {
     type Ptr<T: PartialEq + fmt::Debug + Clone>: Deref<Target = T> + PartialEq + fmt::Debug + Clone;
     type List<T: PartialEq + fmt::Debug + Clone>: DerefMut<Target = [T]>
@@ -47,6 +53,7 @@ pub trait ValueFlavor {
     type Str: AsRef<str> + PartialEq + fmt::Debug + fmt::Display + Clone;
 }
 
+/// Factory for creating values.
 pub trait ValueBuilder: ValueFlavor {
     fn make_ptr<T: PartialEq + fmt::Debug + Clone>(value: T) -> Self::Ptr<T>;
 

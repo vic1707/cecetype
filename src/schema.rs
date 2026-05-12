@@ -13,6 +13,7 @@ use ::{
     serde::{Deserialize, Serialize, de},
 };
 
+/// Reference type for recursive/cyclic schemas.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::Schema)]
 #[non_exhaustive]
 pub enum RefKind {
@@ -20,6 +21,7 @@ pub enum RefKind {
     Slice,
 }
 
+/// Struct/enum data representation.
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
@@ -51,6 +53,7 @@ pub enum Data<'s, SF: SchemaFlavor<'s>> {
     },
 }
 
+/// Type schema representation.
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
@@ -64,7 +67,7 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
     Ref {
         name: SF::Str,
         kind: RefKind,
-    }, // special case to avoid recursive/cyclic types
+    }, // Placeholder for recursive/cyclic types, resolved by name.
 
     Unit,
 
@@ -140,6 +143,7 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
     ),
 }
 
+/// Field metadata: name and type schema.
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
@@ -157,6 +161,7 @@ pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
     pub ty: SF::Ptr<Schema<'s, SF>>,
 }
 
+/// Enum variant metadata.
 #[derive(crate::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)]
@@ -307,7 +312,7 @@ impl<'s, SF> Schema<'s, SF>
 where
     SF: SchemaFlavor<'s>,
 {
-    /// Deserialize a [`Value`] from the given deserializer using this schema.
+    /// Deserialize input into a [`Value`] using this schema.
     ///
     /// [`Schema::Ref`] nodes are resolved automatically.
     #[inline]
@@ -439,6 +444,9 @@ impl<'s, SF> Schema<'s, SF>
 where
     SF: SchemaFlavor<'s>,
 {
+    /// Build a [`Value`] using a custom [`Parser`].
+    ///
+    /// [`Schema::Ref`] nodes are resolved automatically.
     #[inline]
     pub fn build_value<VB, P>(
         &'s self,

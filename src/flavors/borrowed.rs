@@ -1,5 +1,6 @@
 use ::core::fmt;
 
+/// Zero-copy flavor: `&'static T`, `&'static [&'static T]`, `&'static str`.
 pub struct Static;
 
 impl super::SchemaFlavor<'static> for Static {
@@ -8,6 +9,7 @@ impl super::SchemaFlavor<'static> for Static {
     type Str = &'static str;
 }
 
+/// Borrowed flavor: `&'s T`, `&'s [&'s T]`, `&'s str`.
 pub struct Borrowed;
 
 impl<'s> super::SchemaFlavor<'s> for Borrowed {

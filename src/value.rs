@@ -1,6 +1,7 @@
 use crate::{flavors::ValueFlavor, utils::as_static_str};
 use ::core::fmt;
 
+/// Struct/enum value data.
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
 #[non_exhaustive]
 pub enum Data<VF: ValueFlavor> {
@@ -16,6 +17,7 @@ pub enum Data<VF: ValueFlavor> {
     },
 }
 
+/// Runtime value representation. Mirrors [`Schema`](crate::schema::Schema) variants with actual data.
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
 #[non_exhaustive]
 pub enum Value<VF: ValueFlavor> {

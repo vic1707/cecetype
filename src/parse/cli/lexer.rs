@@ -1,6 +1,9 @@
+//! Tokenizer for CLI input.
+
 use super::word::Word;
 use ::core::fmt;
 
+/// Tokens produced by the lexer.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token<'w> {
     Word(Word<'w>),

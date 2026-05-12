@@ -1,3 +1,15 @@
+//! CLI text parser for building values from user input.
+//!
+//! ```
+//! use cecetype::{Schema, OwnedValue, parse::cli::Parser};
+//!
+//! #[derive(Schema)]
+//! struct Request { id: u32, name: Option<String>, msg: String }
+//!
+//! let mut parser = Parser::new(r#"42 some('toto') 'hello'"#);
+//! let value: OwnedValue = Request::SCHEMA.build_value(&mut parser).unwrap();
+//! ```
+
 pub mod help;
 mod lexer;
 mod word;
@@ -9,6 +21,7 @@ use self::{
 use crate::{flavors, schema, value};
 use ::core::{fmt, iter::Peekable, mem};
 
+/// CLI parser error with location info.
 #[derive(Debug, ::thiserror::Error)]
 #[expect(
     clippy::error_impl_error,
@@ -20,6 +33,7 @@ pub struct Error<'input, S> {
     pub kind: ErrorKind<'input>,
 }
 
+/// CLI parser error kinds.
 #[derive(Debug, ::thiserror::Error)]
 pub enum ErrorKind<'input> {
     #[error("lex error: {0}")]

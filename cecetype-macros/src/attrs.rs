@@ -22,7 +22,7 @@ pub struct ContainerAttrs {
     pub repr_via: Option<::syn::Type>, // `schema(...)` or serde's `into` + `from`/`try_from`
     pub bounds: Option<punctuated::Punctuated<::syn::WherePredicate, ::syn::Token![,]>>,
     pub transparent: bool,
-} // serde's missing: rename_all, rename_all_fields
+} // missing from serde: rename_all, rename_all_fields
 
 // Won't support serde's
 // - `rename(...)` / `rename_all(...)` variations
@@ -38,7 +38,7 @@ pub struct VariantAttrs {
     pub rename: Option<::syn::LitStr>,
     pub repr_via: Option<::syn::Type>,
     pub skip: bool,
-} // serde's missing: rename_all
+} // missing from serde: rename_all
 
 // Won't support serde's
 // - `rename(...)` variations
