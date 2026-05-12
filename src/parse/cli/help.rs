@@ -78,6 +78,22 @@ impl<'s, SF: SchemaFlavor<'s>> Help<'s, 's, SF> {
         })
     }
 
+    #[doc(hidden)]
+    #[inline]
+    pub const fn new_unchecked(
+        name: &'s str,
+        description: &'s str,
+        request: &'s Schema<'s, SF>,
+        response: &'s Schema<'s, SF>,
+    ) -> Self {
+        Self {
+            name,
+            description,
+            request,
+            response,
+        }
+    }
+
     #[inline]
     #[must_use]
     #[doc(hidden)]
