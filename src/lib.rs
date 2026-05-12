@@ -59,4 +59,13 @@ mod tests {
         OwnedSchema: (Schema + Clone + fmt::Display + fmt::Debug + PartialEq + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
         OwnedValue: (fmt::Display + fmt::Debug + PartialEq + Serialize);
     }
+
+    #[cfg(feature = "defmt")]
+    implements! {
+        StaticSchema: (::defmt::Format);
+        BorrowedSchema: (::defmt::Format);
+        OwnedSchema: (::defmt::Format);
+
+        OwnedValue: (::defmt::Format);
+    }
 }

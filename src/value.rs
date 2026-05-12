@@ -2,6 +2,12 @@ use crate::{flavors::ValueFlavor, utils::as_static_str};
 use ::core::fmt;
 
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "defmt", defmt(bound(
+    VF::Ptr<Value<VF>>: ::defmt::Format,
+    VF::List<Value<VF>>: ::defmt::Format,
+    VF::List<(VF::Str, Value<VF>)>: ::defmt::Format,
+)))]
 #[non_exhaustive]
 pub enum Data<VF: ValueFlavor> {
     Unit,
@@ -17,6 +23,14 @@ pub enum Data<VF: ValueFlavor> {
 }
 
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "defmt", defmt(bound(
+    VF::Str: ::defmt::Format,
+    VF::List<Self>: ::defmt::Format,
+    VF::List<(Self, Self)>: ::defmt::Format,
+    VF::Ptr<Self>: ::defmt::Format,
+    VF::List<(VF::Str, Self)>: ::defmt::Format,
+)))]
 #[non_exhaustive]
 pub enum Value<VF: ValueFlavor> {
     Unit,

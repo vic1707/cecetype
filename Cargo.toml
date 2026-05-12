@@ -8,13 +8,15 @@ members = ["cecetype-macros"]
 
 [features]
 default = ["alloc", "cli"]
-alloc = ["serde/alloc"]
+alloc = ["serde/alloc", "defmt?/alloc"]
 std = ["alloc", "serde/std"]
 heapless = ["dep:heapless"]
 cli = []
+defmt = ["dep:defmt"]
 
 [dependencies]
 cecetype-macros = { path = "cecetype-macros" }
+defmt = { version = "1.1.0", default-features = false, optional = true }
 derive-where = { version = "1.6.1", default-features = false }
 heapless = { version = "0.9.3", default-features = false, features = [
     "serde",

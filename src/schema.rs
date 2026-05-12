@@ -14,6 +14,7 @@ use ::{
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::Schema)]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[non_exhaustive]
 pub enum RefKind {
     Direct,
@@ -28,6 +29,12 @@ pub enum RefKind {
     serialize = "SF::Str: Serialize",
     deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
 ))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "defmt", defmt(bound(
+    SF::Ptr<Schema<'s, SF>>: ::defmt::Format,
+    SF::List<Schema<'s, SF>>: ::defmt::Format,
+    SF::List<FieldSchema<'s, SF>>: ::defmt::Format,
+)))]
 #[non_exhaustive]
 pub enum Data<'s, SF: SchemaFlavor<'s>> {
     Unit,
@@ -59,6 +66,14 @@ pub enum Data<'s, SF: SchemaFlavor<'s>> {
     serialize = "SF::Str: Serialize",
     deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
 ))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "defmt", defmt(bound(
+    SF::Str: ::defmt::Format,
+    SF::Ptr<Self>: ::defmt::Format,
+    SF::List<Self>: ::defmt::Format,
+    SF::List<VariantSchema<'s, SF>>: ::defmt::Format,
+    SF::List<FieldSchema<'s, SF>>: ::defmt::Format,
+)))]
 #[non_exhaustive]
 pub enum Schema<'s, SF: SchemaFlavor<'s>> {
     Ref {
@@ -148,6 +163,11 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
     serialize = "SF::Str: Serialize",
     deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
 ))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "defmt", defmt(bound(
+    SF::Str: ::defmt::Format,
+    SF::Ptr<Schema<'s, SF>>: ::defmt::Format,
+)))]
 pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
     pub name: SF::Str,
     // pub key: u32, // Maybe for future protocols
@@ -165,6 +185,13 @@ pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
     serialize = "SF::Str: Serialize",
     deserialize = "SF: OwnedSchemaFlavor<'s>, SF::Str: Deserialize<'de>"
 ))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "defmt", defmt(bound(
+    SF::Str: ::defmt::Format,
+    SF::Ptr<Schema<'s, SF>>: ::defmt::Format,
+    SF::List<Schema<'s, SF>>: ::defmt::Format,
+    SF::List<FieldSchema<'s, SF>>: ::defmt::Format,
+)))]
 pub struct VariantSchema<'s, SF: SchemaFlavor<'s>> {
     pub discriminant: u32,
     pub name: SF::Str,
