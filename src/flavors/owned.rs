@@ -1,4 +1,4 @@
-#[cfg(feature = "alloc")]
+#![cfg(feature = "alloc")]
 use ::{
     alloc::{boxed::Box, string::String, vec::Vec},
     core::{fmt, marker::PhantomData},
@@ -6,21 +6,18 @@ use ::{
 
 pub struct Owned;
 
-#[cfg(feature = "alloc")]
 impl<'s> super::SchemaFlavor<'s> for Owned {
     type Ptr<T: 's + Clone + PartialEq + fmt::Debug> = Box<T>;
     type List<T: 's + Clone + PartialEq + fmt::Debug> = Vec<Box<T>>;
     type Str = String;
 }
 
-#[cfg(feature = "alloc")]
 impl super::ValueFlavor for Owned {
     type Ptr<T: PartialEq + fmt::Debug + Clone> = Box<T>;
     type List<T: PartialEq + fmt::Debug + Clone> = Vec<T>;
     type Str = String;
 }
 
-#[cfg(feature = "alloc")]
 impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
     #[inline]
     fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
@@ -68,7 +65,6 @@ impl<'s> super::OwnedSchemaFlavor<'s> for Owned {
     }
 }
 
-#[cfg(feature = "alloc")]
 impl super::ValueBuilder for Owned {
     #[inline]
     fn make_ptr<T: PartialEq + fmt::Debug + Clone>(value: T) -> Self::Ptr<T> {

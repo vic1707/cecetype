@@ -1,4 +1,5 @@
 mod borrowed;
+#[cfg(feature = "alloc")]
 mod owned;
 
 pub use self::{
