@@ -42,9 +42,11 @@ pub trait Schema {
     const SCHEMA: &'static StaticSchema;
 }
 
-/// Schema with `Box<T>` / `Vec<T>` / `String` (requires `alloc`).
+/// Schema with `Box<T>` / `Vec<T>` / `String`.
+#[cfg(feature = "alloc")]
 pub type OwnedSchema<'s> = schema::Schema<'s, flavors::Owned>;
-/// Value with owned storage (requires `alloc`).
+/// Value with owned storage.
+#[cfg(feature = "alloc")]
 pub type OwnedValue = value::Value<flavors::Owned>;
 
 /// Schema with `&'s T` / `&'s [&'s T]` borrowing from input.

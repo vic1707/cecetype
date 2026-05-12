@@ -5,10 +5,10 @@ mod borrowed;
 #[cfg(feature = "alloc")]
 mod owned;
 
-pub use self::{
-    borrowed::{Borrowed, Static},
-    owned::Owned,
-};
+pub use self::borrowed::{Borrowed, Static};
+#[cfg(feature = "alloc")]
+pub use self::owned::Owned;
+
 use ::core::{
     fmt,
     ops::{Deref, DerefMut},
