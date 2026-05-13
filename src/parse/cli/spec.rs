@@ -88,7 +88,7 @@ impl<'s, SF: SchemaFlavor<'s>> Spec<'s, SF> {
     ) -> Result<Self, FoundRef<'s, SF>> {
         find_ref(&request)
             .or_else(|| find_ref(&response))
-            .map(FoundRef)
+            .map(|name| FoundRef(name.clone()))
             .map_or(Ok(()), Err)?;
 
         Ok(Self {
@@ -198,8 +198,8 @@ impl<'s, SF: SchemaFlavor<'s>> fmt::Display for Spec<'s, SF> {
     }
 }
 
-fn find_ref<'s, SF: SchemaFlavor<'s>>(schema: &Schema<'s, SF>) -> Option<SF::Str> {
-    let find_ref_data = |data: &Data<'s, SF>| match data {
+fn find_ref<'a, 's, SF: SchemaFlavor<'s>>(schema: &'a Schema<'s, SF>) -> Option<&'a SF::Str> {
+    let find_ref_data = |data: &'a Data<'s, SF>| match data {
         Data::Unit => None,
         Data::NewType { field, .. } => find_ref(field),
         Data::Tuple { fields, .. } => fields.iter().find_map(|field| find_ref(field)),
@@ -207,7 +207,7 @@ fn find_ref<'s, SF: SchemaFlavor<'s>>(schema: &Schema<'s, SF>) -> Option<SF::Str
     };
 
     match schema {
-        Schema::Ref { name, .. } => Some(name.clone()),
+        Schema::Ref { name, .. } => Some(name),
         Schema::Array { element, .. } | Schema::Slice { element } | Schema::Option(element) => {
             find_ref(element)
         }
