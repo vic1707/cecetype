@@ -87,4 +87,10 @@ mod tests {
         OwnedSchema: (Schema + Clone + fmt::Display + fmt::Debug + PartialEq + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
         OwnedValue: (fmt::Display + fmt::Debug + PartialEq + Serialize);
     }
+
+    #[cfg(feature = "cli")]
+    implements! {
+        self::parse::cli::spec::Spec<flavors::Static>: (Schema + Serialize);
+        self::parse::cli::spec::Spec<flavors::Owned>: (Schema + Serialize + for <'de> Deserialize<'de> + DeserializeOwned);
+    }
 }

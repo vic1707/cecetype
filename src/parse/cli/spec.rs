@@ -38,35 +38,56 @@ use crate::{
     flavors::SchemaFlavor,
     schema::{Data, Schema, VariantSchema},
 };
-use ::core::{cell::RefCell, convert::Infallible, error, fmt, iter};
+use ::{
+    cecetype_macros::Schema,
+    core::{cell::RefCell, convert::Infallible, error, fmt, iter},
+    serde::{Deserialize, Serialize},
+};
 
 /// Generates usage help, examples, and type listings from request/response schemas.
 #[::derive_where::derive_where(Debug;)]
-pub struct Help<'a, 's, SF: SchemaFlavor<'s>> {
-    name: &'a str,
-    description: &'a str,
-    request: &'a Schema<'s, SF>,
-    response: &'a Schema<'s, SF>,
+#[derive(Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "
+        SF::Str: Serialize,
+        SF::Ptr<Schema<'s, SF>>: Serialize,
+    ",
+    deserialize = "
+        SF::Str: Deserialize<'de>,
+        SF::Ptr<Schema<'s, SF>>: Deserialize<'de>,
+        SF: ::cecetype::flavors::OwnedSchemaFlavor<'s>,
+    "
+))]
+#[derive(Schema)]
+#[schema(bounds(
+    SF::Str: crate::Schema,
+    SF::Ptr<Schema<'s, SF>>: crate::Schema,
+))]
+pub struct Spec<'s, SF: SchemaFlavor<'s>> {
+    name: SF::Str,
+    description: SF::Str,
+    request: SF::Ptr<Schema<'s, SF>>,
+    response: SF::Ptr<Schema<'s, SF>>,
 }
 
 #[::derive_where::derive_where(Debug;)]
 #[derive(::thiserror::Error)]
 #[error("Found Ref: '{}'", self.0.as_ref())]
-pub struct FoundRef<'s, SF: SchemaFlavor<'s>>(pub &'s SF::Str);
+pub struct FoundRef<'s, SF: SchemaFlavor<'s>>(pub SF::Str);
 
-impl<'s, SF: SchemaFlavor<'s>> Help<'s, 's, SF> {
+impl<'s, SF: SchemaFlavor<'s>> Spec<'s, SF> {
     /// Create help for request/response schemas.
     ///
     /// Returns `Err(FoundRef)` if schemas contain `Ref` nodes.
     #[inline]
     pub fn new(
-        name: &'s str,
-        description: &'s str,
-        request: &'s Schema<'s, SF>,
-        response: &'s Schema<'s, SF>,
+        name: SF::Str,
+        description: SF::Str,
+        request: SF::Ptr<Schema<'s, SF>>,
+        response: SF::Ptr<Schema<'s, SF>>,
     ) -> Result<Self, FoundRef<'s, SF>> {
-        find_ref(request)
-            .or_else(|| find_ref(response))
+        find_ref(&request)
+            .or_else(|| find_ref(&response))
             .map(FoundRef)
             .map_or(Ok(()), Err)?;
 
@@ -78,13 +99,13 @@ impl<'s, SF: SchemaFlavor<'s>> Help<'s, 's, SF> {
         })
     }
 
-    #[doc(hidden)]
     #[inline]
+    #[doc(hidden)]
     pub const fn new_unchecked(
-        name: &'s str,
-        description: &'s str,
-        request: &'s Schema<'s, SF>,
-        response: &'s Schema<'s, SF>,
+        name: SF::Str,
+        description: SF::Str,
+        request: SF::Ptr<Schema<'s, SF>>,
+        response: SF::Ptr<Schema<'s, SF>>,
     ) -> Self {
         Self {
             name,
@@ -98,25 +119,25 @@ impl<'s, SF: SchemaFlavor<'s>> Help<'s, 's, SF> {
     #[must_use]
     #[doc(hidden)]
     pub fn usage(&self) -> impl fmt::Display + '_ {
-        ReprMode::Usage.fmt(self.request, 0)
+        ReprMode::Usage.fmt(&self.request, 0)
     }
 
     #[inline]
     #[must_use]
     #[doc(hidden)]
     pub fn example(&self) -> impl fmt::Display + '_ {
-        ReprMode::Example.fmt(self.request, 0)
+        ReprMode::Example.fmt(&self.request, 0)
     }
 
     #[inline]
     #[must_use]
     #[doc(hidden)]
     pub fn types(&self) -> Option<impl fmt::Display + '_> {
-        let col = max_type_name_length(self.request)?;
+        let col = max_type_name_length(&self.request)?;
         let mut first = true;
 
         Some(fmt::from_fn(move |fmt| {
-            visit_types(self.request, None, &mut move |ns| {
+            visit_types(&*self.request, None, &mut move |ns| {
                 if !first {
                     write!(fmt, "\n\n")?;
                 }
@@ -153,16 +174,13 @@ impl<'s, SF: SchemaFlavor<'s>> Help<'s, 's, SF> {
     }
 }
 
-impl<'a, 's, SF: SchemaFlavor<'s>> fmt::Display for Help<'a, 's, SF>
-where
-    'a: 's,
-{
+impl<'s, SF: SchemaFlavor<'s>> fmt::Display for Spec<'s, SF> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{} -- {}", self.name, self.description)?;
+        writeln!(f, "{} -- {}", self.name.as_ref(), self.description.as_ref())?;
         writeln!(f)?;
         writeln!(f, "USAGE:")?;
-        writeln!(f, "\t{} {}", self.name, self.usage())?;
+        writeln!(f, "\t{} {}", self.name.as_ref(), self.usage())?;
         writeln!(f)?;
 
         if let Some(types) = self.types() {
@@ -172,16 +190,16 @@ where
         }
 
         writeln!(f, "EXAMPLE:")?;
-        writeln!(f, "\t{} {}", self.name, self.example())?;
+        writeln!(f, "\t{} {}", self.name.as_ref(), self.example())?;
         writeln!(f)?;
         writeln!(f, "RESPONSE:")?;
-        writeln!(f, "\t{}", self.response)?;
+        writeln!(f, "\t{}", &*self.response)?;
         writeln!(f)
     }
 }
 
-fn find_ref<'a, 's, SF: SchemaFlavor<'s>>(schema: &'a Schema<'s, SF>) -> Option<&'a SF::Str> {
-    let find_ref_data = |data: &'a Data<'s, SF>| match data {
+fn find_ref<'s, SF: SchemaFlavor<'s>>(schema: &Schema<'s, SF>) -> Option<SF::Str> {
+    let find_ref_data = |data: &Data<'s, SF>| match data {
         Data::Unit => None,
         Data::NewType { field, .. } => find_ref(field),
         Data::Tuple { fields, .. } => fields.iter().find_map(|field| find_ref(field)),
@@ -189,7 +207,7 @@ fn find_ref<'a, 's, SF: SchemaFlavor<'s>>(schema: &'a Schema<'s, SF>) -> Option<
     };
 
     match schema {
-        Schema::Ref { name, .. } => Some(name),
+        Schema::Ref { name, .. } => Some(name.clone()),
         Schema::Array { element, .. } | Schema::Slice { element } | Schema::Option(element) => {
             find_ref(element)
         }
@@ -346,18 +364,18 @@ impl ReprMode {
 }
 
 #[::derive_where::derive_where(PartialEq; )]
-enum NamedSchema<'s, SF: SchemaFlavor<'s>> {
+enum NamedSchema<'a, 's, SF: SchemaFlavor<'s>> {
     Enum {
-        name: &'s SF::Str,
-        variants: &'s SF::List<VariantSchema<'s, SF>>,
+        name: &'a SF::Str,
+        variants: &'a SF::List<VariantSchema<'s, SF>>,
     },
     Struct {
-        name: &'s SF::Str,
-        data: &'s Data<'s, SF>,
+        name: &'a SF::Str,
+        data: &'a Data<'s, SF>,
     },
 }
 
-impl<'s, SF: SchemaFlavor<'s>> NamedSchema<'s, SF> {
+impl<'s, SF: SchemaFlavor<'s>> NamedSchema<'_, 's, SF> {
     fn name(&self) -> &str {
         match self {
             Self::Enum { name, .. } | Self::Struct { name, .. } => name.as_ref(),
@@ -365,23 +383,23 @@ impl<'s, SF: SchemaFlavor<'s>> NamedSchema<'s, SF> {
     }
 }
 
-struct Seen<'a, 's, SF: SchemaFlavor<'s>> {
-    value: NamedSchema<'s, SF>,
-    prev: Option<&'a Self>,
+struct Seen<'node, 'a, 's, SF: SchemaFlavor<'s>> {
+    value: NamedSchema<'a, 's, SF>,
+    prev: Option<&'node Self>,
 }
 
-impl<'s, SF: SchemaFlavor<'s>> Seen<'_, 's, SF> {
-    fn contains(&self, ns: &NamedSchema<'s, SF>) -> bool {
+impl<'s, SF: SchemaFlavor<'s>> Seen<'_, '_, 's, SF> {
+    fn contains(&self, ns: &NamedSchema<'_, 's, SF>) -> bool {
         self.value == *ns || self.prev.is_some_and(|prev| prev.contains(ns))
     }
 }
 
-fn visit_types<'s, SF: SchemaFlavor<'s>, E: error::Error>(
-    schema: &'s Schema<'s, SF>,
-    seen: Option<&Seen<'_, 's, SF>>,
-    visitor: &mut impl FnMut(&NamedSchema<'s, SF>) -> Result<(), E>,
+fn visit_types<'node, 'a, 's, SF: SchemaFlavor<'s>, E: error::Error>(
+    schema: &'a Schema<'s, SF>,
+    seen: Option<&'node Seen<'node, 'a, 's, SF>>,
+    visitor: &mut impl FnMut(&NamedSchema<'a, 's, SF>) -> Result<(), E>,
 ) -> Result<(), E> {
-    let visit_data = &mut |data: &'s Data<'s, SF>, seen, visitor: &mut _| match data {
+    let visit_data = &mut |data: &'a Data<'s, SF>, seen, visitor: &mut _| match data {
         Data::Unit => Ok(()),
         Data::NewType { field } => visit_types(field, seen, visitor),
         Data::Tuple { fields } => {
@@ -444,7 +462,7 @@ fn visit_types<'s, SF: SchemaFlavor<'s>, E: error::Error>(
     }
 }
 
-fn max_type_name_length<'s, SF: SchemaFlavor<'s>>(schema: &'s Schema<'s, SF>) -> Option<usize> {
+fn max_type_name_length<'a, 's, SF: SchemaFlavor<'s>>(schema: &'a Schema<'s, SF>) -> Option<usize> {
     let mut max = 0;
     let mut saw_any = false;
     let Ok(()) = visit_types(schema, None, &mut |ns| {

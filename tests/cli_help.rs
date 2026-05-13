@@ -23,10 +23,10 @@ use ::{
     },
     cecetype::{
         Schema,
-        flavors::Owned,
+        flavors::{Owned, Static},
         parse::cli::{
             Parser,
-            help::{FoundRef, Help},
+            spec::{FoundRef, Spec},
         },
         schema,
     },
@@ -35,7 +35,7 @@ use ::{
 
 #[test]
 fn primitive_request_and_response() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "ping",
         "Simple ping",
         <u32 as Schema>::SCHEMA,
@@ -63,7 +63,7 @@ RESPONSE:
 
 #[test]
 fn unit_request() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "noop",
         "Does nothing",
         <() as Schema>::SCHEMA,
@@ -91,7 +91,7 @@ RESPONSE:
 
 #[test]
 fn basic_struct() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "set_basic",
         "Sets basic configuration",
         BasicStruct::SCHEMA,
@@ -122,7 +122,7 @@ RESPONSE:
 
 #[test]
 fn struct_with_option() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "update",
         "Updates a record",
         WithOption::SCHEMA,
@@ -153,7 +153,7 @@ RESPONSE:
 
 #[test]
 fn basic_enum() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "action",
         "Performs an action",
         BasicEnum::SCHEMA,
@@ -192,7 +192,7 @@ RESPONSE:
 
 #[test]
 fn nested_struct() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "nested",
         "Works with nested data",
         NestedStruct::SCHEMA,
@@ -225,7 +225,7 @@ RESPONSE:
 
 #[test]
 fn unit_struct() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "unit",
         "Unit struct command",
         UnitStruct::SCHEMA,
@@ -256,7 +256,7 @@ RESPONSE:
 
 #[test]
 fn newtype_struct() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "wrap",
         "Newtype wrapper",
         NewTypeStruct::SCHEMA,
@@ -287,7 +287,7 @@ RESPONSE:
 
 #[test]
 fn tuple_struct() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "pair",
         "A tuple struct",
         TupleStruct::SCHEMA,
@@ -318,7 +318,7 @@ RESPONSE:
 
 #[test]
 fn option_request() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "maybe",
         "Optional input",
         <Option<u32> as Schema>::SCHEMA,
@@ -346,7 +346,7 @@ RESPONSE:
 
 #[test]
 fn slice_request() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "list",
         "Takes a list",
         <[u8] as Schema>::SCHEMA,
@@ -374,7 +374,7 @@ RESPONSE:
 
 #[test]
 fn array_request() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "triple",
         "Takes three values",
         <[u8; 3] as Schema>::SCHEMA,
@@ -402,7 +402,7 @@ RESPONSE:
 
 #[test]
 fn struct_with_optional_struct() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "opt_struct",
         "Struct with optional inner struct",
         WithOptionalStruct::SCHEMA,
@@ -435,7 +435,7 @@ RESPONSE:
 
 #[test]
 fn struct_with_nested_option() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "nested_opt",
         "Struct with nested option",
         NestedOption::SCHEMA,
@@ -466,7 +466,7 @@ RESPONSE:
 
 #[test]
 fn struct_with_unit_field() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "with_unit",
         "Struct with a unit marker",
         StructWithUnitField::SCHEMA,
@@ -497,7 +497,7 @@ RESPONSE:
 
 #[test]
 fn optional_unit() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "opt_unit",
         "Optional unit",
         <Option<()> as Schema>::SCHEMA,
@@ -525,7 +525,7 @@ RESPONSE:
 
 #[test]
 fn array_of_unit() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "arr_unit",
         "Array of unit",
         <[(); 3] as Schema>::SCHEMA,
@@ -553,7 +553,7 @@ RESPONSE:
 
 #[test]
 fn tuple_with_unit() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "tup_unit",
         "Tuple with unit",
         <(u8, (), f32) as Schema>::SCHEMA,
@@ -581,7 +581,7 @@ RESPONSE:
 
 #[test]
 fn struct_with_enum() {
-    let help = Help::new(
+    let help = Spec::<Static>::new(
         "struct_enum",
         "Struct with enum",
         StructWithEnum::SCHEMA,
@@ -649,7 +649,7 @@ RESPONSE:
 #[case::tuple_with_unit(PhantomData::<(u8, (), f32)>)]
 #[case::struct_with_enum(PhantomData::<StructWithEnum>)]
 fn example_roundtrip<T: Schema>(#[case] _ty: PhantomData<T>) {
-    let help = Help::new("cmd", "", T::SCHEMA, <() as Schema>::SCHEMA).unwrap();
+    let help = Spec::<Static>::new("cmd", "", T::SCHEMA, <() as Schema>::SCHEMA).unwrap();
     let example = help.example().to_string();
     let mut source = Parser::new(example.trim());
 
@@ -673,8 +673,8 @@ fn example_roundtrip<T: Schema>(#[case] _ty: PhantomData<T>) {
 fn ref_is_rejected<T: Schema>(#[case] _ty: PhantomData<T>) {
     // as request
     let FoundRef(_) =
-        Help::new("cmd", "", <T as Schema>::SCHEMA, <() as Schema>::SCHEMA).unwrap_err();
+        Spec::<Static>::new("cmd", "", <T as Schema>::SCHEMA, <() as Schema>::SCHEMA).unwrap_err();
     // as response
     let FoundRef(_) =
-        Help::new("cmd", "", <() as Schema>::SCHEMA, <T as Schema>::SCHEMA).unwrap_err();
+        Spec::<Static>::new("cmd", "", <() as Schema>::SCHEMA, <T as Schema>::SCHEMA).unwrap_err();
 }
