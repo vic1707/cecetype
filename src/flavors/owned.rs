@@ -5,6 +5,7 @@ use ::{
 };
 
 /// Owned flavor: `Box<T>`, `Vec<T>`, `String`. Requires `alloc`.
+#[derive(Debug)]
 pub struct Owned;
 
 impl<'s> super::SchemaFlavor<'s> for Owned {
