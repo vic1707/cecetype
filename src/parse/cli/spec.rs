@@ -39,7 +39,6 @@ use crate::{
     schema::{Data, Schema, VariantSchema},
 };
 use ::{
-    cecetype_macros::Schema,
     core::{cell::RefCell, convert::Infallible, error, fmt, iter},
     serde::{Deserialize, Serialize},
 };
@@ -58,7 +57,7 @@ use ::{
         SF: ::cecetype::flavors::OwnedSchemaFlavor<'s>,
     "
 ))]
-#[derive(Schema)]
+#[derive(::cecetype_macros::Schema)]
 #[schema(bounds(
     SF::Str: crate::Schema,
     SF::Ptr<Schema<'s, SF>>: crate::Schema,
@@ -97,6 +96,26 @@ impl<'s, SF: SchemaFlavor<'s>> Spec<'s, SF> {
             request,
             response,
         })
+    }
+
+    #[inline]
+    pub const fn name(&self) -> &SF::Str {
+        &self.name
+    }
+
+    #[inline]
+    pub const fn description(&self) -> &SF::Str {
+        &self.description
+    }
+
+    #[inline]
+    pub fn request(&self) -> &Schema<'s, SF> {
+        &self.request
+    }
+
+    #[inline]
+    pub fn response(&self) -> &Schema<'s, SF> {
+        &self.response
     }
 
     #[inline]

@@ -14,7 +14,7 @@ use ::{
 };
 
 /// Reference type for recursive/cyclic schemas.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::Schema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ::cecetype_macros::Schema)]
 #[non_exhaustive]
 pub enum RefKind {
     Direct,
@@ -22,7 +22,7 @@ pub enum RefKind {
 }
 
 /// Struct/enum data representation.
-#[derive(crate::Schema)]
+#[derive(::cecetype_macros::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
 #[derive(Serialize, Deserialize)]
@@ -54,7 +54,7 @@ pub enum Data<'s, SF: SchemaFlavor<'s>> {
 }
 
 /// Type schema representation.
-#[derive(crate::Schema)]
+#[derive(::cecetype_macros::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
 #[derive(Serialize, Deserialize)]
@@ -144,7 +144,7 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
 }
 
 /// Field metadata: name and type schema.
-#[derive(crate::Schema)]
+#[derive(::cecetype_macros::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
 #[derive(Serialize, Deserialize)]
@@ -162,7 +162,7 @@ pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
 }
 
 /// Enum variant metadata.
-#[derive(crate::Schema)]
+#[derive(::cecetype_macros::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)]
 #[derive(Serialize, Deserialize)]
