@@ -1,6 +1,7 @@
 #![cfg(test)]
 #![cfg(all(feature = "alloc", feature = "cli"))]
 #![expect(
+    dead_code,
     clippy::unwrap_used,
     clippy::used_underscore_binding,
     clippy::panic,
@@ -32,6 +33,32 @@ use ::{
     },
     core::marker::PhantomData,
 };
+
+#[derive(Schema)]
+enum ReadDriver {
+    Nes,
+    Snes,
+    SegaMasterSystem,
+    NeoGeo,
+    SegaGenesis,
+}
+
+#[derive(Schema)]
+enum WriteDriver {
+    Nes,
+    Snes,
+    SegaMasterSystem,
+    NeoGeo,
+    SegaGenesis,
+}
+
+#[derive(Schema)]
+struct Config {
+    reader: Option<ReadDriver>,
+    writer: Option<WriteDriver>,
+    read_frequency: Option<u64>,
+    no_driver_timeout: Option<u64>,
+}
 
 #[test]
 fn primitive_request_and_response() {
@@ -617,6 +644,44 @@ RESPONSE:
 	()
 
 "
+    );
+}
+
+#[test]
+fn complex_response_shape() {
+    let help = Spec::<Static>::new(
+        "status",
+        "Returns configuration",
+        <() as Schema>::SCHEMA,
+        <Result<Config, String> as Schema>::SCHEMA,
+    )
+    .unwrap();
+    let output = help.to_string();
+    assert_eq!(
+        output,
+        r#"status -- Returns configuration
+
+USAGE:
+	status <void>
+
+EXAMPLE:
+	status 
+
+RESPONSE:
+	| { Ok: Config }
+	| { Err: str }
+
+	where:
+		Config:
+			{ reader?: ReadDriver, writer?: WriteDriver, read_frequency?: u64, no_driver_timeout?: u64 }
+
+		ReadDriver:
+			"Nes" | "Snes" | "SegaMasterSystem" | "NeoGeo" | "SegaGenesis"
+
+		WriteDriver:
+			"Nes" | "Snes" | "SegaMasterSystem" | "NeoGeo" | "SegaGenesis"
+
+"#
     );
 }
 

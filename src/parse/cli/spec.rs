@@ -23,7 +23,7 @@
 //!\tcmd 0 'example'
 //!
 //!RESPONSE:
-//!\tResponse { ok: bool }
+//!\t{ ok: bool }
 //!
 //!");
 //! ```
@@ -36,7 +36,7 @@
 // TODO: how to support refs? worried about infinite help print
 use crate::{
     flavors::SchemaFlavor,
-    schema::{Data, Schema, VariantSchema},
+    schema::{self, Data, Schema, VariantSchema},
 };
 use ::{
     core::{cell::RefCell, convert::Infallible, error, fmt, iter},
@@ -190,6 +190,13 @@ impl<'s, SF: SchemaFlavor<'s>> Spec<'s, SF> {
             })
         }))
     }
+
+    #[inline]
+    #[must_use]
+    #[doc(hidden)]
+    pub fn response_shape(&self) -> impl fmt::Display + '_ {
+        fmt::from_fn(move |fmt| fmt_response(&self.response, fmt))
+    }
 }
 
 impl<'s, SF: SchemaFlavor<'s>> fmt::Display for Spec<'s, SF> {
@@ -211,7 +218,7 @@ impl<'s, SF: SchemaFlavor<'s>> fmt::Display for Spec<'s, SF> {
         writeln!(f, "\t{} {}", self.name.as_ref(), self.example())?;
         writeln!(f)?;
         writeln!(f, "RESPONSE:")?;
-        writeln!(f, "\t{}", &*self.response)?;
+        writeln!(f, "{}", self.response_shape())?;
         writeln!(f)
     }
 }
@@ -265,13 +272,133 @@ fn maybe_grouped(grouped: bool, thing: impl fmt::Display) -> impl fmt::Display {
     })
 }
 
+fn write_indent(fmt: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
+    for _ in 0..depth {
+        fmt.write_str("\t")?;
+    }
+    Ok(())
+}
+
+fn fmt_response<'s, SF: SchemaFlavor<'s>>(
+    schema: &Schema<'s, SF>,
+    fmt: &mut fmt::Formatter<'_>,
+) -> fmt::Result {
+    fmt_response_schema(schema, fmt, 1)?;
+
+    let mut first = true;
+    visit_response_types(schema, &mut |ns| {
+        writeln!(fmt)?;
+        writeln!(fmt)?;
+        if first {
+            write_indent(fmt, 1)?;
+            writeln!(fmt, "where:")?;
+            first = false;
+        }
+
+        write_indent(fmt, 2)?;
+        writeln!(fmt, "{}:", ns.name())?;
+        match ns {
+            NamedSchema::Enum { variants, .. } => fmt_enum::<SF>(variants, fmt, 3),
+            NamedSchema::Struct { data, .. } => {
+                write_indent(fmt, 3)?;
+                write!(fmt, "{}", ReprMode::Response.fmt_data(data, 0))
+            }
+        }
+    })
+}
+
+fn fmt_response_schema<'s, SF: SchemaFlavor<'s>>(
+    schema: &Schema<'s, SF>,
+    fmt: &mut fmt::Formatter<'_>,
+    depth: usize,
+) -> fmt::Result {
+    match schema {
+        Schema::Enum { variants, .. } => fmt_enum::<SF>(variants, fmt, depth),
+        Schema::Struct { data, .. } => {
+            write_indent(fmt, depth)?;
+            write!(fmt, "{}", ReprMode::Response.fmt_data(data, 0))
+        }
+        _ => {
+            write_indent(fmt, depth)?;
+            write!(fmt, "{}", ReprMode::Response.fmt(schema, 0))
+        }
+    }
+}
+
+fn fmt_enum<'s, SF: SchemaFlavor<'s>>(
+    variants: &SF::List<VariantSchema<'s, SF>>,
+    fmt: &mut fmt::Formatter<'_>,
+    depth: usize,
+) -> fmt::Result {
+    if variants.is_empty() {
+        write_indent(fmt, depth)?;
+        return fmt.write_str("never");
+    }
+
+    if variants.iter().all(|va| matches!(va.data, Data::Unit)) {
+        write_indent(fmt, depth)?;
+        return fmt_unit_enum::<SF>(variants, fmt);
+    }
+
+    for (idx, variant) in variants.iter().enumerate() {
+        if idx != 0 {
+            writeln!(fmt)?;
+        }
+        write_indent(fmt, depth)?;
+        fmt.write_str("| ")?;
+        fmt_variant(variant, fmt)?;
+    }
+
+    Ok(())
+}
+
+fn fmt_unit_enum<'s, SF: SchemaFlavor<'s>>(
+    variants: &SF::List<VariantSchema<'s, SF>>,
+    fmt: &mut fmt::Formatter<'_>,
+) -> fmt::Result {
+    for (idx, variant) in variants.iter().enumerate() {
+        if idx != 0 {
+            fmt.write_str(" | ")?;
+        }
+        write!(fmt, "\"{}\"", variant.name.as_ref())?;
+    }
+    Ok(())
+}
+
+fn fmt_variant<'s, SF: SchemaFlavor<'s>>(
+    variant: &VariantSchema<'s, SF>,
+    fmt: &mut fmt::Formatter<'_>,
+) -> fmt::Result {
+    match &variant.data {
+        Data::Unit => write!(fmt, "\"{}\"", variant.name.as_ref()),
+        data @ (Data::NewType { .. } | Data::Tuple { .. } | Data::Struct { .. }) => {
+            write!(fmt, "{{ {}: ", variant.name.as_ref())?;
+            write!(fmt, "{}", ReprMode::Response.fmt_data(data, 0))?;
+            fmt.write_str(" }")
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 enum ReprMode {
     Usage,
     Example,
+    Response,
 }
 
 macro_rules! repr {
+    (
+        $self:ident, $fmt:expr,
+        usage($u_fmt:expr $(, $u_args:expr)*) ;
+        example($e_fmt:expr $(, $e_args:expr)*) ;
+        response($r_fmt:expr $(, $r_args:expr)*) $(,)?
+    ) => {
+        match $self {
+            Self::Usage => write!($fmt, $u_fmt $(, $u_args)*),
+            Self::Example => write!($fmt, $e_fmt $(, $e_args)*),
+            Self::Response => write!($fmt, $r_fmt $(, $r_args)*),
+        }
+    };
     (
         $self:ident, $fmt:expr,
         usage($u_fmt:expr $(, $u_args:expr)*) ;
@@ -280,6 +407,7 @@ macro_rules! repr {
         match $self {
             Self::Usage => write!($fmt, $u_fmt $(, $u_args)*),
             Self::Example => write!($fmt, $e_fmt $(, $e_args)*),
+            Self::Response => unreachable!(),
         }
     };
 }
@@ -291,46 +419,55 @@ impl ReprMode {
         depth: usize,
     ) -> impl fmt::Display + 'a {
         fmt::from_fn(move |fmt| match schema {
-            Schema::Ref { .. } => unreachable!(),
-            Schema::Unit => repr!(self, fmt, usage("<void>"); example("")),
-            Schema::Bool => repr!(self, fmt, usage("<bool>"); example("true")),
-            Schema::Char => repr!(self, fmt, usage("<char>"); example("'x'")),
-            Schema::Str => repr!(self, fmt, usage("<str>"); example("'example'")),
-            Schema::U8 => repr!(self, fmt, usage("<u8>"); example("0")),
-            Schema::U16 => repr!(self, fmt, usage("<u16>"); example("0")),
-            Schema::U32 => repr!(self, fmt, usage("<u32>"); example("0")),
-            Schema::U64 => repr!(self, fmt, usage("<u64>"); example("0")),
-            Schema::U128 => repr!(self, fmt, usage("<u128>"); example("0")),
-            Schema::I8 => repr!(self, fmt, usage("<i8>"); example("0")),
-            Schema::I16 => repr!(self, fmt, usage("<i16>"); example("0")),
-            Schema::I32 => repr!(self, fmt, usage("<i32>"); example("0")),
-            Schema::I64 => repr!(self, fmt, usage("<i64>"); example("0")),
-            Schema::I128 => repr!(self, fmt, usage("<i128>"); example("0")),
-            Schema::F32 => repr!(self, fmt, usage("<f32>"); example("1.0")),
-            Schema::F64 => repr!(self, fmt, usage("<f64>"); example("1.0")),
+            Schema::Ref { name, kind } => match self {
+                Self::Response => match kind {
+                    schema::RefKind::Direct => fmt.write_str(name.as_ref()),
+                    schema::RefKind::Slice => write!(fmt, "[{}]", name.as_ref()),
+                },
+                Self::Usage | Self::Example => unreachable!(),
+            },
+            Schema::Unit => repr!(self, fmt, usage("<void>"); example(""); response("()")),
+            Schema::Bool => repr!(self, fmt, usage("<bool>"); example("true"); response("bool")),
+            Schema::Char => repr!(self, fmt, usage("<char>"); example("'x'"); response("char")),
+            Schema::Str => repr!(self, fmt, usage("<str>"); example("'example'"); response("str")),
+            Schema::U8 => repr!(self, fmt, usage("<u8>"); example("0"); response("u8")),
+            Schema::U16 => repr!(self, fmt, usage("<u16>"); example("0"); response("u16")),
+            Schema::U32 => repr!(self, fmt, usage("<u32>"); example("0"); response("u32")),
+            Schema::U64 => repr!(self, fmt, usage("<u64>"); example("0"); response("u64")),
+            Schema::U128 => repr!(self, fmt, usage("<u128>"); example("0"); response("u128")),
+            Schema::I8 => repr!(self, fmt, usage("<i8>"); example("0"); response("i8")),
+            Schema::I16 => repr!(self, fmt, usage("<i16>"); example("0"); response("i16")),
+            Schema::I32 => repr!(self, fmt, usage("<i32>"); example("0"); response("i32")),
+            Schema::I64 => repr!(self, fmt, usage("<i64>"); example("0"); response("i64")),
+            Schema::I128 => repr!(self, fmt, usage("<i128>"); example("0"); response("i128")),
+            Schema::F32 => repr!(self, fmt, usage("<f32>"); example("1.0"); response("f32")),
+            Schema::F64 => repr!(self, fmt, usage("<f64>"); example("1.0"); response("f64")),
             Schema::Slice { element } => {
-                repr!(self, fmt, usage("[{}...]", self.fmt(element, 0)); example("[{}]", self.fmt(element, 0)))
+                repr!(self, fmt, usage("[{}...]", self.fmt(element, 0)); example("[{}]", self.fmt(element, 0)); response("[{}]", self.fmt(element, 0)))
             }
             Schema::Map { key, value } => repr!(
                 self, fmt,
                 usage("{{ {}: {} }}", self.fmt(key, 0), self.fmt(value, 0));
-                example("{{ {}: {} }}", self.fmt(key, 0), self.fmt(value, 0)),
+                example("{{ {}: {} }}", self.fmt(key, 0), self.fmt(value, 0));
+                response("{{ [key: {}]: {} }}", self.fmt(key, 0), self.fmt(value, 0)),
             ),
             Schema::Tuple { elements } => {
                 let next_depth = if elements.len() > 1 { depth + 1 } else { depth };
                 repr!(
                     self, fmt,
                     usage("({})", joined(elements.iter().map(|el| self.fmt(el, next_depth)), " "));
-                    example("{}", maybe_grouped(depth > 0 && elements.len() > 1, joined(elements.iter().filter(|el| !matches!(***el, Schema::Unit | Schema::Struct { data: Data::Unit, .. })).map(|el| self.fmt(el, next_depth)), " "))),
+                    example("{}", maybe_grouped(depth > 0 && elements.len() > 1, joined(elements.iter().filter(|el| !matches!(***el, Schema::Unit | Schema::Struct { data: Data::Unit, .. })).map(|el| self.fmt(el, next_depth)), " ")));
+                    response("[{}]", joined(elements.iter().map(|el| self.fmt(el, 0)), ", ")),
                 )
             }
             Schema::Array { element, len } => repr!(
                 self, fmt,
                 usage("[{}]", joined(iter::repeat_n(element, *len).map(|el| self.fmt(el, 0)), ", "));
-                example("[{}]", joined(iter::repeat_n(element, *len).map(|el| self.fmt(el, 0)), ", ")),
+                example("[{}]", joined(iter::repeat_n(element, *len).map(|el| self.fmt(el, 0)), ", "));
+                response("[{}]", joined(iter::repeat_n(element, *len).map(|el| self.fmt(el, 0)), ", ")),
             ),
             Schema::Option(element) => {
-                repr!(self, fmt, usage("{}?", self.fmt(element, 0)); example("some({})", self.fmt(element, 0)))
+                repr!(self, fmt, usage("{}?", self.fmt(element, 0)); example("some({})", self.fmt(element, 0)); response("{}?", self.fmt(element, 0)))
             }
             Schema::Enum { name, variants } => {
                 let Some(example_variant) = variants
@@ -339,12 +476,13 @@ impl ReprMode {
                     .or_else(|| variants.first())
                 else {
                     // TODO: dunno, don't like
-                    return repr!(self, fmt, usage("<`{}`>", name.as_ref()); example(""));
+                    return repr!(self, fmt, usage("<`{}`>", name.as_ref()); example(""); response("{}", name.as_ref()));
                 };
                 repr!(
                     self, fmt,
                     usage("<`{}`>", name.as_ref());
-                    example("{} {}", example_variant.name.as_ref(), self.fmt_data(&example_variant.data, 0))
+                    example("{} {}", example_variant.name.as_ref(), self.fmt_data(&example_variant.data, 0));
+                    response("{}", name.as_ref()),
                 )
             }
             Schema::Struct { name, data } => {
@@ -353,7 +491,8 @@ impl ReprMode {
                 repr!(
                     self, fmt,
                     usage("<`{}`>", name.as_ref());
-                    example("{}", maybe_grouped(grouped, self.fmt_data(data, depth))),
+                    example("{}", maybe_grouped(grouped, self.fmt_data(data, depth)));
+                    response("{}", name.as_ref()),
                 )
             }
         })
@@ -365,17 +504,36 @@ impl ReprMode {
         depth: usize,
     ) -> impl fmt::Display + 'a {
         fmt::from_fn(move |fmt| match data {
-            Data::Unit => Ok(()),
+            Data::Unit => repr!(self, fmt, usage(""); example(""); response("()")),
             Data::NewType { field } => write!(fmt, "{}", self.fmt(field, 0)),
             Data::Tuple { fields, .. } => repr!(
                 self, fmt,
                 usage("{}", joined(fields.iter().map(|fi| self.fmt(fi, 0)), " "));
-                example("{}", joined(fields.iter().filter(|fi| !matches!(***fi, Schema::Unit | Schema::Struct { data: Data::Unit, .. })).map(|fi| self.fmt(fi, depth + usize::from(fields.len() > 1))), " ")),
+                example("{}", joined(fields.iter().filter(|fi| !matches!(***fi, Schema::Unit | Schema::Struct { data: Data::Unit, .. })).map(|fi| self.fmt(fi, depth + usize::from(fields.len() > 1))), " "));
+                response("[{}]", joined(fields.iter().map(|fi| self.fmt(fi, 0)), ", ")),
             ),
             Data::Struct { fields, .. } => repr!(
                 self, fmt,
                 usage("{}", joined(fields.iter().map(|fi| fmt::from_fn(|fmt| write!(fmt, "<{}: {}>", fi.name.as_ref(), self.fmt(&fi.ty, 0)))), " "));
-                example("{}", joined(fields.iter().filter(|fi| !matches!(&*fi.ty, Schema::Unit | Schema::Struct { data: Data::Unit, .. })).map(|fi| self.fmt(&fi.ty, depth + usize::from(fields.len() > 1))), " ")),
+                example("{}", joined(fields.iter().filter(|fi| !matches!(&*fi.ty, Schema::Unit | Schema::Struct { data: Data::Unit, .. })).map(|fi| self.fmt(&fi.ty, depth + usize::from(fields.len() > 1))), " "));
+                response("{}", fmt::from_fn(|fmt| {
+                    if fields.is_empty() {
+                        return fmt.write_str("{}");
+                    }
+
+                    fmt.write_str("{ ")?;
+                    for (idx, field) in fields.iter().enumerate() {
+                        if idx != 0 {
+                            fmt.write_str(", ")?;
+                        }
+                        if let Schema::Option(inner) = &*field.ty {
+                            write!(fmt, "{}?: {}", field.name.as_ref(), self.fmt(inner, 0))?;
+                        } else {
+                            write!(fmt, "{}: {}", field.name.as_ref(), self.fmt(&field.ty, 0))?;
+                        }
+                    }
+                    fmt.write_str(" }")
+                })),
             ),
         })
     }
@@ -417,6 +575,15 @@ fn visit_types<'node, 'a, 's, SF: SchemaFlavor<'s>, E: error::Error>(
     seen: Option<&'node Seen<'node, 'a, 's, SF>>,
     visitor: &mut impl FnMut(&NamedSchema<'a, 's, SF>) -> Result<(), E>,
 ) -> Result<(), E> {
+    visit_types_from(schema, seen, true, visitor)
+}
+
+fn visit_types_from<'node, 'a, 's, SF: SchemaFlavor<'s>, E: error::Error>(
+    schema: &'a Schema<'s, SF>,
+    seen: Option<&'node Seen<'node, 'a, 's, SF>>,
+    visit_current: bool,
+    visitor: &mut impl FnMut(&NamedSchema<'a, 's, SF>) -> Result<(), E>,
+) -> Result<(), E> {
     let visit_data = &mut |data: &'a Data<'s, SF>, seen, visitor: &mut _| match data {
         Data::Unit => Ok(()),
         Data::NewType { field } => visit_types(field, seen, visitor),
@@ -440,7 +607,9 @@ fn visit_types<'node, 'a, 's, SF: SchemaFlavor<'s>, E: error::Error>(
             if seen.is_some_and(|seen| seen.contains(&ns)) {
                 return Ok(());
             }
-            visitor(&ns)?;
+            if visit_current {
+                visitor(&ns)?;
+            }
             let seen = Seen {
                 value: ns,
                 prev: seen,
@@ -452,7 +621,9 @@ fn visit_types<'node, 'a, 's, SF: SchemaFlavor<'s>, E: error::Error>(
             if seen.is_some_and(|seen| seen.contains(&ns)) {
                 return Ok(());
             }
-            visitor(&ns)?;
+            if visit_current {
+                visitor(&ns)?;
+            }
             let seen = Seen {
                 value: ns,
                 prev: seen,
@@ -478,6 +649,13 @@ fn visit_types<'node, 'a, 's, SF: SchemaFlavor<'s>, E: error::Error>(
         #[rustfmt::skip]
         Schema::Ref { .. } | Schema::Unit | Schema::Bool | Schema::Str | Schema::Char | Schema::U8 | Schema::U16 | Schema::U32 | Schema::U64 | Schema::I8 | Schema::I16 | Schema::I32 | Schema::I64 | Schema::F32 | Schema::F64 | Schema::U128 | Schema::I128 => Ok(()),
     }
+}
+
+fn visit_response_types<'a, 's, SF: SchemaFlavor<'s>, E: error::Error>(
+    schema: &'a Schema<'s, SF>,
+    visitor: &mut impl FnMut(&NamedSchema<'a, 's, SF>) -> Result<(), E>,
+) -> Result<(), E> {
+    visit_types_from(schema, None, false, visitor)
 }
 
 fn max_type_name_length<'a, 's, SF: SchemaFlavor<'s>>(schema: &'a Schema<'s, SF>) -> Option<usize> {
