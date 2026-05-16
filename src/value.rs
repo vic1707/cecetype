@@ -240,104 +240,89 @@ where
                 tup.end()
             }
 
-            Self::Struct { name, data } => serialize_data(name, data, None, serializer),
+            Self::Struct { name, data } => match data {
+                Data::Unit => serializer.serialize_unit_struct(as_static_str(name)),
+
+                Data::NewType { field } => {
+                    serializer.serialize_newtype_struct(as_static_str(name), &**field)
+                }
+
+                Data::Tuple { fields } => {
+                    use ::serde::ser::SerializeTupleStruct as _;
+
+                    let mut ts =
+                        serializer.serialize_tuple_struct(as_static_str(name), fields.len())?;
+                    for field in &**fields {
+                        ts.serialize_field(field)?;
+                    }
+                    ts.end()
+                }
+
+                Data::Struct { fields } => {
+                    use ::serde::ser::SerializeStruct as _;
+
+                    let mut st = serializer.serialize_struct(as_static_str(name), fields.len())?;
+                    for (key, val) in &**fields {
+                        st.serialize_field(as_static_str(key), val)?;
+                    }
+                    st.end()
+                }
+            },
 
             Self::Enum {
                 enum_name,
                 variant_name,
                 discriminant,
                 data,
-            } => serialize_data(
-                variant_name,
-                data,
-                Some((enum_name, *discriminant)),
-                serializer,
-            ),
+            } => match data {
+                Data::Unit => serializer.serialize_unit_variant(
+                    as_static_str(enum_name),
+                    *discriminant,
+                    as_static_str(variant_name),
+                ),
+
+                Data::NewType { field } => serializer.serialize_newtype_variant(
+                    as_static_str(enum_name),
+                    *discriminant,
+                    as_static_str(variant_name),
+                    &**field,
+                ),
+
+                Data::Tuple { fields } => {
+                    use ::serde::ser::SerializeTupleVariant as _;
+
+                    let mut tv = serializer.serialize_tuple_variant(
+                        as_static_str(enum_name),
+                        *discriminant,
+                        as_static_str(variant_name),
+                        fields.len(),
+                    )?;
+                    for field in &**fields {
+                        tv.serialize_field(field)?;
+                    }
+                    tv.end()
+                }
+
+                Data::Struct { fields } => {
+                    use ::serde::ser::SerializeStructVariant as _;
+
+                    let mut sv = serializer.serialize_struct_variant(
+                        as_static_str(enum_name),
+                        *discriminant,
+                        as_static_str(variant_name),
+                        fields.len(),
+                    )?;
+                    for (key, val) in &**fields {
+                        sv.serialize_field(as_static_str(key), val)?;
+                    }
+                    sv.end()
+                }
+            },
 
             Self::Option(opt) => match opt {
                 Some(val) => serializer.serialize_some(&**val),
                 None => serializer.serialize_none(),
             },
-        }
-    }
-}
-
-fn serialize_data<S, VF>(
-    name: &VF::Str,
-    data: &Data<VF>,
-    enum_ctx: Option<(&VF::Str, u32)>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: ::serde::Serializer,
-    VF: ValueFlavor,
-    VF::Str: ::serde::Serialize,
-{
-    match (data, enum_ctx) {
-        (Data::Unit, None) => serializer.serialize_unit_struct(as_static_str(name)),
-        (Data::Unit, Some((enum_name, discriminant))) => serializer.serialize_unit_variant(
-            as_static_str(enum_name),
-            discriminant,
-            as_static_str(name),
-        ),
-
-        (Data::NewType { field }, None) => {
-            serializer.serialize_newtype_struct(as_static_str(name), &**field)
-        }
-        (Data::NewType { field }, Some((enum_name, discriminant))) => serializer
-            .serialize_newtype_variant(
-                as_static_str(enum_name),
-                discriminant,
-                as_static_str(name),
-                &**field,
-            ),
-
-        (Data::Tuple { fields }, None) => {
-            use ::serde::ser::SerializeTupleStruct as _;
-
-            let mut ts = serializer.serialize_tuple_struct(as_static_str(name), fields.len())?;
-            for field in &**fields {
-                ts.serialize_field(field)?;
-            }
-            ts.end()
-        }
-        (Data::Tuple { fields }, Some((enum_name, discriminant))) => {
-            use ::serde::ser::SerializeTupleVariant as _;
-
-            let mut tv = serializer.serialize_tuple_variant(
-                as_static_str(enum_name),
-                discriminant,
-                as_static_str(name),
-                fields.len(),
-            )?;
-            for field in &**fields {
-                tv.serialize_field(field)?;
-            }
-            tv.end()
-        }
-
-        (Data::Struct { fields }, None) => {
-            use ::serde::ser::SerializeStruct as _;
-
-            let mut st = serializer.serialize_struct(as_static_str(name), fields.len())?;
-            for (key, val) in &**fields {
-                st.serialize_field(as_static_str(key), val)?;
-            }
-            st.end()
-        }
-        (Data::Struct { fields }, Some((enum_name, discriminant))) => {
-            use ::serde::ser::SerializeStructVariant as _;
-
-            let mut sv = serializer.serialize_struct_variant(
-                as_static_str(enum_name),
-                discriminant,
-                as_static_str(name),
-                fields.len(),
-            )?;
-            for (key, val) in &**fields {
-                sv.serialize_field(as_static_str(key), val)?;
-            }
-            sv.end()
         }
     }
 }
