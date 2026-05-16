@@ -1,7 +1,7 @@
 //! Usage help generator from schemas.
 //!
 //! ```
-//! use cecetype::{Schema, parse::cli::help::Help};
+//! use cecetype::{Schema, flavors::Static, parse::cli::spec::Spec};
 //!
 //! #[derive(Schema)]
 //! struct Request { id: u64, msg: String }
@@ -9,7 +9,7 @@
 //! #[derive(Schema)]
 //! struct Response { ok: bool }
 //!
-//! let help = Help::new("cmd", "Does something", Request::SCHEMA, Response::SCHEMA).unwrap().to_string();
+//! let help = Spec::<Static>::new("cmd", "Does something", Request::SCHEMA, Response::SCHEMA).unwrap().to_string();
 //! assert_eq!(help, "\
 //!cmd -- Does something
 //!
@@ -77,7 +77,7 @@ pub struct FoundRef<'s, SF: SchemaFlavor<'s>>(pub SF::Str);
 impl<'s, SF: SchemaFlavor<'s>> Spec<'s, SF> {
     /// Create help for request/response schemas.
     ///
-    /// Returns `Err(FoundRef)` if schemas contain `Ref` nodes.
+    /// Returns `Err(FoundRef)` if the request schema contains `Ref` nodes.
     #[inline]
     pub fn new(
         name: SF::Str,
@@ -86,7 +86,6 @@ impl<'s, SF: SchemaFlavor<'s>> Spec<'s, SF> {
         response: SF::Ptr<Schema<'s, SF>>,
     ) -> Result<Self, FoundRef<'s, SF>> {
         find_ref(&request)
-            .or_else(|| find_ref(&response))
             .map(|name| FoundRef(name.clone()))
             .map_or(Ok(()), Err)?;
 

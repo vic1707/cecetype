@@ -10,8 +10,8 @@
 //! let value: OwnedValue = Request::SCHEMA.build_value(&mut parser).unwrap();
 //! ```
 
-pub mod spec;
 mod lexer;
+pub mod spec;
 mod word;
 
 use self::{

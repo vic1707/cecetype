@@ -670,11 +670,10 @@ fn example_roundtrip<T: Schema>(#[case] _ty: PhantomData<T>) {
 #[rstest::rstest]
 #[case::schema(PhantomData::<schema::Schema<Owned>>)]
 #[case::value(PhantomData::<schema::Data<Owned>>)]
-fn ref_is_rejected<T: Schema>(#[case] _ty: PhantomData<T>) {
+fn request_ref_is_rejected_response_ref_is_allowed<T: Schema>(#[case] _ty: PhantomData<T>) {
     // as request
     let FoundRef(_) =
         Spec::<Static>::new("cmd", "", <T as Schema>::SCHEMA, <() as Schema>::SCHEMA).unwrap_err();
-    // as response
-    let FoundRef(_) =
-        Spec::<Static>::new("cmd", "", <() as Schema>::SCHEMA, <T as Schema>::SCHEMA).unwrap_err();
+    // fine when in response
+    let _ = Spec::<Static>::new("cmd", "", <() as Schema>::SCHEMA, <T as Schema>::SCHEMA).unwrap();
 }
