@@ -14,6 +14,52 @@ pub enum BuildError<'schema, E: error::Error> {
     Parser(E),
 }
 
+#[cfg(feature = "miette")]
+impl<E: error::Error + ::miette::Diagnostic> ::miette::Diagnostic for BuildError<'_, E> {
+    #[inline]
+    fn code<'a>(&'a self) -> Option<::std::boxed::Box<dyn ::core::fmt::Display + 'a>> {
+        match self {
+            Self::UnresolvedRef(_) => Some(::std::boxed::Box::new(
+                "cecetype::parse::unresolved_schema_ref",
+            )),
+            Self::Parser(err) => ::miette::Diagnostic::code(err),
+        }
+    }
+
+    #[inline]
+    fn help<'a>(&'a self) -> Option<::std::boxed::Box<dyn ::core::fmt::Display + 'a>> {
+        match self {
+            Self::UnresolvedRef(_) => Some(::std::boxed::Box::new(
+                "make sure referenced schemas are registered before parsing",
+            )),
+            Self::Parser(err) => ::miette::Diagnostic::help(err),
+        }
+    }
+
+    #[inline]
+    fn source_code(&self) -> Option<&dyn ::miette::SourceCode> {
+        match self {
+            Self::UnresolvedRef(_) => None,
+            Self::Parser(err) => ::miette::Diagnostic::source_code(err),
+        }
+    }
+
+    #[inline]
+    fn labels(&self) -> Option<::std::boxed::Box<dyn Iterator<Item = ::miette::LabeledSpan> + '_>> {
+        match self {
+            Self::UnresolvedRef(_) => None,
+            Self::Parser(err) => ::miette::Diagnostic::labels(err),
+        }
+    }
+
+    #[inline]
+    fn diagnostic_source(&self) -> Option<&dyn ::miette::Diagnostic> {
+        // Parser diagnostics are flattened onto this wrapper via code/help/source/labels.
+        // Returning them here as a cause makes miette render duplicate snippets.
+        None
+    }
+}
+
 /// Parse text into [`Value`](crate::value::Value) following a schema.
 pub trait Parser<'s, VB: flavors::ValueBuilder>: Sized {
     type Error: error::Error;

@@ -115,13 +115,15 @@ Serde `rename` and `skip` attributes are also supported.
 
 ## Features
 
-| Feature    | Description                         |
-| ---------- | ----------------------------------- |
-| `default`  | Enables `alloc` + `cli`             |
-| `alloc`    | Owned types: `Box`, `Vec`, `String` |
-| `std`      | Full std support (implies `alloc`)  |
-| `heapless` | `heapless::Vec` support             |
-| `cli`      | CLI text parser                     |
+| Feature         | Description                                      |
+| --------------- | ------------------------------------------------ |
+| `default`       | Enables `derive` + `alloc` + `cli`               |
+| `alloc`         | Owned types: `Box`, `Vec`, `String`              |
+| `std`           | Full std support (implies `alloc`)               |
+| `heapless`      | `heapless::Vec` support                          |
+| `cli`           | CLI text parser                                  |
+| `miette`        | CLI diagnostics (implies `std` + `cli`)          |
+| `miette-fancy`  | Graphical CLI diagnostics (implies `miette`)     |
 
 ## Acknowledgements
 

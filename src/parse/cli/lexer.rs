@@ -1,7 +1,13 @@
 //! Tokenizer for CLI input.
 
 use super::word::Word;
-use ::core::fmt;
+use ::core::{fmt, ops::Range};
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub(super) struct Spanned<T> {
+    pub value: T,
+    pub span: Range<usize>,
+}
 
 /// Tokens produced by the lexer.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -55,7 +61,7 @@ impl<'a> Tokens<'a> {
 }
 
 impl<'a> Iterator for Tokens<'a> {
-    type Item = Result<Token<'a>, LexError>;
+    type Item = Spanned<Result<Token<'a>, LexError>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let bytes = self.input.as_bytes();
@@ -64,6 +70,7 @@ impl<'a> Iterator for Tokens<'a> {
             self.pos += 1;
         }
 
+        let token_start = self.pos;
         let tok = match *bytes.get(self.pos)? {
             b'(' => Token::LParen,
             b')' => Token::RParen,
@@ -80,7 +87,12 @@ impl<'a> Iterator for Tokens<'a> {
 
                 loop {
                     match bytes.get(self.pos) {
-                        None => return Some(Err(LexError::UnexpectedEOF)),
+                        None => {
+                            return Some(Spanned {
+                                value: Err(LexError::UnexpectedEOF),
+                                span: token_start..self.input.len(),
+                            });
+                        }
                         Some(b'\\') => self.pos += 2,
                         Some(&ch) if ch == quote => break,
                         Some(_) => self.pos += 1,
@@ -100,7 +112,10 @@ impl<'a> Iterator for Tokens<'a> {
         };
 
         self.pos += 1;
-        Some(Ok(tok))
+        Some(Spanned {
+            value: Ok(tok),
+            span: token_start..self.pos,
+        })
     }
 }
 
@@ -131,7 +146,7 @@ mod tests {
     fn lex<const N: usize>(#[case] input: &str, #[case] expected_tokens: [Token; N]) {
         let mut toks = Tokens::new(input);
         assert_eq!(
-            array::from_fn(|_| toks.next().unwrap().unwrap()),
+            array::from_fn(|_| toks.next().unwrap().value.unwrap()),
             expected_tokens
         );
         assert!(toks.next().is_none());
@@ -143,7 +158,7 @@ mod tests {
     #[case::escape_endquote("'a\\'", LexError::UnexpectedEOF)]
     fn lex_error(#[case] input: &str, #[case] expected_error: LexError) {
         assert_eq!(
-            Tokens::new(input).next().unwrap().unwrap_err(),
+            Tokens::new(input).next().unwrap().value.unwrap_err(),
             expected_error
         );
     }

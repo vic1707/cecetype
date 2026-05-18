@@ -15,11 +15,11 @@ pub mod spec;
 mod word;
 
 use self::{
-    lexer::{LexError, Token, Tokens},
+    lexer::{LexError, Spanned, Token, Tokens},
     word::{ParseError, Word},
 };
 use crate::{flavors, schema, value};
-use ::core::{fmt, iter::Peekable, mem};
+use ::core::{fmt, iter::Peekable, mem, ops::Range};
 
 /// CLI parser error with location info.
 #[derive(Debug, ::thiserror::Error)]
@@ -31,6 +31,8 @@ use ::core::{fmt, iter::Peekable, mem};
 pub struct Error<'input, S> {
     pub path: S,
     pub kind: ErrorKind<'input>,
+    pub input: &'input str,
+    pub span: Range<usize>,
 }
 
 /// CLI parser error kinds.
@@ -54,10 +56,71 @@ pub enum ErrorKind<'input> {
     VariantNotFound(&'input str),
 }
 
+impl<'input> Token<'input> {
+    const fn word(self) -> Result<Word<'input>, ErrorKind<'input>> {
+        if let Self::Word(word) = self {
+            return Ok(word);
+        }
+        Err(ErrorKind::UnexpectedToken(self))
+    }
+}
+
+#[cfg(feature = "miette")]
+impl<S> ::miette::Diagnostic for Error<'_, S>
+where
+    S: AsRef<str> + fmt::Debug + fmt::Display,
+{
+    #[inline]
+    fn code<'a>(&'a self) -> Option<::std::boxed::Box<dyn fmt::Display + 'a>> {
+        let code = match &self.kind {
+            ErrorKind::Lex(_) => "cecetype::cli::lex",
+            ErrorKind::Parse(_) => "cecetype::cli::parse_atom",
+            ErrorKind::UnexpectedQuotedWord => "cecetype::cli::unexpected_quoted_word",
+            ErrorKind::ExpectedQuotedWord => "cecetype::cli::expected_quoted_word",
+            ErrorKind::EOF => "cecetype::cli::unexpected_eof",
+            ErrorKind::UnexpectedToken(_) => "cecetype::cli::unexpected_token",
+            ErrorKind::UnexpectedExpectedToken(_, _) => "cecetype::cli::unexpected_token",
+            ErrorKind::VariantNotFound(_) => "cecetype::cli::variant_not_found",
+        };
+        Some(::std::boxed::Box::new(code))
+    }
+
+    #[inline]
+    fn help<'a>(&'a self) -> Option<::std::boxed::Box<dyn fmt::Display + 'a>> {
+        let help = match &self.kind {
+            ErrorKind::UnexpectedQuotedWord => "remove quotes around non-string values",
+            ErrorKind::ExpectedQuotedWord => "wrap string and character values in quotes",
+            ErrorKind::UnexpectedExpectedToken(_, _) => {
+                "check the command usage for expected separators and grouping"
+            }
+            ErrorKind::VariantNotFound(_) => {
+                "choose one of the enum variants from the command usage"
+            }
+            _ => return None,
+        };
+        Some(::std::boxed::Box::new(help))
+    }
+
+    #[inline]
+    fn source_code(&self) -> Option<&dyn ::miette::SourceCode> {
+        Some(&self.input as &dyn ::miette::SourceCode)
+    }
+
+    #[inline]
+    fn labels(&self) -> Option<::std::boxed::Box<dyn Iterator<Item = ::miette::LabeledSpan> + '_>> {
+        let label = ::std::format!("while parsing {}", self.path.as_ref());
+        Some(::std::boxed::Box::new(::core::iter::once(
+            ::miette::LabeledSpan::new_primary_with_span(Some(label), self.span.clone()),
+        )))
+    }
+}
+
 #[derive(Debug)]
 pub struct Parser<'input, VB: flavors::ValueBuilder> {
+    input: &'input str,
     tokens: Peekable<Tokens<'input>>,
     path: VB::Str,
+    last_span: Range<usize>,
     depth: u32,
 }
 
@@ -66,8 +129,10 @@ impl<'input, VB: flavors::ValueBuilder> Parser<'input, VB> {
     #[must_use]
     pub fn new(input: &'input str) -> Self {
         Self {
+            input,
             tokens: Tokens::new(input).peekable(),
             path: VB::make_str("<root>"),
+            last_span: input.len()..input.len(),
             depth: 0,
         }
     }
@@ -76,40 +141,35 @@ impl<'input, VB: flavors::ValueBuilder> Parser<'input, VB> {
         Error {
             path: VB::make_str(self.path.as_ref()),
             kind: err,
+            input: self.input,
+            span: self.last_span.clone(),
         }
+    }
+
+    fn lift_eof_err(&mut self) -> Error<'input, VB::Str> {
+        let end = self.input.len();
+        self.last_span = end..end;
+        self.lift_err(ErrorKind::EOF)
     }
 }
 
 impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'input, VB> {
-    type Atom = Word<'input>;
+    type Atom = Token<'input>;
     type Error = Error<'input, VB::Str>;
 
     #[inline]
     fn next_atom(&mut self) -> Result<Self::Atom, Self::Error> {
-        let Some(tok) = self.tokens.next() else {
-            return Err(self.lift_err(ErrorKind::EOF));
+        let Some(Spanned { value, span }) = self.tokens.next() else {
+            return Err(self.lift_eof_err());
         };
+        self.last_span = span;
 
-        match tok
-            .map_err(ErrorKind::Lex)
-            .map_err(|err| self.lift_err(err))?
-        {
-            Token::Word(word) => Ok(word),
-            utok @ (Token::LParen
-            | Token::RParen
-            | Token::LBracket
-            | Token::RBracket
-            | Token::LBrace
-            | Token::RBrace
-            | Token::Comma
-            | Token::Colon
-            | Token::Eq) => Err(self.lift_err(ErrorKind::UnexpectedToken(utok))),
-        }
+        value.map_err(|err| self.lift_err(ErrorKind::Lex(err)))
     }
 
     #[inline]
     fn parse_unit(&mut self) -> Result<(), Self::Error> {
-        if self.consume_if(Token::LParen) {
+        if self.consume_if(&Token::LParen) {
             self.expect(Token::RParen)?;
         }
         Ok(())
@@ -117,105 +177,124 @@ impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'in
 
     #[inline]
     fn finish(&mut self) -> Result<(), Self::Error> {
-        match self.tokens.next() {
-            None => Ok(()),
-            Some(Ok(tok)) => Err(self.lift_err(ErrorKind::UnexpectedToken(tok))),
-            Some(Err(err)) => Err(self.lift_err(err.into())),
+        let Some(Spanned { value, span }) = self.tokens.next() else {
+            return Ok(());
+        };
+        self.last_span = span;
+
+        match value {
+            Ok(tok) => Err(self.lift_err(ErrorKind::UnexpectedToken(tok))),
+            Err(err) => Err(self.lift_err(err.into())),
         }
     }
 
     #[inline]
     fn parse_bool(&mut self) -> Result<bool, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_bool()
+            .word()
+            .and_then(Word::parse_bool)
             .map_err(|err| self.lift_err(err))
     }
 
     #[inline]
     fn parse_string(&mut self) -> Result<impl AsRef<str>, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_string()
+            .word()
+            .and_then(Word::parse_string)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_char(&mut self) -> Result<char, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_char()
+            .word()
+            .and_then(Word::parse_char)
             .map_err(|err| self.lift_err(err))
     }
 
     #[inline]
     fn parse_u8(&mut self) -> Result<u8, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_u8()
+            .word()
+            .and_then(Word::parse_u8)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_u16(&mut self) -> Result<u16, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_u16()
+            .word()
+            .and_then(Word::parse_u16)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_u32(&mut self) -> Result<u32, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_u32()
+            .word()
+            .and_then(Word::parse_u32)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_u64(&mut self) -> Result<u64, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_u64()
+            .word()
+            .and_then(Word::parse_u64)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_u128(&mut self) -> Result<u128, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_u128()
+            .word()
+            .and_then(Word::parse_u128)
             .map_err(|err| self.lift_err(err))
     }
 
     #[inline]
     fn parse_i8(&mut self) -> Result<i8, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_i8()
+            .word()
+            .and_then(Word::parse_i8)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_i16(&mut self) -> Result<i16, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_i16()
+            .word()
+            .and_then(Word::parse_i16)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_i32(&mut self) -> Result<i32, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_i32()
+            .word()
+            .and_then(Word::parse_i32)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_i64(&mut self) -> Result<i64, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_i64()
+            .word()
+            .and_then(Word::parse_i64)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_i128(&mut self) -> Result<i128, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_i128()
+            .word()
+            .and_then(Word::parse_i128)
             .map_err(|err| self.lift_err(err))
     }
 
     #[inline]
     fn parse_f32(&mut self) -> Result<f32, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_f32()
+            .word()
+            .and_then(Word::parse_f32)
             .map_err(|err| self.lift_err(err))
     }
     #[inline]
     fn parse_f64(&mut self) -> Result<f64, Self::Error> {
         <Self as super::Parser<'s, VB>>::next_atom(self)?
-            .parse_f64()
+            .word()
+            .and_then(Word::parse_f64)
             .map_err(|err| self.lift_err(err))
     }
 
@@ -234,7 +313,7 @@ impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'in
 
         let mut fields = VB::list();
 
-        while !self.consume_if(Token::RBrace) {
+        while !self.consume_if(&Token::RBrace) {
             let key = builder(self, key_schema)?;
 
             let new_path =
@@ -251,7 +330,7 @@ impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'in
             let value = result?;
 
             VB::list_push(&mut fields, (key, value));
-            self.consume_if(Token::Comma);
+            self.consume_if(&Token::Comma);
         }
 
         Ok(fields)
@@ -293,10 +372,10 @@ impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'in
 
         let mut values = VB::list();
 
-        while !self.consume_if(Token::RBracket) {
+        while !self.consume_if(&Token::RBracket) {
             let val = builder(self, element)?;
             VB::list_push(&mut values, val);
-            self.consume_if(Token::Comma);
+            self.consume_if(&Token::Comma);
         }
 
         Ok(values)
@@ -342,8 +421,8 @@ impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'in
             &'s schema::Schema<'s, SF>,
         ) -> Result<value::Value<VB>, super::BuildError<'s, Self::Error>>,
     ) -> Result<Option<VB::Ptr<value::Value<VB>>>, super::BuildError<'s, Self::Error>> {
-        if self.consume_if(Token::Word(Word::Bare("none")))
-            || self.consume_if(Token::Word(Word::Bare("null")))
+        if self.consume_if(&Token::Word(Word::Bare("none")))
+            || self.consume_if(&Token::Word(Word::Bare("null")))
             || self.tokens.peek().is_none()
         {
             return Ok(None);
@@ -400,7 +479,11 @@ impl<'input, 's, VB: flavors::ValueBuilder> super::Parser<'s, VB> for Parser<'in
         ) -> Result<value::Value<VB>, super::BuildError<'s, Self::Error>>,
     ) -> Result<(u32, VB::Str, value::Data<VB>), super::BuildError<'s, Self::Error>> {
         let input_name = <Self as super::Parser<'s, VB>>::next_atom(self)
-            .and_then(|atom| atom.bare().map_err(|err| self.lift_err(err)))
+            .and_then(|atom| {
+                atom.word()
+                    .and_then(Word::bare)
+                    .map_err(|err| self.lift_err(err))
+            })
             .map_err(super::BuildError::Parser)?;
 
         let Some(variant) = (**variants)
@@ -477,21 +560,20 @@ impl<'i, VB: flavors::ValueBuilder> Parser<'i, VB> {
         })
     }
 
-    fn expect(&mut self, token: Token<'i>) -> Result<(), Error<'i, VB::Str>> {
-        let tok = self
-            .tokens
-            .next()
-            .ok_or_else(|| self.lift_err(ErrorKind::EOF))?
-            .map_err(|err| self.lift_err(err.into()))?;
+    fn expect(&mut self, expected: Token<'i>) -> Result<(), Error<'i, VB::Str>> {
+        let token = <Self as super::Parser<'i, VB>>::next_atom(self)?;
 
-        if tok != token {
-            return Err(self.lift_err(ErrorKind::UnexpectedExpectedToken(tok, token)));
+        if token != expected {
+            return Err(self.lift_err(ErrorKind::UnexpectedExpectedToken(token, expected)));
         }
         Ok(())
     }
 
-    fn consume_if(&mut self, token: Token<'i>) -> bool {
-        self.tokens.next_if_eq(&Ok(token)).is_some()
+    fn consume_if(&mut self, token: &Token<'i>) -> bool {
+        self.tokens
+            .next_if(|spanned| matches!(&spanned.value, Ok(value) if value == token))
+            .map(|Spanned { span, .. }| self.last_span = span)
+            .is_some()
     }
 
     fn parse_field<'s, SF: flavors::SchemaFlavor<'s>>(
@@ -537,7 +619,7 @@ impl<'i, VB: flavors::ValueBuilder> Parser<'i, VB> {
         }
 
         if let Some(sep) = separator {
-            self.consume_if(sep);
+            self.consume_if(&sep);
         }
 
         Ok(values)

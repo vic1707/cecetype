@@ -115,3 +115,171 @@ fn cli_parser_expects_error<T: Schema>(
 
     assert_eq!(format!("{err}"), error_msg);
 }
+
+#[cfg(feature = "miette")]
+#[test]
+fn cli_parser_error_exposes_miette_diagnostic_span() {
+    use ::miette::Diagnostic as _;
+
+    let mut source = Parser::new("some(42 maybe) 7");
+
+    let err = WithOptionalStruct::SCHEMA
+        .build_value::<Owned, _>(&mut source)
+        .unwrap_err();
+
+    assert_eq!(err.code().unwrap().to_string(), "cecetype::cli::parse_atom");
+    assert!(err.source_code().is_some());
+
+    let labels = err.labels().unwrap().collect::<alloc::vec::Vec<_>>();
+    assert_eq!(labels[0].offset(), 8);
+    assert_eq!(labels[0].len(), 5);
+}
+
+#[cfg(feature = "miette")]
+#[test]
+fn cli_parser_error_prints_miette_report() {
+    let mut source = Parser::new("some(42 maybe) 7");
+
+    let err = WithOptionalStruct::SCHEMA
+        .build_value::<Owned, _>(&mut source)
+        .unwrap_err();
+    let mut rendered = String::new();
+    ::miette::NarratableReportHandler::new()
+        .render_report(&mut rendered, &err)
+        .unwrap();
+
+    assert_eq!(
+        rendered,
+        "\
+parser error: at <root>.inner.b: parse error: invalid bool
+    Diagnostic severity: error
+Begin snippet starting at line 1, column 1
+
+snippet line 1: some(42 maybe) 7
+    label at line 1, columns 9 to 13: while parsing <root>.inner.b
+diagnostic code: cecetype::cli::parse_atom
+"
+    );
+}
+
+#[cfg(feature = "miette")]
+#[test]
+fn cli_unresolved_ref_error_prints_miette_report() {
+    let mut source = Parser::new("anything");
+
+    let err = DanglingRef::SCHEMA
+        .build_value::<Owned, _>(&mut source)
+        .unwrap_err();
+    let mut rendered = String::new();
+    ::miette::NarratableReportHandler::new()
+        .render_report(&mut rendered, &err)
+        .unwrap();
+
+    assert_eq!(
+        rendered,
+        "\
+unresolved schema ref: 'NoSuchType'
+    Diagnostic severity: error
+diagnostic help: make sure referenced schemas are registered before parsing
+diagnostic code: cecetype::parse::unresolved_schema_ref
+"
+    );
+}
+
+#[cfg(feature = "miette-fancy")]
+#[test]
+fn cli_parser_error_prints_graphical_miette_report() {
+    use ::core::fmt;
+
+    struct Render<'a, D> {
+        handler: &'a dyn ::miette::ReportHandler,
+        diagnostic: &'a D,
+    }
+
+    impl<D: ::miette::Diagnostic> fmt::Debug for Render<'_, D> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.handler.debug(self.diagnostic, f)
+        }
+    }
+
+    let mut source = Parser::new("some(42 maybe) 7");
+
+    let err = WithOptionalStruct::SCHEMA
+        .build_value::<Owned, _>(&mut source)
+        .unwrap_err();
+    let handler = ::miette::MietteHandlerOpts::new()
+        .force_graphical(true)
+        .color(false)
+        .unicode(false)
+        .terminal_links(false)
+        .width(80)
+        .build();
+    let rendered = format!(
+        "{:?}",
+        Render {
+            handler: &handler,
+            diagnostic: &err,
+        }
+    );
+
+    assert_eq!(
+        rendered,
+        "\
+cecetype::cli::parse_atom
+
+  x parser error: at <root>.inner.b: parse error: invalid bool
+   ,----
+ 1 | some(42 maybe) 7
+   :         ^^|^^
+   :           `-- while parsing <root>.inner.b
+   `----
+"
+    );
+}
+
+#[cfg(feature = "miette-fancy")]
+#[test]
+fn cli_unresolved_ref_error_prints_graphical_miette_report() {
+    use ::core::fmt;
+
+    struct Render<'a, D> {
+        handler: &'a dyn ::miette::ReportHandler,
+        diagnostic: &'a D,
+    }
+
+    impl<D: ::miette::Diagnostic> fmt::Debug for Render<'_, D> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.handler.debug(self.diagnostic, f)
+        }
+    }
+
+    let mut source = Parser::new("anything");
+
+    let err = DanglingRef::SCHEMA
+        .build_value::<Owned, _>(&mut source)
+        .unwrap_err();
+    let handler = ::miette::MietteHandlerOpts::new()
+        .force_graphical(true)
+        .color(false)
+        .unicode(false)
+        .terminal_links(false)
+        .width(80)
+        .build();
+    let rendered = format!(
+        "{:?}",
+        Render {
+            handler: &handler,
+            diagnostic: &err,
+        }
+    );
+
+    assert_eq!(
+        rendered,
+        "\
+cecetype::parse::unresolved_schema_ref
+
+  x unresolved schema ref: 'NoSuchType'
+  help: make sure referenced schemas are registered before parsing
+"
+    );
+}
