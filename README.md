@@ -135,17 +135,27 @@ Strings and chars must be quoted. Backslashes are only used by the lexer to let 
 
 `parse::cli::spec::Spec` formats a command name, description, request schema, response schema, usage line, and example. This is meant for capability-driven tools:
 
-```rust,ignore
+```rust
 use cecetype::{Schema, flavors::Static, parse::cli::spec::Spec};
 
 let spec = Spec::<Static>::new(
     "update",
-    "Update runtime configuration",
-    Update::SCHEMA,
+    "Update read frequency",
+    <u8 as Schema>::SCHEMA,
     <() as Schema>::SCHEMA,
-)?;
+).unwrap();
 
 assert_eq!(spec.to_string(), "\
+update -- Update read frequency
+
+USAGE:
+	update <u8>
+
+EXAMPLE:
+	update 0
+
+RESPONSE:
+	()
 
 ")
 ```
