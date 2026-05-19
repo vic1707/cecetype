@@ -1,7 +1,13 @@
+//! Dynamic values built from schemas.
+//!
+//! A [`Value`] stores runtime data, but its serde representation follows the
+//! schema it was built from. It is meant to disappear on the wire: receivers see
+//! their normal typed serde data, not a `Value` enum.
+
 use crate::{flavors::ValueFlavor, utils::as_static_str};
 use ::core::fmt;
 
-/// Struct/enum value data.
+/// Runtime payload for struct-like and enum-variant-like values.
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
 #[non_exhaustive]
 pub enum Data<VF: ValueFlavor> {
@@ -17,7 +23,10 @@ pub enum Data<VF: ValueFlavor> {
     },
 }
 
-/// Runtime value representation. Mirrors [`Schema`](crate::schema::Schema) variants with actual data.
+/// Runtime value representation.
+///
+/// Values mirror [`Schema`](crate::schema::Schema) variants with actual data and
+/// serialize as their represented type.
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `VF` bounds
 #[non_exhaustive]
 pub enum Value<VF: ValueFlavor> {

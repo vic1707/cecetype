@@ -1,13 +1,17 @@
-//! CLI text parser for building values from user input.
+//! Positional CLI parser for building values from user input.
+//!
+//! The parser is designed to pair with [`spec`] output. Struct fields and tuple
+//! fields are read in schema order, while nested multi-field values are grouped
+//! with parentheses.
 //!
 //! ```
-//! use cecetype::{Schema, OwnedValue, parse::cli::Parser};
+//! use cecetype::{OwnedValue, Schema, parse::cli::Parser, flavors::Owned};
 //!
 //! #[derive(Schema)]
 //! struct Request { id: u32, name: Option<String>, msg: String }
 //!
 //! let mut parser = Parser::new(r#"42 some('toto') 'hello'"#);
-//! let value: OwnedValue = Request::SCHEMA.build_value(&mut parser).unwrap();
+//! let value: OwnedValue = Request::SCHEMA.build_value::<Owned, _>(&mut parser).unwrap();
 //! ```
 
 mod lexer;

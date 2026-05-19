@@ -18,9 +18,12 @@ pub mod value;
 #[cfg(feature = "derive")]
 pub use ::cecetype_macros::Schema;
 
-/// Schema definition for a type.
+/// Compile-time schema for a Rust type.
 ///
-/// Implement via `#[derive(Schema)]` or manually:
+/// Schemas are plain data. Derived schemas are `&'static` and can be
+/// used in `no_std` code without allocation.
+///
+/// Implement this trait with `#[derive(Schema)]` or manually:
 /// ```
 /// use cecetype::{Schema, StaticSchema, schema::Schema as S};
 ///
@@ -39,19 +42,20 @@ pub use ::cecetype_macros::Schema;
 /// }
 /// ```
 pub trait Schema {
+    /// Static schema describing `Self`.
     const SCHEMA: &'static StaticSchema;
 }
 
-/// Schema with `Box<T>` / `Vec<T>` / `String`.
+/// Schema storage using `Box<T>`, `Vec<T>`, and `String`.
 #[cfg(feature = "alloc")]
 pub type OwnedSchema<'s> = schema::Schema<'s, flavors::Owned>;
-/// Value with owned storage.
+/// Dynamic value storage using `Box<T>`, `Vec<T>`, and `String`.
 #[cfg(feature = "alloc")]
 pub type OwnedValue = value::Value<flavors::Owned>;
 
-/// Schema with `&'s T` / `&'s [&'s T]` borrowing from input.
+/// Schema storage borrowing from an input lifetime.
 pub type BorrowedSchema<'s> = schema::Schema<'s, flavors::Borrowed>;
-/// Schema with `&'static T` / `&'static [&'static T]` (zero-copy).
+/// Schema storage for static, zero-allocation schemas.
 pub type StaticSchema = schema::Schema<'static, flavors::Static>;
 
 #[cfg(test)]

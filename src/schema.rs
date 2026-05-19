@@ -1,3 +1,5 @@
+//! Schema data model and schema-driven decoding.
+
 #![expect(clippy::module_name_repetitions, reason = "_")]
 mod primitive_impls;
 mod visitors;
@@ -13,7 +15,9 @@ use ::{
     serde::{Deserialize, Serialize, de},
 };
 
-/// Reference type for recursive/cyclic schemas.
+/// Reference marker used inside recursive or shared schemas.
+///
+/// References are resolved by name while decoding or parsing a value.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ::cecetype_macros::Schema)]
 #[non_exhaustive]
 pub enum RefKind {
@@ -21,7 +25,7 @@ pub enum RefKind {
     Slice,
 }
 
-/// Struct/enum data representation.
+/// Payload shape for struct-like and enum-variant-like data.
 #[derive(::cecetype_macros::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
@@ -53,7 +57,10 @@ pub enum Data<'s, SF: SchemaFlavor<'s>> {
     },
 }
 
-/// Type schema representation.
+/// Runtime representation of a Rust type.
+///
+/// This is the data produced by `#[derive(crate::Schema)]`. It can also be
+/// serialized and sent to a dynamic client.
 #[derive(::cecetype_macros::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
@@ -143,7 +150,7 @@ pub enum Schema<'s, SF: SchemaFlavor<'s>> {
     ),
 }
 
-/// Field metadata: name and type schema.
+/// Field name and type schema.
 #[derive(::cecetype_macros::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)] // prevents compiler bounds check overflow & `SF` bounds
@@ -161,7 +168,7 @@ pub struct FieldSchema<'s, SF: SchemaFlavor<'s>> {
     pub ty: SF::Ptr<Schema<'s, SF>>,
 }
 
-/// Enum variant metadata.
+/// Enum variant discriminant, name, and payload schema.
 #[derive(::cecetype_macros::Schema)]
 #[schema(bounds(SF::Str: crate::Schema))]
 #[::derive_where::derive_where(Clone, Debug, PartialEq;)]

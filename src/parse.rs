@@ -1,11 +1,15 @@
-//! Parsing spec for building [`Value`](crate::value::Value) from input.
+//! Parser abstraction for building [`Value`](crate::value::Value) from schemas.
+//!
+//! A parser provides typed atoms and container boundaries. The built-in CLI
+//! parser is one implementation, but the trait can also drive other dynamic
+//! inputs.
 use crate::{flavors, schema, value};
 use ::core::error;
 
 #[cfg(feature = "cli")]
 pub mod cli;
 
-/// Error when building a value from a parser.
+/// Error produced while building a value from a schema and parser.
 #[derive(Debug, ::thiserror::Error)]
 pub enum BuildError<'schema, E: error::Error> {
     #[error("unresolved schema ref: '{0}'")]
@@ -60,7 +64,10 @@ impl<E: error::Error + ::miette::Diagnostic> ::miette::Diagnostic for BuildError
     }
 }
 
-/// Parse text into [`Value`](crate::value::Value) following a schema.
+/// Source of typed values for schema-driven parsing.
+///
+/// Implement this trait when input is not already a serde format but can still
+/// be walked according to a schema.
 pub trait Parser<'s, VB: flavors::ValueBuilder>: Sized {
     type Error: error::Error;
     type Atom;

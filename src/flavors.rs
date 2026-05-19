@@ -1,6 +1,6 @@
-//! Memory models for schema/value storage.
+//! Memory models for schema and value storage.
 //!
-//! Flavors define how pointers, lists, and strings are stored:
+//! Flavors keep the schema and value APIs generic over allocation strategy.
 mod borrowed;
 #[cfg(feature = "alloc")]
 mod owned;
@@ -14,7 +14,7 @@ use ::core::{
     ops::{Deref, DerefMut},
 };
 
-/// Memory model for schema storage.
+/// Pointer, list, and string storage used by [`Schema`](crate::schema::Schema).
 pub trait SchemaFlavor<'s>
 where
     Self: 's,
@@ -30,7 +30,7 @@ where
     type Str: AsRef<str> + Clone + PartialEq + fmt::Debug;
 }
 
-/// Extended flavor for deserializing owned data.
+/// Schema flavor that can be deserialized from serde data.
 pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
     fn deserialize_ptr<'de, D, T>(deserializer: D) -> Result<Self::Ptr<T>, D::Error>
     where
@@ -43,7 +43,7 @@ pub trait OwnedSchemaFlavor<'s>: SchemaFlavor<'s> {
         T: ::serde::Deserialize<'de> + Clone + PartialEq + fmt::Debug;
 }
 
-/// Memory model for value storage.
+/// Pointer, list, and string storage used by [`Value`](crate::value::Value).
 pub trait ValueFlavor {
     type Ptr<T: PartialEq + fmt::Debug + Clone>: Deref<Target = T> + PartialEq + fmt::Debug + Clone;
     type List<T: PartialEq + fmt::Debug + Clone>: DerefMut<Target = [T]>
@@ -53,7 +53,7 @@ pub trait ValueFlavor {
     type Str: AsRef<str> + PartialEq + fmt::Debug + fmt::Display + Clone;
 }
 
-/// Factory for creating values.
+/// Factory used while decoding or parsing dynamic values.
 pub trait ValueBuilder: ValueFlavor {
     fn make_ptr<T: PartialEq + fmt::Debug + Clone>(value: T) -> Self::Ptr<T>;
 
